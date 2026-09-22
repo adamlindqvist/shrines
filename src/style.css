@@ -1,0 +1,80 @@
+:root {
+    font-family: ui-rounded, 'SF Pro Rounded', 'Avenir Next Rounded', 'Varela Round', 'Nunito',
+        'Avenir Next', 'Trebuchet MS', system-ui, sans-serif;
+    color: #4d4c42;
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #c6e4cc; }
+canvas { display: block; width: 100%; height: 100%; outline: none; }
+#hud { position: fixed; inset: 0; pointer-events: none; }
+
+.health, .quest, .controls {
+    background: #fdf7ea;
+    box-shadow: 0 4px 16px #3d5a3520, 0 1px 3px #3d5a3512;
+    border-radius: 17px;
+}
+
+.health { position: absolute; top: 22px; left: 24px; padding: 13px 22px 13px; }
+.eyebrow { font-size: 19px; font-weight: 700; letter-spacing: .015em; color: #4a4941; }
+#hearts { font-size: 27px; letter-spacing: 4px; line-height: 1.25; margin-top: 2px; }
+
+.quest {
+    position: absolute; right: 24px; top: 22px;
+    display: flex; gap: 13px; align-items: center; padding: 13px 22px 13px 18px;
+}
+.sun { font-size: 31px; line-height: 1; }
+.quest strong { font-size: 18px; font-weight: 700; color: #45443c; letter-spacing: .005em; }
+.quest p { margin: 3px 0 0; font-size: 13px; color: #6f6e62; font-weight: 500; }
+
+.controls {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    padding: 11px 20px; display: flex; align-items: center; gap: 15px;
+    white-space: nowrap; font-size: 15px; font-weight: 600; color: #4a4941;
+}
+.controls span { display: flex; align-items: center; gap: 9px; }
+.controls b { color: #b4b0a0; font-weight: 700; }
+kbd {
+    font: 700 12.5px/1 ui-rounded, 'SF Pro Rounded', 'Avenir Next Rounded', 'Varela Round', 'Avenir Next', sans-serif;
+    letter-spacing: .05em; background: #6e6d62; color: #fffcf3;
+    border-radius: 7px; padding: 6px 9px;
+}
+
+#toast {
+    position: absolute; bottom: 96px; left: 50%; transform: translate(-50%, 8px);
+    background: #fdf7eaf2; padding: 10px 22px; border-radius: 30px; font-size: 14px; font-weight: 600;
+    opacity: 0; transition: opacity .22s, transform .22s; box-shadow: 0 3px 12px #3d5a3524;
+}
+#toast.visible { opacity: 1; transform: translate(-50%, 0); }
+
+#overlay {
+    position: absolute; inset: 0; background: #33603f33; backdrop-filter: blur(5px);
+    display: grid; place-items: center; pointer-events: auto;
+}
+#overlay[hidden] { display: none; }
+.end-card {
+    background: #fdf7ea; border-radius: 26px; box-shadow: 0 20px 70px #29443635;
+    padding: 36px 46px; max-width: 450px; text-align: center;
+}
+.end-icon { font-size: 50px; }
+.end-card h1 { font-size: 29px; line-height: 1.15; color: #465742; margin: 14px 0; }
+.end-card p { font-size: 15px; line-height: 1.6; color: #7d7c6c; }
+.end-card button {
+    font: 700 15px ui-rounded, 'SF Pro Rounded', 'Varela Round', 'Avenir Next', sans-serif;
+    border: 0; padding: 14px 24px; background: #52784f; color: #fff9e9;
+    border-radius: 13px; cursor: pointer; margin-top: 14px;
+}
+#diagnostics { display: none; }
+
+@media (max-width: 860px) {
+    .health { top: 14px; left: 14px; padding: 10px 15px; }
+    .eyebrow { font-size: 14px; }
+    #hearts { font-size: 20px; letter-spacing: 2px; }
+    .quest { top: 14px; right: 14px; padding: 10px 14px; gap: 9px; }
+    .quest strong { font-size: 14px; }
+    .quest p { max-width: 170px; font-size: 11px; }
+    .sun { font-size: 24px; }
+    .controls { bottom: 14px; padding: 9px 13px; gap: 9px; font-size: 12px; }
+    kbd { font-size: 10px; padding: 5px 7px; }
+}
