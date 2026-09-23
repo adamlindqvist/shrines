@@ -136,7 +136,7 @@ export const twoSunsArea: AdventureArea = {
             position: [0, 22, SPAWN.z + 19.2],
             target: [0, 0, SPAWN.z + 0.74],
             orthoHeight: 10,
-            minVisibleWidth: 6,
+            framedHalfWidth: 6,
             clearColor: new Color(0.73, 0.9, 0.83)
         },
         follow: { x: 1, z: 1, anchorZ: SPAWN.z, rate: 4 }

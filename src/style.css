@@ -22,6 +22,7 @@ canvas {
     width: 100%;
     height: 100%;
     outline: none;
+    touch-action: none;
 }
 #hud {
     position: fixed;
@@ -196,6 +197,81 @@ kbd {
     display: none;
 }
 
+/* Touch controls: joystick bottom-left, attack bottom-right; shown on touch devices. */
+.touch-stick,
+.touch-attack {
+    position: absolute;
+    display: none;
+    border-radius: 50%;
+    pointer-events: auto;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+#hud.touch .touch-stick,
+#hud.touch .touch-attack {
+    display: grid;
+    place-items: center;
+}
+@media (pointer: coarse) {
+    .touch-stick,
+    .touch-attack {
+        display: grid;
+        place-items: center;
+    }
+}
+.touch-stick {
+    left: 24px;
+    bottom: 24px;
+    width: 128px;
+    height: 128px;
+    background: #fdf7eab8;
+    box-shadow:
+        0 4px 16px #3d5a3520,
+        0 1px 3px #3d5a3512,
+        inset 0 0 0 3px #fdf7ea;
+}
+.touch-knob {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #6e6d62;
+    box-shadow:
+        0 3px 8px #3d5a3538,
+        inset 0 -3px 0 #5a594f;
+    pointer-events: none;
+}
+.touch-attack {
+    right: 28px;
+    bottom: 34px;
+    width: 88px;
+    height: 88px;
+    border: 0;
+    padding: 0;
+    font-size: 36px;
+    line-height: 1;
+    background: #52784f;
+    box-shadow:
+        0 5px 16px #29443640,
+        inset 0 -4px 0 #43653f,
+        inset 0 0 0 3px #fdf7ea55;
+    cursor: pointer;
+    transition: transform 0.08s;
+}
+.touch-attack:active {
+    transform: scale(0.93);
+}
+#hud.touch #toast {
+    bottom: 176px;
+}
+@media (pointer: coarse) {
+    #toast {
+        bottom: 176px;
+    }
+}
+
 @media (max-width: 860px) {
     .health {
         top: 14px;
@@ -261,5 +337,22 @@ kbd {
     .end-card {
         max-width: calc(100vw - 28px);
         padding: 28px 22px;
+    }
+    .touch-stick {
+        left: 16px;
+        bottom: 20px;
+        width: 116px;
+        height: 116px;
+    }
+    .touch-knob {
+        width: 50px;
+        height: 50px;
+    }
+    .touch-attack {
+        right: 20px;
+        bottom: 30px;
+        width: 80px;
+        height: 80px;
+        font-size: 32px;
     }
 }

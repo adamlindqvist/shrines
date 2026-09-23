@@ -12,16 +12,22 @@ import { node } from '../rendering/primitives';
 
 type Vec3Tuple = [number, number, number];
 
+/** Viewport height (CSS pixels) at which a scene shows exactly its authored `orthoHeight`. */
+export const CAMERA = { referenceHeight: 1200 };
+
 export type CameraRigOptions = {
     /** Scene-wide ambient light, applied when the rig is created. */
     ambient: Color;
     camera: {
         position: Vec3Tuple;
         target: Vec3Tuple;
-        /** Minimum orthographic half-height in world units. */
+        /**
+         * Orthographic half-height in world units at `CAMERA.referenceHeight`. The view scales with the viewport
+         * so every size shows the world at the same pixels per unit; larger screens see more, not bigger.
+         */
         orthoHeight: number;
-        /** Minimum visible width, so narrow viewports zoom out instead of cropping. */
-        minVisibleWidth: number;
+        /** Half-width the authored framing shows; narrower views follow the player fully on X instead of zooming out. */
+        framedHalfWidth: number;
         clearColor: Color;
     };
     sun: { position: Vec3Tuple; color: Color; intensity: number; shadowDistance: number };
@@ -103,19 +109,22 @@ export class CameraRig {
         this.frame = frame;
     }
 
-    /** Fits the orthographic view to the window's aspect ratio. */
+    /** Keeps a constant world scale in CSS pixels; small viewports are handled by following instead. */
     resize() {
-        const { orthoHeight, minVisibleWidth } = this.options.camera;
-        this.camera.camera!.orthoHeight = Math.max(orthoHeight, minVisibleWidth / (innerWidth / innerHeight));
+        this.camera.camera!.orthoHeight = this.options.camera.orthoHeight * (innerHeight / CAMERA.referenceHeight);
     }
 
-    /** Eases the camera toward the followed point (x, z). */
+    /** Eases the camera toward the followed point (x, z), fully on any axis the viewport crops. */
     follow(x: number, z: number, dt: number) {
         const f = this.options.follow;
         if (!f) return;
-        const [bx, by, bz] = this.options.camera.position;
-        const targetX = x * f.x,
-            targetZ = (z - f.anchorZ) * f.z;
+        const { position, orthoHeight, framedHalfWidth } = this.options.camera;
+        const [bx, by, bz] = position;
+        const halfHeight = this.camera.camera!.orthoHeight;
+        const narrow = halfHeight * (innerWidth / innerHeight) < framedHalfWidth,
+            short = halfHeight < orthoHeight;
+        const targetX = x * (narrow ? 1 : f.x),
+            targetZ = (z - f.anchorZ) * (short ? 1 : f.z);
         const cp = this.camera.getPosition();
         const blend = 1 - Math.exp(-dt * f.rate);
         this.camera.setPosition(cp.x + (bx + targetX - cp.x) * blend, by, cp.z + (bz + targetZ - cp.z) * blend);

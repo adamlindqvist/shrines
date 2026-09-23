@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Open the URL printed by Vite. Use **WASD or arrow keys** to move at 4.5 units/s and **Space or click** to swing your sword. Press **Escape** to pause. There is no sprint or dash. Near the turquoise block, **Space or click** grabs it instead of swinging. Move to push or pull it, then press **Space or click** again to release it. Bring it onto the sun switch to unlock the treasure; it releases automatically when it snaps into place. Two friendly-looking slimes provide a small combat challenge in the open meadow. Reaching its unlocked chest automatically takes you to **Sun & Moon Grove**, a larger 40 × 30 clearing with a following camera, four slimes, and two symbol-marked blocks. Follow the sandy paths and bring each block to its matching sun or moon plate. Correct matches lock in place; both unlock the second treasure. Defeating the slimes is optional. Your remaining hearts carry over; restarting after defeat or victory starts the whole adventure again with three hearts.
+Open the URL printed by Vite. Use **WASD or arrow keys** to move at 4.5 units/s and **Space or click** to swing your sword. Press **Escape** to pause. On touch screens, drag the **joystick** in the bottom-left corner to move and tap the **⚔️ button** in the bottom-right corner to attack or grab. There is no sprint or dash. Near the turquoise block, **Space or click** grabs it instead of swinging. Move to push or pull it, then press **Space or click** again to release it. Bring it onto the sun switch to unlock the treasure; it releases automatically when it snaps into place. Two friendly-looking slimes provide a small combat challenge in the open meadow. Reaching its unlocked chest automatically takes you to **Sun & Moon Grove**, a larger 40 × 30 clearing with a following camera, four slimes, and two symbol-marked blocks. Follow the sandy paths and bring each block to its matching sun or moon plate. Correct matches lock in place; both unlock the second treasure. Defeating the slimes is optional. Your remaining hearts carry over; restarting after defeat or victory starts the whole adventure again with three hearts.
 
 ## Development
 
@@ -102,7 +102,7 @@ export function createWoodlandScene(context: AppContext): SceneInstance {
             position: [0, 22, 19.2],
             target: [0, 0, 0.74],
             orthoHeight: 6.2,
-            minVisibleWidth: 9.5,
+            framedHalfWidth: 9.5,
             clearColor: new Color(0.78, 0.89, 0.81)
         }
     });

@@ -163,9 +163,26 @@ function gameFixture(t, overrides = {}) {
     const oldWindow = globalThis.window;
     const oldDocument = globalThis.document;
     globalThis.window = new EventTarget();
-    const element = () => ({ textContent: '', hidden: false, classList: { add: noop, remove: noop }, remove: noop });
+    const created = [];
+    const element = () =>
+        Object.assign(new EventTarget(), {
+            textContent: '',
+            hidden: false,
+            style: {},
+            classList: { add: noop, remove: noop },
+            remove: noop,
+            appendChild: noop,
+            insertBefore: noop,
+            setAttribute: noop,
+            setPointerCapture: noop,
+            getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 })
+        });
     globalThis.document = {
-        createElement: () => ({ ...element(), querySelector: () => element() }),
+        createElement: () => {
+            const el = Object.assign(element(), { querySelector: () => element() });
+            created.push(el);
+            return el;
+        },
         body: { appendChild: noop }
     };
     for (const name of ['burst', 'sand', 'arc']) t.mock.method(Effects.prototype, name, noop);
@@ -207,7 +224,11 @@ function gameFixture(t, overrides = {}) {
         globalThis.window = oldWindow;
         globalThis.document = oldDocument;
     });
-    return { game, key, tap, tick, blocks, player, canvas };
+    const touch = (className, type, clientX = 50, clientY = 50) =>
+        created
+            .find((el) => el.className === className)
+            .dispatchEvent(Object.assign(new Event(type), { pointerId: 1, clientX, clientY }));
+    return { game, key, tap, tick, touch, blocks, player, canvas };
 }
 
 test('held input moves the pair; pause and blur freeze it, release settles it', (t) => {
@@ -239,6 +260,40 @@ test('held input moves the pair; pause and blur freeze it, release settles it', 
     tap('Escape');
     tick(60);
     assert.equal(game.diagnostics().player.x, pausedX);
+});
+
+test('touch stick steers, releases on pause, and the attack button grabs', (t) => {
+    const { game, tick, touch } = gameFixture(t);
+    const start = game.diagnostics().player;
+    // Stick centre is (50, 50) with a 27.5px reach; push down and right (the block sits above spawn).
+    touch('touch-stick', 'pointerdown', 70, 70);
+    tick(30);
+    const moved = game.diagnostics().player;
+    assert.ok(moved.x > start.x + 0.5);
+    assert.ok(moved.z > start.z + 0.5);
+    touch('touch-stick', 'pointerup');
+    tick(30);
+    const stopped = game.diagnostics().player;
+    tick(30);
+    const after = game.diagnostics().player;
+    assert.ok(Math.hypot(after.x - stopped.x, after.z - stopped.z) < 0.01);
+
+    touch('touch-stick', 'pointerdown', 50, 20);
+    globalThis.window.dispatchEvent(new Event('blur'));
+    assert.equal(game.state, 'paused');
+    touch('touch-stick', 'pointermove', 50, 0);
+    touch('touch-attack', 'pointerdown');
+    assert.equal(game.state, 'playing');
+    const resumed = game.diagnostics().player;
+    tick(30);
+    const idle = game.diagnostics().player;
+    assert.ok(Math.hypot(idle.x - resumed.x, idle.z - resumed.z) < 0.01);
+
+    game.reset();
+    touch('touch-attack', 'pointerdown');
+    assert.equal(game.diagnostics().grabbed, true);
+    touch('touch-attack', 'pointerdown');
+    assert.equal(game.diagnostics().grabbed, false);
 });
 
 test('completion reports surviving hearts once, without a victory state', (t) => {

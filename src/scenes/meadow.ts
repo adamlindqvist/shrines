@@ -79,7 +79,7 @@ export const meadowArea: AdventureArea = {
             position: [0, 22, 19.2],
             target: [0, 0, 0.74],
             orthoHeight: 10,
-            minVisibleWidth: 12,
+            framedHalfWidth: 12,
             clearColor: new Color(0.78, 0.89, 0.81)
         },
         follow: { x: 0.07, z: 0.06, anchorZ: SPAWN.z, rate: 2.5 }

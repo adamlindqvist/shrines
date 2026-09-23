@@ -10,6 +10,7 @@ import type { SceneLayout } from '../scenes/builder';
 import type { CameraRig } from '../scenes/camera-rig';
 import { Hud } from '../ui/hud';
 import type { HudOptions } from '../ui/hud';
+import { TouchControls } from '../ui/touch-controls';
 
 import { Collision } from './collision';
 import type { Bounds } from './collision';
@@ -121,14 +122,25 @@ export class AdventureGame {
             hit: (ex, ez, d) => this.onPlayerHit(ex, ez, d)
         };
         this.hud = new Hud(config.hud, () => this.restart());
-        this.input = new Input(context.canvas, {
-            keydown: (code) => this.onKeyDown(code),
-            blur: () => this.pause(),
-            pointerdown: () => {
+        const touch = new TouchControls(this.hud.root, {
+            press: () => this.unpause(),
+            attack: () => {
                 this.unpause();
                 this.attack();
             }
         });
+        this.input = new Input(
+            context.canvas,
+            {
+                keydown: (code) => this.onKeyDown(code),
+                blur: () => this.pause(),
+                pointerdown: () => {
+                    this.unpause();
+                    this.attack();
+                }
+            },
+            touch
+        );
         this.reset();
         this.health = deps.initialHealth ?? config.hud.maxHealth;
         this.hud.setHealth(this.health);

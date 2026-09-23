@@ -8,6 +8,13 @@ export type InputHandlers = {
     pointerdown(): void;
 };
 
+/** Analog direction source such as an on-screen joystick, released whenever held input is cleared. */
+export type AxisSource = {
+    axis(): { x: number; z: number };
+    release(): void;
+    destroy(): void;
+};
+
 /** Keyboard and pointer state for one scene, attached to the window and canvas. */
 export class Input {
     private readonly keys = new Set<string>();
@@ -16,10 +23,13 @@ export class Input {
 
     private readonly handlers: InputHandlers;
 
-    constructor(canvas: HTMLCanvasElement, handlers: InputHandlers) {
+    private readonly touch?: AxisSource;
+
+    constructor(canvas: HTMLCanvasElement, handlers: InputHandlers, touch?: AxisSource) {
         this.canvas = canvas;
 
         this.handlers = handlers;
+        this.touch = touch;
         window.addEventListener('keydown', this.onKeyDown);
         window.addEventListener('keyup', this.onKeyUp);
         window.addEventListener('blur', this.onBlur);
@@ -30,17 +40,21 @@ export class Input {
         return this.keys.has(code);
     }
 
-    /** WASD / arrow direction on the ground plane, each component -1, 0 or 1 (+Z is toward the camera). */
+    /**
+     * Direction on the ground plane (+Z is toward the camera): WASD / arrows with each component -1, 0 or 1,
+     * otherwise the touch stick.
+     */
     axis() {
         const k = this.keys;
-        return {
-            x: Number(k.has('KeyD') || k.has('ArrowRight')) - Number(k.has('KeyA') || k.has('ArrowLeft')),
-            z: Number(k.has('KeyS') || k.has('ArrowDown')) - Number(k.has('KeyW') || k.has('ArrowUp'))
-        };
+        const x = Number(k.has('KeyD') || k.has('ArrowRight')) - Number(k.has('KeyA') || k.has('ArrowLeft')),
+            z = Number(k.has('KeyS') || k.has('ArrowDown')) - Number(k.has('KeyW') || k.has('ArrowUp'));
+        if (x || z || !this.touch) return { x, z };
+        return this.touch.axis();
     }
 
     clear() {
         this.keys.clear();
+        this.touch?.release();
     }
 
     destroy() {
@@ -49,6 +63,7 @@ export class Input {
         window.removeEventListener('blur', this.onBlur);
         this.canvas.removeEventListener('pointerdown', this.onPointerDown);
         this.keys.clear();
+        this.touch?.destroy();
     }
 
     private onKeyDown = (e: KeyboardEvent) => {
@@ -61,7 +76,7 @@ export class Input {
     private onKeyUp = (e: KeyboardEvent) => this.keys.delete(e.code);
 
     private onBlur = () => {
-        this.keys.clear();
+        this.clear();
         this.handlers.blur();
     };
 
