@@ -5,10 +5,9 @@ import { box, node, roundedBox, sphere } from '../rendering/primitives';
 
 import type { PropContext } from './context';
 
-/** Pushable turquoise block; its faces are turned 38° inside `root`. */
+/** Pushable turquoise block with faces aligned to `root`. */
 export function createPushBlock({ device, palette: c }: PropContext, root: Entity) {
     const blockSpin = node(root, 'block facing');
-    blockSpin.setLocalEulerAngles(0, 38, 0);
     roundedBox(device, blockSpin, 'rounded teal block', c.teal, 0, 0.66, 0, 1.46, 1.32, 1.46, 0.2);
     for (const [ax, az] of [
         [0, 1],

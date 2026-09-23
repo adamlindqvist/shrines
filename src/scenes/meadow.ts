@@ -49,8 +49,8 @@ const GAME: AdventureConfig = {
     spawn: SPAWN,
     walkBounds: { minX: -WX + 1.4, maxX: WX - 1.4, minZ: -DZ + 1.1, maxZ: DZ - 1.1 },
     puzzle: {
-        block: { x: 4.7, z: -4.7 },
-        switch: { x: 7.1, z: -5.2 },
+        block: { x: 1.5, z: 6.5 },
+        switch: { x: 4, z: -5.2 },
         chest: { x: 9.15, z: -5.4 },
         blockBounds: { minX: -10, maxX: 10.5, minZ: -8, maxZ: 8 }
     },
@@ -129,8 +129,8 @@ export function createMeadowScene(context: AppContext): SceneInstance {
     const cast = {
         player: scene.addAdventurer(SPAWN),
         block: scene.addPushBlock(puzzle.block).entity,
-        sunSwitch: scene.addSunSwitch({ ...puzzle.switch, rotation: 38 }),
-        chest: scene.addChest({ ...puzzle.chest, rotation: 26 }),
+        sunSwitch: scene.addSunSwitch({ ...puzzle.switch, rotation: 0 }),
+        chest: scene.addChest({ ...puzzle.chest, rotation: 0 }),
         slimes: SLIMES.map((at) => scene.addSlime(at))
     };
     createBackdrop({ device, resources }, root, island);
