@@ -107,7 +107,7 @@ export class AdventureGame {
         });
         this.slimeTarget = {
             entity: cast.player.entity,
-            canBeHit: () => this.invincible === 0 && this.player.dash === 0,
+            canBeHit: () => this.invincible === 0,
             hit: (ex, ez, d) => this.onPlayerHit(ex, ez, d)
         };
         this.hud = new Hud(config.hud, () => this.reset());
@@ -136,13 +136,11 @@ export class AdventureGame {
         this.time += dt;
         this.invincible = Math.max(0, this.invincible - dt);
         this.sword.tick(dt);
-        this.player.tick(dt);
         this.hud.tick(dt);
 
-        // Movement: steer, dash, push the block, then slide around obstacles.
+        // Movement: steer, push the block, then slide around obstacles.
         const player = this.player;
-        const stride = player.stride(dt, this.input.axis(), this.input.isDown('ShiftLeft'));
-        if (stride.dashed) this.effects.burst(player.position.x, player.position.z, this.deps.palette.cream, 5);
+        const stride = player.stride(dt, this.input.axis());
         const next = this.puzzle.constrain(stride, player.moveX, player.moveZ, dt);
         const solved = this.collision.resolve(next.x, next.z, PLAYER.radius);
         player.moveTo(solved.x, solved.z);
@@ -189,7 +187,6 @@ export class AdventureGame {
             kills: this.kills,
             enemies: this.slimes.slimes.map((e) => ({ x: e.x, z: e.z, hp: e.hp, mode: e.mode })),
             attackCooldown: this.sword.cooldown,
-            dashCooldown: this.player.dashCooldown,
             effects: this.effects.count,
             drawCalls: app.stats.drawCalls.total,
             backbuffer: { width: canvas.width, height: canvas.height },

@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Open the URL printed by Vite. Use **WASD** to move and **Space or click** to swing your sword. Push the turquoise block onto the sun switch to unlock the treasure. Three friendly-looking slimes provide a small combat challenge in the open meadow.
+Open the URL printed by Vite. Use **WASD or arrow keys** to move at 4.5 units/s and **Space or click** to swing your sword. Press **Escape** to pause. There is no sprint or dash. Push the turquoise block onto the sun switch to unlock the treasure. Three friendly-looking slimes provide a small combat challenge in the open meadow.
 
 ## Development
 

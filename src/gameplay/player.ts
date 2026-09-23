@@ -2,10 +2,7 @@ import { BOOT_X, BOOT_Y, BOOT_Z } from '../objects/adventurer';
 import type { AdventurerHandles } from '../objects/adventurer';
 
 export const PLAYER = {
-    walkSpeed: 3.2,
-    dashSpeed: 9,
-    dashTime: 0.18,
-    dashCooldown: 0.9,
+    walkSpeed: 4.5,
     /** Exponential rate at which movement eases toward the input direction. */
     responsiveness: 14,
     /** Collision radius. */
@@ -19,17 +16,13 @@ export type Stride = {
     /** Length of the raw input vector; 0 when no direction is held. */
     input: number;
     speed: number;
-    /** True on the frame a dash starts. */
-    dashed: boolean;
 };
 
-/** Adventurer locomotion: eased 8-way movement, facing, dash and the walk/flash animation. */
+/** Adventurer locomotion: eased 8-way movement, facing and the walk/flash animation. */
 export class PlayerController {
     heading = 0;
     moveX = 0;
     moveZ = 0;
-    dash = 0;
-    dashCooldown = 0;
 
     readonly handles: AdventurerHandles;
 
@@ -41,13 +34,8 @@ export class PlayerController {
         return this.handles.entity.getPosition();
     }
 
-    tick(dt: number) {
-        this.dashCooldown = Math.max(0, this.dashCooldown - dt);
-        this.dash = Math.max(0, this.dash - dt);
-    }
-
     /** Eases toward the input direction and proposes the next position; the caller constrains and applies it. */
-    stride(dt: number, axis: { x: number; z: number }, wantsDash: boolean): Stride {
+    stride(dt: number, axis: { x: number; z: number }): Stride {
         const length = Math.hypot(axis.x, axis.z);
         const desiredX = length ? axis.x / length : 0,
             desiredZ = length ? axis.z / length : 0;
@@ -58,20 +46,13 @@ export class PlayerController {
             this.heading = Math.atan2(desiredX, desiredZ);
             this.handles.entity.setEulerAngles(0, (this.heading * 180) / Math.PI, 0);
         }
-        let dashed = false;
-        if (wantsDash && this.dashCooldown === 0 && length) {
-            this.dash = PLAYER.dashTime;
-            this.dashCooldown = PLAYER.dashCooldown;
-            dashed = true;
-        }
-        const speed = this.dash > 0 ? PLAYER.dashSpeed : PLAYER.walkSpeed;
+        const speed = PLAYER.walkSpeed;
         const pos = this.position;
         return {
             x: pos.x + this.moveX * speed * dt,
             z: pos.z + this.moveZ * speed * dt,
             input: length,
-            speed,
-            dashed
+            speed
         };
     }
 
@@ -98,8 +79,6 @@ export class PlayerController {
         this.heading = 0;
         this.moveX = 0;
         this.moveZ = 0;
-        this.dash = 0;
-        this.dashCooldown = 0;
         const { entity, visual, swordPivot } = this.handles;
         entity.setPosition(x, 0, z);
         entity.setEulerAngles(0, 0, 0);

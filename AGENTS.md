@@ -70,8 +70,7 @@ Useful tuning references (the source constants remain authoritative):
 
 | Action         | Current baseline                                                                                              |
 | -------------- | ------------------------------------------------------------------------------------------------------------- |
-| Movement       | Normalized eight-way input, 3.2 units/s, exponential smoothing rate 14.                                       |
-| Dash           | 9 units/s for 0.18 s, 0.9 s cooldown; protects against slime hits while active.                               |
+| Movement       | Normalized eight-way input, 4.5 units/s, exponential smoothing rate 14.                                       |
 | Sword          | 0.28 s swing, 0.42 s cooldown; active while remaining swing time is 0.21–0.07 s; one hit per enemy per swing. |
 | Slime attack   | 0.45 s visible windup, followed by a hit or miss cooldown.                                                    |
 | Slime reaction | Squash, knockback, stagger, and a 0.45 s death animation.                                                     |
@@ -96,7 +95,7 @@ Useful tuning references (the source constants remain authoritative):
 
 - Frame time is in seconds. Gameplay currently clamps `rawDt` to 0.035; diagnostics use raw frame time. Advance durations and velocities with the gameplay timestep and use frame-rate-independent easing for new motion, such as `1 - Math.exp(-rate * dt)`.
 - Current states are `playing`, `paused`, `won`, and `over`. Gameplay time and ambient animation advance only while playing. Effects freeze while paused but finish after victory or defeat. Document any intentional new presentation behavior outside play.
-- Use the existing `Input` owner. Controls are WASD/arrows, Space/canvas click to attack, left Shift to dash, and Escape to toggle pause. Blur clears held keys and pauses. Resume and restart behavior is centralized in `AdventureGame`.
+- Use the existing `Input` owner. Controls are WASD/arrows, Space/canvas click to attack, and Escape to toggle pause. Blur clears held keys and pauses. Resume and restart behavior is centralized in `AdventureGame`.
 - New features must reset timers, transforms, visibility, health/state, hit tracking, spawned effects, and HUD feedback as applicable. Verify restarting during or after an action does not retain its pose or state.
 - Avoid wall-clock timers for simulation or independent animation loops that continue during pause. If adding input buffering, hit-stop, or slow motion, explicitly define which clocks and systems are affected.
 
@@ -114,7 +113,7 @@ Use `npm run fmt` to check formatting; format only relevant files when unrelated
 
 For gameplay or rendering changes, run `npm run dev` and verify the relevant behavior in the browser:
 
-- Check movement, diagonals, stopping, dash, attacks, enemy warnings/reactions, and obstacle contact as applicable.
+- Check movement, diagonals, stopping, attacks, enemy warnings/reactions, and obstacle contact as applicable.
 - Complete the block/switch/chest path after layout or puzzle changes. Check damage, defeat, victory, and restart after state changes.
 - Check pause/resume, focus loss, and repeat actions for stuck input, stale poses, or accumulating effects.
 - Inspect the scene at gameplay distance and at wide/narrow viewport sizes for framing, occlusion, HUD overlap, and consistent visual style.

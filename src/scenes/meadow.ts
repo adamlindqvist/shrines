@@ -141,7 +141,7 @@ export function createMeadowScene(context: AppContext): SceneInstance {
         camera: {
             position: [0, 22, 19.2],
             target: [0, 0, 0.74],
-            orthoHeight: 8.0,
+            orthoHeight: 10.0,
             minVisibleWidth: 12.0,
             clearColor: new Color(0.78, 0.89, 0.81)
         },
