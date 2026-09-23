@@ -31,7 +31,6 @@ canvas {
 }
 
 .health,
-.quest,
 .controls {
     background: #fdf7ea;
     box-shadow:
@@ -57,32 +56,6 @@ canvas {
     letter-spacing: 4px;
     line-height: 1.25;
     margin-top: 2px;
-}
-
-.quest {
-    position: absolute;
-    right: 24px;
-    top: 22px;
-    display: flex;
-    gap: 13px;
-    align-items: center;
-    padding: 13px 22px 13px 18px;
-}
-.sun {
-    font-size: 31px;
-    line-height: 1;
-}
-.quest strong {
-    font-size: 18px;
-    font-weight: 700;
-    color: #45443c;
-    letter-spacing: 0.005em;
-}
-.quest p {
-    margin: 3px 0 0;
-    font-size: 13px;
-    color: #6f6e62;
-    font-weight: 500;
 }
 
 .controls {
@@ -285,22 +258,6 @@ kbd {
         font-size: 20px;
         letter-spacing: 2px;
     }
-    .quest {
-        top: 14px;
-        right: 14px;
-        padding: 10px 14px;
-        gap: 9px;
-    }
-    .quest strong {
-        font-size: 14px;
-    }
-    .quest p {
-        max-width: 170px;
-        font-size: 11px;
-    }
-    .sun {
-        font-size: 24px;
-    }
     .controls {
         bottom: 14px;
         padding: 9px 13px;
@@ -313,27 +270,11 @@ kbd {
     }
 }
 
-/* Keep progression copy beside hearts on tablets and below them on phones. */
-.quest {
-    max-width: min(520px, calc(100vw - 260px));
-}
-.quest > div {
-    min-width: 0;
-}
 #toast {
     max-width: calc(100vw - 28px);
     text-align: center;
 }
 @media (max-width: 560px) {
-    .quest {
-        top: 92px;
-        left: 14px;
-        right: 14px;
-        max-width: none;
-    }
-    .quest p {
-        max-width: none;
-    }
     .end-card {
         max-width: calc(100vw - 28px);
         padding: 28px 22px;

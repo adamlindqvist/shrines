@@ -33,7 +33,6 @@ const SLIMES = [
 const GAME: AdventureConfig = {
     area: 'meadow',
     stage: 1,
-    stages: 3,
     spawn: SPAWN,
     walkBounds: { minX: -WX + 1.4, maxX: WX - 1.4, minZ: -DZ + 1.1, maxZ: DZ - 1.1 },
     puzzle: {
@@ -44,15 +43,9 @@ const GAME: AdventureConfig = {
     },
     hud: {
         title: 'Louis äventyr',
-        quest: {
-            title: 'A little teamwork',
-            copy: 'Space or click near the block to grab it. Move it onto the sun switch!'
-        },
         maxHealth: 3
     },
     text: {
-        unlockedQuest: { title: 'A little treasure', copy: 'Walk to the chest. Another shrine is waiting!' },
-        grabbed: 'Block grabbed · move with WASD or arrows. Space or click to release.',
         unlocked: 'Click! The treasure is unlocked.',
         matched: 'Click! One lovely match. Find the other symbol!',
         defeatedSlime: '',

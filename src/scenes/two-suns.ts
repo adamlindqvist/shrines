@@ -104,20 +104,9 @@ export const twoSunsArea: AdventureArea = {
             chestReach: 2.9,
             blockBounds: { minX: -18.5, maxX: 18.5, minZ: -11.4, maxZ: 11.4 }
         },
-        hud: {
-            ...meadowArea.game.hud,
-            quest: {
-                title: 'Two suns',
-                copy: 'Carry both sun blocks over the bridge onto the plates to open the chest!'
-            }
-        },
         text: {
             ...meadowArea.game.text,
             matched: 'Click! One sun is shining. Fetch the other one!',
-            unlockedQuest: {
-                title: 'Two little suns',
-                copy: 'Both suns are home. Climb the shrine steps to the chest!'
-            },
             won: {
                 title: 'Three shrines aglow',
                 copy: 'Every shrine is shining. What a brave and kind little adventure!'

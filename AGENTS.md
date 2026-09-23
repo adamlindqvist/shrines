@@ -6,7 +6,7 @@ This file applies to the whole repository. Preserve the project's identity when 
 
 Shrines currently opens **Mossy Meadow**, a small playable fantasy clearing: a hooded adventurer, two strawberry slimes, a grabbable turquoise block, a sun switch, and a treasure chest. Reaching the unlocked chest transports the player to **Sun & Moon Grove**, a 40 × 30 world with four slimes and two symbol-marked blocks and plates. Both matches unlock its treasure, which transports the player to **Two Suns Shrine**: a river island where two sun blocks must be carried over a stone bridge onto two sun plates beside a raised shrine. Defeating slimes is optional. Remaining hearts carry over. Restarting after defeat or victory returns to the first area with three hearts. `woodland` is a separate scene-composition example. Gameplay is optional for other scenes.
 
-The intended feel is warm, playful, tactile, and welcoming. Movement should respond promptly, enemies should communicate their intentions, and solving a small puzzle should feel rewarding. Keep the gentle tone of the existing quest and end-card text, including encouraging language after defeat.
+The intended feel is warm, playful, tactile, and welcoming. Movement should respond promptly, enemies should communicate their intentions, and solving a small puzzle should feel rewarding. Keep the gentle tone of the existing toast and end-card text, including encouraging language after defeat.
 
 Preserve these design priorities:
 
@@ -75,7 +75,7 @@ Useful tuning references (the source constants remain authoritative):
 | Slime attack   | 0.45 s visible windup, followed by a hit or miss cooldown.                                                    |
 | Slime reaction | Squash, knockback, stagger, and a 0.45 s death animation.                                                     |
 | Player damage  | Health feedback, a short shove and burst, and flashing during 1.2 s of invulnerability.                       |
-| Puzzle         | Block snaps within 0.55 units; switch changes material, lid opens, and quest/effect feedback marks progress.  |
+| Puzzle         | Block snaps within 0.55 units; switch changes material, lid opens, and toast/effect feedback marks progress.  |
 
 ### Guidance for future features
 

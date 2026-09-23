@@ -39,19 +39,8 @@ export const sunMoonArea: AdventureArea = {
             chest: { x: 0, z: -11 },
             blockBounds: { minX: -17, maxX: 17, minZ: -12, maxZ: 12 }
         },
-        hud: {
-            ...meadowArea.game.hud,
-            quest: {
-                title: 'Sun & Moon Grove',
-                copy: 'Follow the sandy paths. Match each block to its sun or moon plate!'
-            }
-        },
         text: {
             ...meadowArea.game.text,
-            unlockedQuest: {
-                title: 'Two little lights',
-                copy: 'Both symbols are home. The chest is waiting to the north!'
-            },
             won: {
                 title: 'Sunshine and moonbeams',
                 copy: 'Two shrines, two treasures. You brought a little light to every corner.'

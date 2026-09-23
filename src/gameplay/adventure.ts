@@ -30,18 +30,14 @@ type Card = { title: string; copy: string };
 export type AdventureConfig = {
     area: string;
     stage: number;
-    /** Number of shrines in the whole journey. */
-    stages: number;
     spawn: Point;
     /** Rectangle the player and slimes are kept inside. */
     walkBounds: Bounds;
     puzzle: PuzzleConfig;
     hud: HudOptions;
     text: {
-        unlockedQuest: Card;
         unlocked: string;
         matched: string;
-        grabbed: string;
         defeatedSlime: string;
         paused: string;
         won: Card;
@@ -185,7 +181,6 @@ export class AdventureGame {
         const { clicked, reached } = this.puzzle.update(dt, player.position);
         const { text, puzzle } = this.deps.config;
         if (clicked.length) {
-            this.updateQuest();
             this.announce(this.puzzle.unlocked ? text.unlocked : text.matched);
             for (const plate of clicked) this.effects.burst(plate.x, plate.z, this.deps.palette.gold, 20);
         }
@@ -273,7 +268,6 @@ export class AdventureGame {
         this.input.clear();
         this.state = 'playing';
         this.hud.hideEnd();
-        this.updateQuest();
         this.hud.setHealth(this.health);
         this.hud.hideToast();
     }
@@ -306,7 +300,6 @@ export class AdventureGame {
             }
             this.puzzle.updateIndicator(this.player.position);
             this.sword.reset();
-            this.updateQuest();
             return;
         }
         if (!this.sword.ready) return;
@@ -348,16 +341,6 @@ export class AdventureGame {
     private restart() {
         if (this.deps.onRestart) this.deps.onRestart();
         else this.reset();
-    }
-
-    private updateQuest() {
-        const { config } = this.deps;
-        const quest = this.puzzle.unlocked ? config.text.unlockedQuest : config.hud.quest;
-        const progress = `${this.puzzle.matched}/${config.puzzle.blocks.length}`;
-        this.hud.setQuest(
-            `Shrine ${config.stage}/${config.stages} · ${progress} · ${quest.title}`,
-            this.puzzle.grabbed ? config.text.grabbed : quest.copy
-        );
     }
 
     private announce(text: string) {

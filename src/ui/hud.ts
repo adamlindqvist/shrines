@@ -1,15 +1,12 @@
 export type HudOptions = {
     title: string;
-    quest: { title: string; copy: string };
     maxHealth: number;
 };
 
-/** DOM overlay: hearts, quest card, controls, toast, end card and a hidden diagnostics readout. */
+/** DOM overlay: hearts, controls, toast, end card and a hidden diagnostics readout. */
 export class Hud {
     readonly root: HTMLDivElement;
     private readonly hearts: HTMLElement;
-    private readonly questTitle: HTMLElement;
-    private readonly questCopy: HTMLElement;
     private readonly toastEl: HTMLElement;
     private readonly overlay: HTMLElement;
     private readonly endTitle: HTMLElement;
@@ -23,12 +20,10 @@ export class Hud {
         this.options = options;
         const hud = document.createElement('div');
         hud.id = 'hud';
-        hud.innerHTML = `<section class="health"><div class="eyebrow"></div><div id="hearts"></div></section><section class="quest"><span class="sun">☀️</span><div><strong id="quest-title"></strong><p id="quest-copy"></p></div></section><div id="toast"></div><div id="overlay" hidden><div class="end-card"><span class="end-icon">☀️</span><h1 id="end-title"></h1><p id="end-copy"></p><button id="restart">Play again <span>↗</span></button></div></div><output id="diagnostics" aria-hidden="true"></output>`;
+        hud.innerHTML = `<section class="health"><div class="eyebrow"></div><div id="hearts"></div></section><div id="toast"></div><div id="overlay" hidden><div class="end-card"><span class="end-icon">☀️</span><h1 id="end-title"></h1><p id="end-copy"></p><button id="restart">Play again <span>↗</span></button></div></div><output id="diagnostics" aria-hidden="true"></output>`;
         const find = (selector: string) => hud.querySelector<HTMLElement>(selector)!;
         find('.eyebrow').textContent = options.title;
         this.hearts = find('#hearts');
-        this.questTitle = find('#quest-title');
-        this.questCopy = find('#quest-copy');
         this.toastEl = find('#toast');
         this.overlay = find('#overlay');
         this.endTitle = find('#end-title');
@@ -37,7 +32,6 @@ export class Hud {
         find('#restart').onclick = onRestart;
         this.root = hud;
         this.setHealth(options.maxHealth);
-        this.setQuest(options.quest.title, options.quest.copy);
         document.body.appendChild(hud);
     }
 
@@ -45,11 +39,6 @@ export class Hud {
         this.hearts.textContent = Array.from({ length: this.options.maxHealth }, (_, n) =>
             n < health ? '❤️' : '🤍'
         ).join(' ');
-    }
-
-    setQuest(title: string, copy: string) {
-        this.questTitle.textContent = title;
-        this.questCopy.textContent = copy;
     }
 
     /** Shows a toast that fades after 2.6 seconds of play. */
