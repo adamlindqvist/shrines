@@ -123,6 +123,6 @@ For gameplay or rendering changes, run `npm run dev` and verify the relevant beh
 - Check pause/resume, focus loss, and repeat actions for stuck input, stale poses, or accumulating effects.
 - Inspect the scene at gameplay distance and at wide/narrow viewport sizes for framing, occlusion, HUD overlap, and consistent visual style.
 - Use development hooks `shrines.load('woodland')`, `shrines.load('meadow')`, `shrines.load('sun-moon')`, and `shrines.unload()` to verify scene cleanup when ownership changes. `window.meadow` exposes live gameplay diagnostics; the hidden `#diagnostics` output is also available.
-- Watch draw calls, effects, and frame rate on representative hardware. The project targets more than 60 FPS on suitable hardware; retain static batching, shared materials, restrained effects, and the current pixel-ratio cap unless a measured change justifies adjustment.
+- Watch draw calls, effects, and frame rate on representative hardware. The project targets more than 60 FPS on suitable hardware; retain static batching, shared materials, restrained effects, and the `RENDER` pixel-ratio range in `src/app/create-app.ts` (1.5× supersampling on standard screens, capped at 2×) unless a measured change justifies adjustment.
 
 For visual refactors, compare the same seeded scene, camera, viewport, and gameplay state before and after. `.dream-loop/` contains ignored local reference/iteration artifacts when available; do not make development depend on files missing from a fresh checkout. Report which checks actually ran and any remaining limitations.

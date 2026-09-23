@@ -1,4 +1,5 @@
 import type { AppContext, SceneFactory, SceneInstance } from './context';
+import { renderPixelRatio } from './create-app';
 
 /** Runs one scene at a time, forwarding frame updates and window resizes to it. */
 export class SceneHost {
@@ -28,7 +29,12 @@ export class SceneHost {
     private onUpdate = (dt: number) => this.scene?.update(dt);
 
     private onResize = () => {
-        this.context.app.resizeCanvas();
+        const { app, device } = this.context;
+        app.resizeCanvas();
+        const ratio = renderPixelRatio();
+        const width = Math.max(1, Math.floor(innerWidth * ratio)),
+            height = Math.max(1, Math.floor(innerHeight * ratio));
+        if (width !== device.width || height !== device.height) device.setResolution(width, height);
         this.scene?.resize();
     };
 
