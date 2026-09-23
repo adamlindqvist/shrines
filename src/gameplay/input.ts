@@ -53,6 +53,7 @@ export class Input {
 
     private onKeyDown = (e: KeyboardEvent) => {
         if (CAPTURED.includes(e.code)) e.preventDefault();
+        if (e.repeat || this.keys.has(e.code)) return;
         this.keys.add(e.code);
         this.handlers.keydown(e.code);
     };

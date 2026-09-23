@@ -55,14 +55,18 @@ const GAME: AdventureConfig = {
         blockBounds: { minX: -10, maxX: 10.5, minZ: -8, maxZ: 8 }
     },
     hud: {
-        title: 'MOSSY MEADOW',
-        quest: { title: 'A little push', copy: 'Move the block onto the sun switch' },
+        title: 'Louis äventyr',
+        quest: {
+            title: 'A little teamwork',
+            copy: 'Space or click near the block to grab it. Move it onto the sun switch!'
+        },
         maxHealth: 3
     },
     text: {
-        unlockedQuest: { title: 'A little treasure', copy: 'Your sunshine is waiting. Walk to the chest!' },
+        unlockedQuest: { title: 'A little treasure', copy: 'Walk to the chest!' },
+        grabbed: 'Block grabbed · move with WASD or arrows. Space or click to release.',
         unlocked: 'Click! The treasure is unlocked.',
-        defeatedSlime: 'A berry brave little hero.',
+        defeatedSlime: '',
         paused: 'Paused · press a movement key or click to continue',
         won: {
             title: 'A pocketful of sunshine',
@@ -128,7 +132,7 @@ export function createMeadowScene(context: AppContext): SceneInstance {
     const { puzzle } = GAME;
     const cast = {
         player: scene.addAdventurer(SPAWN),
-        block: scene.addPushBlock(puzzle.block).entity,
+        block: scene.addPushBlock(puzzle.block),
         sunSwitch: scene.addSunSwitch({ ...puzzle.switch, rotation: 0 }),
         chest: scene.addChest({ ...puzzle.chest, rotation: 0 }),
         slimes: SLIMES.map((at) => scene.addSlime(at))

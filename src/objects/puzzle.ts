@@ -1,12 +1,20 @@
 import type { Entity } from 'playcanvas';
 
 import { appendLathe, appendPrism, appendSphere, createGeo, meshEntity } from '../rendering/geometry';
+import type { Geo } from '../rendering/geometry';
 import { box, node, roundedBox, sphere } from '../rendering/primitives';
 
 import type { PropContext } from './context';
 
-/** Pushable turquoise block with faces aligned to `root`. */
-export function createPushBlock({ device, palette: c }: PropContext, root: Entity) {
+export type PushBlockHandles = {
+    entity: Entity;
+    visual: Entity;
+    available: Entity;
+    selected: Entity;
+};
+
+/** Grabbable turquoise block with state-driven interaction frames. */
+export function createPushBlock({ device, palette: c }: PropContext, root: Entity): PushBlockHandles {
     const blockSpin = node(root, 'block facing');
     roundedBox(device, blockSpin, 'rounded teal block', c.teal, 0, 0.66, 0, 1.46, 1.32, 1.46, 0.2);
     for (const [ax, az] of [
@@ -31,7 +39,60 @@ export function createPushBlock({ device, palette: c }: PropContext, root: Entit
     }
     roundedBox(device, blockSpin, 'top inset border', c.tealDark, 0, 1.326, 0, 1.06, 0.022, 1.06, 0.09);
     roundedBox(device, blockSpin, 'top enamel panel', c.teal, 0, 1.341, 0, 0.96, 0.018, 0.96, 0.08);
-    return { entity: root };
+    // Centre soft tubular arcs on the body rather than the ground-level pivot.
+    // Each state is one mesh and follows the block without independent animation.
+    const nearbyGeo = createGeo();
+    for (let quarter = 0; quarter < 4; quarter++) {
+        appendSelectionArc(nearbyGeo, (quarter * Math.PI) / 2 + 0.2, Math.PI / 2 - 0.4, 0.035);
+    }
+    const available = meshEntity(device, blockSpin, 'block grab arcs', nearbyGeo, c.grabHint, false, false);
+    const heldGeo = createGeo();
+    appendSelectionArc(heldGeo, 0, Math.PI * 2, 0.05);
+    const selected = meshEntity(device, blockSpin, 'block held halo', heldGeo, c.grabSelected, false, false);
+    available.enabled = false;
+    selected.enabled = false;
+    return { entity: root, visual: blockSpin, available, selected };
+}
+
+/** Rounded tube in the X/Z plane, with soft spherical ends on open arcs. */
+function appendSelectionArc(g: Geo, start: number, sweep: number, thickness: number) {
+    const radius = 1.2;
+    const height = 0.66;
+    const segments = Math.ceil(sweep * 16);
+    const sides = 8;
+    const base = g.p.length / 3;
+    for (let segment = 0; segment <= segments; segment++) {
+        const angle = start + (sweep * segment) / segments;
+        const x = Math.cos(angle),
+            z = Math.sin(angle);
+        for (let side = 0; side <= sides; side++) {
+            const around = (side * Math.PI * 2) / sides;
+            const outward = Math.cos(around),
+                up = Math.sin(around);
+            g.p.push(x * (radius + thickness * outward), height + thickness * up, z * (radius + thickness * outward));
+            g.n.push(x * outward, up, z * outward);
+            g.u.push(segment / segments, side / sides);
+            if (segment < segments && side < sides) {
+                const v = base + segment * (sides + 1) + side;
+                g.i.push(v, v + 1, v + sides + 1, v + 1, v + sides + 2, v + sides + 1);
+            }
+        }
+    }
+    if (sweep < Math.PI * 2) {
+        for (const angle of [start, start + sweep]) {
+            appendSphere(
+                g,
+                Math.cos(angle) * radius,
+                height,
+                Math.sin(angle) * radius,
+                thickness,
+                thickness,
+                thickness,
+                8,
+                6
+            );
+        }
+    }
 }
 
 export type SunSwitchHandles = {

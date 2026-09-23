@@ -4,7 +4,7 @@ This file applies to the whole repository. Preserve the project's identity when 
 
 ## What we are building
 
-Shrines currently opens **Mossy Meadow**, a small playable fantasy clearing: a hooded adventurer, three strawberry slimes, a pushable turquoise block, a sun switch, and a treasure chest. `woodland` is a separate scene-composition example. Gameplay is optional for other scenes.
+Shrines currently opens **Mossy Meadow**, a small playable fantasy clearing: a hooded adventurer, three strawberry slimes, a grabbable turquoise block, a sun switch, and a treasure chest. `woodland` is a separate scene-composition example. Gameplay is optional for other scenes.
 
 The intended feel is warm, playful, tactile, and welcoming. Movement should respond promptly, enemies should communicate their intentions, and solving a small puzzle should feel rewarding. Keep the gentle tone of the existing quest and end-card text, including encouraging language after defeat.
 
@@ -44,7 +44,7 @@ Keep factories focused on constructing visuals. Put behavior in gameplay control
 - Give each independently placed object a semantic root. Use children and explicit pivots for visual offsets, scaling, and animation. Return handles instead of searching the hierarchy by name during updates.
 - Use `SceneBuilder` for placement and collision registration. Call `finish()` once after construction; it uploads shared bush and rock meshes and returns obstacles and ambient animation. Batched geometry cannot be treated as individually movable entities.
 - Read each placement API's scale contract: rock `scale` is width in world units, while other factories may use a multiplier. Verify visual size and collision footprint together, especially when introducing scaled props.
-- Collision currently uses static circles and rectangular walk bounds, with separate block-pushing logic. Keep this simple model consistent; test corners, narrow gaps, and puzzle routes when changing layouts.
+- Collision currently uses static circles and rectangular walk bounds, with separate grabbed-block movement logic. Keep this simple model consistent; test corners, narrow gaps, and puzzle routes when changing layouts.
 - Use the scene's seeded `Random` for procedural generation. Generation order affects every later draw from the sequence; adding an early random draw can change unrelated scenery. Preserve call order during visual refactors, or deliberately introduce separate seeded streams for independent new systems.
 - A scene factory receives `AppContext` and returns `update(dt)`, `resize()`, and `destroy()`. `SceneHost` owns update/resize forwarding. Do not add independent frame loops for new features.
 - Scenes own their root, listeners, HUD, transient effects, camera post-processing, and allocated resources. Track scene-owned materials and textures with `SceneResources`; meshes are released with their entities. Shared application services remain alive across scene changes.
@@ -95,7 +95,8 @@ Useful tuning references (the source constants remain authoritative):
 
 - Frame time is in seconds. Gameplay currently clamps `rawDt` to 0.035; diagnostics use raw frame time. Advance durations and velocities with the gameplay timestep and use frame-rate-independent easing for new motion, such as `1 - Math.exp(-rate * dt)`.
 - Current states are `playing`, `paused`, `won`, and `over`. Gameplay time and ambient animation advance only while playing. Effects freeze while paused but finish after victory or defeat. Document any intentional new presentation behavior outside play.
-- Use the existing `Input` owner. Controls are WASD/arrows, Space/canvas click to attack, and Escape to toggle pause. Blur clears held keys and pauses. Resume and restart behavior is centralized in `AdventureGame`.
+- Use the existing `Input` owner. Controls are WASD/arrows, Space/canvas click to attack (or grab a nearby block / release the held block), and Escape to toggle pause. Blur clears held keys and pauses. Resume and restart behavior is centralized in `AdventureGame`.
+- The grabbed block and player move together, constrained by both collision footprints. Damage still applies while grabbing, but knockback is suppressed to preserve their spacing. The visual child eases up by 0.28 units while held, with a subtle bob and sandy grains on lift and landing. This presentation freezes on pause and settles after end states. Pause retains the grip; switch activation, end states, and reset release it.
 - New features must reset timers, transforms, visibility, health/state, hit tracking, spawned effects, and HUD feedback as applicable. Verify restarting during or after an action does not retain its pose or state.
 - Avoid wall-clock timers for simulation or independent animation loops that continue during pause. If adding input buffering, hit-stop, or slow motion, explicitly define which clocks and systems are affected.
 

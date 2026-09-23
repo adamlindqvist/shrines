@@ -48,6 +48,41 @@ export class Effects {
         }
     }
 
+    /** A small ring of sandy grains kicked outward from the block's footprint. */
+    sand(x: number, z: number, material: Material) {
+        for (let i = 0; i < 14; i++) {
+            const angle = ((i + this.rand() * 0.5) * Math.PI * 2) / 14;
+            const dx = Math.cos(angle),
+                dz = Math.sin(angle);
+            const radius = 0.77 / Math.max(Math.abs(dx), Math.abs(dz));
+            const size = 0.055 + this.rand() * 0.045;
+            const e = box(
+                this.parent,
+                'sand grain',
+                material,
+                x + dx * radius,
+                0.08,
+                z + dz * radius,
+                size,
+                size,
+                size
+            );
+            e.render!.castShadows = false;
+            const life = 0.35 + this.rand() * 0.15;
+            const speed = 0.7 + this.rand() * 0.7;
+            this.particles.push({
+                entity: e,
+                vx: dx * speed,
+                vy: 0.95 + this.rand() * 0.45,
+                vz: dz * speed,
+                life,
+                max: life,
+                scale: e.getLocalScale().clone(),
+                gravity: true
+            });
+        }
+    }
+
     /** A fan of glints 1.45 units out from (x, z), centred on `heading` radians. */
     arc(x: number, z: number, heading: number, material: Material) {
         for (let i = 0; i < 14; i++) {

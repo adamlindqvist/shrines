@@ -3,7 +3,18 @@ import type { SceneResources } from './resources';
 /** The shared storybook material set used by props and characters. */
 export function createPalette(resources: SceneResources) {
     const mat = resources.material.bind(resources);
+    // Dedicated cue materials keep the block highlight bright without altering other props.
+    const grabHint = mat('ivory grab glow', '#fff0b9', 80, 0.3);
+    grabHint.emissive.copy(grabHint.diffuse);
+    grabHint.emissiveIntensity = 2.4;
+    grabHint.update();
+    const grabSelected = mat('gold held glow', '#ffd45e', 85, 0.35);
+    grabSelected.emissive.copy(grabSelected.diffuse);
+    grabSelected.emissiveIntensity = 3.2;
+    grabSelected.update();
     return {
+        grabHint,
+        grabSelected,
         bark: mat('warm bark', '#9c6530'),
         barkLight: mat('cut timber', '#d6ab6c'),
         leaf: mat('clover leaves', '#5ca936'),
