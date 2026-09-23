@@ -1,4 +1,4 @@
-# Mossy Meadow
+# Shrines — a little adventure
 
 A small playable fantasy clearing built with PlayCanvas and TypeScript. All models are procedural geometry; no external art assets are downloaded.
 
@@ -9,17 +9,18 @@ npm install
 npm run dev
 ```
 
-Open the URL printed by Vite. Use **WASD or arrow keys** to move at 4.5 units/s and **Space or click** to swing your sword. Press **Escape** to pause. There is no sprint or dash. Near the turquoise block, **Space or click** grabs it instead of swinging. Move to push or pull it, then press **Space or click** again to release it. Bring it onto the sun switch to unlock the treasure; it releases automatically when it snaps into place. Three friendly-looking slimes provide a small combat challenge in the open meadow.
+Open the URL printed by Vite. Use **WASD or arrow keys** to move at 4.5 units/s and **Space or click** to swing your sword. Press **Escape** to pause. There is no sprint or dash. Near the turquoise block, **Space or click** grabs it instead of swinging. Move to push or pull it, then press **Space or click** again to release it. Bring it onto the sun switch to unlock the treasure; it releases automatically when it snaps into place. Two friendly-looking slimes provide a small combat challenge in the open meadow. Reaching its unlocked chest automatically takes you to **Sun & Moon Grove**, a larger 40 × 30 clearing with a following camera, four slimes, and two symbol-marked blocks. Follow the sandy paths and bring each block to its matching sun or moon plate. Correct matches lock in place; both unlock the second treasure. Defeating the slimes is optional. Your remaining hearts carry over; restarting after defeat or victory starts the whole adventure again with three hearts.
 
 ## Development
 
 ```sh
+npm test
 npm run typecheck
 npm run lint
 npm run build
 ```
 
-The production build is written to `dist/`. The scene is intentionally small, with sparse perimeter decoration and a broad continuous walkable clearing. The generated visual reference and iteration notes are kept in the ignored `.dream-loop/` folder.
+The production build is written to `dist/`. Both areas use sparse perimeter decoration and broad continuous walkable clearings. The second area is roughly 1.6 times wider and deeper; its camera follows the player instead of framing the entire island. Controller and puzzle tests run in Node with stubbed DOM/particle rendering; browser checks are still required for game feel and visuals. The generated visual reference and iteration notes are kept in the ignored `.dream-loop/` folder.
 
 Performance targets more than 60 FPS on suitable hardware; actual frame rate depends on GPU, display refresh rate, and browser.
 
@@ -122,7 +123,7 @@ export function createWoodlandScene(context: AppContext): SceneInstance {
 }
 ```
 
-Gameplay is opt-in. `src/scenes/meadow.ts` adds the adventurer, slimes and puzzle pieces through the same builder, then hands them to `AdventureGame`, which owns input, combat, the puzzle, the HUD and win/loss state.
+Gameplay is opt-in. `src/scenes/meadow.ts` and `src/scenes/sun-moon.ts` configure the two playable areas. `createAdventureArea` constructs them through the same builder, then hands them to `AdventureGame`, which owns input, combat, the puzzle, the HUD and win/loss state. The journey owns progression and queues area changes until the running update has returned; it destroys the previous area before creating the next.
 
 ### Select a scene
 
@@ -130,7 +131,7 @@ Register the factory in `src/scenes/index.ts`:
 
 ```ts
 export const scenes = {
-    meadow: createMeadowScene,
+    meadow: createJourneyScene,
     woodland: createWoodlandScene
 } satisfies Record<string, SceneFactory>;
 ```
@@ -142,3 +143,5 @@ const SCENE: SceneName = 'woodland';
 ```
 
 In development builds, the console also exposes `shrines.load('woodland')` and `shrines.unload()` for checking teardown.
+
+Development also supports `shrines.load('sun-moon')` or `?scene=sun-moon` to inspect the second area directly; `?scene=woodland` opens the composition example. These URL overrides are ignored in production. `window.meadow` and the hidden `#diagnostics` output describe the active adventure area, including stage, remaining hearts, each block's symbol and lock state, activated plates, and camera position.

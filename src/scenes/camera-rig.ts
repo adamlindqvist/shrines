@@ -117,11 +117,8 @@ export class CameraRig {
         const targetX = x * f.x,
             targetZ = (z - f.anchorZ) * f.z;
         const cp = this.camera.getPosition();
-        this.camera.setPosition(
-            cp.x + (bx + targetX - cp.x) * dt * f.rate,
-            by,
-            cp.z + (bz + targetZ - cp.z) * dt * f.rate
-        );
+        const blend = 1 - Math.exp(-dt * f.rate);
+        this.camera.setPosition(cp.x + (bx + targetX - cp.x) * blend, by, cp.z + (bz + targetZ - cp.z) * blend);
     }
 
     /** Snaps back to the authored position and orientation. */

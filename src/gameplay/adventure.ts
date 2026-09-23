@@ -22,11 +22,13 @@ import type { Point, PuzzleConfig } from './puzzle';
 import { SLIME, SlimePack } from './slimes';
 import type { Slime, SlimeTarget } from './slimes';
 
-export type GameState = 'playing' | 'paused' | 'won' | 'over';
+export type GameState = 'playing' | 'paused' | 'won' | 'over' | 'complete';
 
 type Card = { title: string; copy: string };
 
 export type AdventureConfig = {
+    area: string;
+    stage: number;
     spawn: Point;
     /** Rectangle the player and slimes are kept inside. */
     walkBounds: Bounds;
@@ -35,6 +37,7 @@ export type AdventureConfig = {
     text: {
         unlockedQuest: Card;
         unlocked: string;
+        matched: string;
         grabbed: string;
         defeatedSlime: string;
         paused: string;
@@ -49,8 +52,8 @@ export type AdventureConfig = {
 export type AdventureCast = {
     player: AdventurerHandles;
     slimes: SlimeHandles[];
-    block: PushBlockHandles;
-    sunSwitch: SunSwitchHandles;
+    blocks: PushBlockHandles[];
+    plates: SunSwitchHandles[];
     chest: ChestHandles;
 };
 
@@ -64,6 +67,9 @@ export type AdventureDeps = {
     rig: CameraRig;
     cast: AdventureCast;
     config: AdventureConfig;
+    initialHealth?: number;
+    onComplete?: (health: number) => void;
+    onRestart?: () => void;
 };
 
 export type AdventureDiagnostics = ReturnType<AdventureGame['diagnostics']>;
@@ -97,21 +103,22 @@ export class AdventureGame {
     constructor(deps: AdventureDeps) {
         this.deps = deps;
         const { context, root, rand, palette, layout, cast, config } = deps;
-        this.health = config.hud.maxHealth;
+        this.health = deps.initialHealth ?? config.hud.maxHealth;
         this.collision = new Collision(layout.obstacles, config.walkBounds);
         this.effects = new Effects(root, rand);
         this.player = new PlayerController(cast.player);
         this.slimes = new SlimePack(cast.slimes, this.collision);
-        this.puzzle = new BlockPuzzle(config.puzzle, cast.block, cast.sunSwitch, cast.chest, this.collision, {
+        this.puzzle = new BlockPuzzle(config.puzzle, cast.blocks, cast.plates, cast.chest, this.collision, {
             idle: palette.gold,
-            lit: palette.teal
+            lit: palette.teal,
+            baseIdle: palette.sandstone
         });
         this.slimeTarget = {
             entity: cast.player.entity,
-            canBeHit: () => this.invincible === 0,
+            canBeHit: () => this.state === 'playing' && this.invincible === 0,
             hit: (ex, ez, d) => this.onPlayerHit(ex, ez, d)
         };
-        this.hud = new Hud(config.hud, () => this.reset());
+        this.hud = new Hud(config.hud, () => this.restart());
         this.input = new Input(context.canvas, {
             keydown: (code) => this.onKeyDown(code),
             blur: () => this.pause(),
@@ -120,6 +127,9 @@ export class AdventureGame {
                 this.attack();
             }
         });
+        this.reset();
+        this.health = deps.initialHealth ?? config.hud.maxHealth;
+        this.hud.setHealth(this.health);
     }
 
     update(rawDt: number) {
@@ -154,16 +164,26 @@ export class AdventureGame {
         this.sword.applyHits(p.x, p.z, this.slimes.slimes, (slime) => this.onSlimeHit(slime));
         this.slimes.update(dt, this.time, this.slimeTarget);
 
+        // A lethal slime strike takes precedence over puzzle completion this frame.
+        if (this.state !== 'playing') return;
+
         // Puzzle.
         const { clicked, reached } = this.puzzle.update(dt, player.position);
         const { text, puzzle } = this.deps.config;
-        if (clicked) {
-            this.hud.setQuest(text.unlockedQuest.title, text.unlockedQuest.copy);
-            this.announce(text.unlocked);
-            this.effects.burst(puzzle.switch.x, puzzle.switch.z, this.deps.palette.gold, 20);
+        if (clicked.length) {
+            this.updateQuest();
+            this.announce(this.puzzle.unlocked ? text.unlocked : text.matched);
+            for (const plate of clicked) this.effects.burst(plate.x, plate.z, this.deps.palette.gold, 20);
         }
         if (reached) {
             this.effects.burst(puzzle.chest.x, puzzle.chest.z, this.deps.palette.gold, 28);
+            if (this.deps.onComplete) {
+                this.puzzle.release();
+                this.input.clear();
+                this.state = 'complete';
+                this.deps.onComplete(this.health);
+                return;
+            }
             this.showEnd('won');
         }
 
@@ -177,17 +197,25 @@ export class AdventureGame {
     diagnostics() {
         const { app, canvas } = this.deps.context;
         const player = this.player.position,
-            block = this.puzzle.blockPosition,
-            sw = this.deps.config.puzzle.switch,
             sun = this.deps.rig.sun.forward;
         return Object.freeze({
+            area: this.deps.config.area,
+            stage: this.deps.config.stage,
             state: this.state,
             health: this.health,
             elapsed: +this.time.toFixed(2),
             fps: Math.round(this.fps),
             player: { x: player.x, z: player.z },
-            block: { x: block.x, z: block.z },
-            switch: { x: sw.x, z: sw.z },
+            // Keep the first-pair aliases for existing development tools.
+            block: this.puzzle.diagnostics()[0],
+            switch: this.deps.config.puzzle.plates[0],
+            blocks: this.puzzle.diagnostics(),
+            plates: this.deps.config.puzzle.plates.map((plate) => ({
+                ...plate,
+                active: this.puzzle.diagnostics().some((b) => b.symbol === plate.symbol && b.locked)
+            })),
+            matched: this.puzzle.matched,
+            camera: { x: this.deps.rig.camera.getPosition().x, z: this.deps.rig.camera.getPosition().z },
             unlocked: this.puzzle.unlocked,
             grabbed: this.puzzle.grabbed,
             kills: this.kills,
@@ -231,7 +259,7 @@ export class AdventureGame {
         this.input.clear();
         this.state = 'playing';
         this.hud.hideEnd();
-        this.hud.setQuest(config.hud.quest.title, config.hud.quest.copy);
+        this.updateQuest();
         this.hud.setHealth(this.health);
         this.hud.hideToast();
     }
@@ -243,26 +271,28 @@ export class AdventureGame {
     }
 
     private onKeyDown(code: string) {
+        if (code === 'KeyR' && this.state !== 'playing') {
+            this.restart();
+            return;
+        }
         if (code !== 'Escape') this.unpause();
         if (code === 'Space') this.attack();
         if (code === 'Escape') {
             if (this.state === 'playing') this.pause();
             else this.unpause();
         } else this.unpause();
-        if (code === 'KeyR' && this.state !== 'playing') this.reset();
     }
 
     private attack() {
         if (this.state !== 'playing') return;
         if (this.puzzle.interact(this.player.position)) {
             if (this.puzzle.grabbed) {
-                const block = this.puzzle.blockPosition;
+                const block = this.puzzle.heldPosition!;
                 this.effects.sand(block.x, block.z, this.deps.palette.cream);
             }
             this.puzzle.updateIndicator(this.player.position);
             this.sword.reset();
-            const quest = this.deps.config.hud.quest;
-            this.hud.setQuest(quest.title, this.puzzle.grabbed ? this.deps.config.text.grabbed : quest.copy);
+            this.updateQuest();
             return;
         }
         if (!this.sword.ready) return;
@@ -273,8 +303,7 @@ export class AdventureGame {
     }
 
     private updateBlockLift(dt: number) {
-        if (this.puzzle.updateLift(dt)) {
-            const block = this.puzzle.blockPosition;
+        for (const block of this.puzzle.updateLift(dt)) {
             this.effects.sand(block.x, block.z, this.deps.palette.cream);
         }
     }
@@ -296,10 +325,25 @@ export class AdventureGame {
         this.hud.setHealth(this.health);
         const p = this.player.position;
         this.effects.burst(p.x, p.z, this.deps.palette.gold, 7);
-        const shove = this.collision.resolve(p.x + (ex / (d || 1)) * 0.5, p.z + (ez / (d || 1)) * 0.5);
+        const shove = this.puzzle.resolvePlayer({ x: p.x + (ex / (d || 1)) * 0.5, z: p.z + (ez / (d || 1)) * 0.5 }, p);
         // Keep the held pair together when taking damage.
         if (!this.puzzle.grabbed) this.player.moveTo(shove.x, shove.z);
         if (this.health <= 0) this.showEnd('over');
+    }
+
+    private restart() {
+        if (this.deps.onRestart) this.deps.onRestart();
+        else this.reset();
+    }
+
+    private updateQuest() {
+        const { config } = this.deps;
+        const quest = this.puzzle.unlocked ? config.text.unlockedQuest : config.hud.quest;
+        const progress = `${this.puzzle.matched}/${config.puzzle.blocks.length}`;
+        this.hud.setQuest(
+            `Shrine ${config.stage}/2 · ${progress} · ${quest.title}`,
+            this.puzzle.grabbed ? config.text.grabbed : quest.copy
+        );
     }
 
     private announce(text: string) {
@@ -308,7 +352,7 @@ export class AdventureGame {
     }
 
     private showEnd(next: 'won' | 'over') {
-        this.puzzle.grabbed = false;
+        this.puzzle.release();
         this.puzzle.updateIndicator(this.player.position, false);
         this.state = next;
         console.info(`${this.deps.config.logTag} state`, next, this.diagnostics());

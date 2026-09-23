@@ -6,6 +6,7 @@ import type { PropContext } from '../objects/context';
 import { appendBoulder, appendBush, boulderRadius, createBushBatch } from '../objects/foliage';
 import { LOG_HEIGHT, LOG_RADIUS, POT_RADIUS, createLog, createPot } from '../objects/props';
 import { CHEST_RADIUS, createPushBlock, createSunSwitch, createTreasureChest } from '../objects/puzzle';
+import type { PuzzleSymbol } from '../objects/puzzle';
 import { createSlime } from '../objects/slime';
 import { createTree, treeRadius } from '../objects/tree';
 import { createGeo, meshEntity, rotateAppended, vertexCount } from '../rendering/geometry';
@@ -136,12 +137,12 @@ export class SceneBuilder {
         return createSlime(this.props, this.place('strawberry slime', at));
     }
 
-    addPushBlock(at: Placement) {
-        return createPushBlock(this.props, this.place('pushable turquoise block', at));
+    addPushBlock(at: Placement, symbol: PuzzleSymbol = 'sun') {
+        return createPushBlock(this.props, this.place(`${symbol} block`, at), symbol);
     }
 
-    addSunSwitch({ x, z, rotation = 38 }: Placement) {
-        return createSunSwitch(this.props, this.place('sun switch', { x, z, rotation }), rotation);
+    addSunSwitch({ x, z, rotation = 38 }: Placement, symbol: PuzzleSymbol = 'sun') {
+        return createSunSwitch(this.props, this.place(`${symbol} plate`, { x, z, rotation }), rotation, symbol);
     }
 
     addChest(at: Placement) {

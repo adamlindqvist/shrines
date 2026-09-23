@@ -1,22 +1,28 @@
 import type { Material } from 'playcanvas';
 
-import type { ChestHandles, PushBlockHandles, SunSwitchHandles } from '../objects/puzzle';
+import type { ChestHandles, PushBlockHandles, SunSwitchHandles, PuzzleSymbol } from '../objects/puzzle';
 
 import type { Bounds, Collision } from './collision';
 import { PLAYER } from './player';
 import type { Stride } from './player';
 
-export type Point = {
-    x: number;
-    z: number;
+export type Point = { x: number; z: number };
+export type PuzzlePiece = Point & { symbol: PuzzleSymbol };
+export type PuzzleConfig = {
+    blocks: PuzzlePiece[];
+    plates: PuzzlePiece[];
+    chest: Point;
+    /** Rectangle the block centres may be moved within. */
+    blockBounds: Bounds;
 };
 
-export type PuzzleConfig = {
-    block: Point;
-    switch: Point;
-    chest: Point;
-    /** Rectangle the block's centre may be moved within. */
-    blockBounds: Bounds;
+type BlockState = {
+    handles: PushBlockHandles;
+    symbol: PuzzleSymbol;
+    locked: boolean;
+    lift: number;
+    hoverTime: number;
+    dropSpeed: number;
 };
 
 export const PUZZLE = {
@@ -43,167 +49,231 @@ export const PUZZLE = {
     hoverRate: 3
 };
 
-/** Grab and move the block onto the sun switch, then walk to the chest. */
+/** One held block, independently matched plates, and a shared treasure reward. */
 export class BlockPuzzle {
-    unlocked = false;
-    grabbed = false;
+    private held: BlockState | null = null;
     private chestOpen = 0;
-    private lift = 0;
-    private hoverTime = 0;
-    private dropSpeed = 0;
-
-    readonly config: PuzzleConfig;
-    private readonly block: PushBlockHandles;
-    private readonly sunSwitch: SunSwitchHandles;
+    private readonly blocks: BlockState[];
+    private readonly plates: SunSwitchHandles[];
     private readonly chest: ChestHandles;
     private readonly collision: Collision;
-    private readonly materials: { idle: Material; lit: Material };
+    private readonly materials: { idle: Material; lit: Material; baseIdle: Material };
+    readonly config: PuzzleConfig;
 
     constructor(
         config: PuzzleConfig,
-        block: PushBlockHandles,
-        sunSwitch: SunSwitchHandles,
+        blocks: PushBlockHandles[],
+        plates: SunSwitchHandles[],
         chest: ChestHandles,
         collision: Collision,
-        materials: { idle: Material; lit: Material }
+        materials: { idle: Material; lit: Material; baseIdle: Material }
     ) {
         this.config = config;
-        this.block = block;
-        this.sunSwitch = sunSwitch;
+        this.blocks = blocks.map((handles, i) => ({
+            handles,
+            symbol: config.blocks[i].symbol,
+            locked: false,
+            lift: 0,
+            hoverTime: 0,
+            dropSpeed: 0
+        }));
+        this.plates = plates;
         this.chest = chest;
         this.collision = collision;
         this.materials = materials;
     }
 
-    get blockPosition() {
-        return this.block.entity.getPosition();
+    get grabbed() {
+        return this.held !== null;
+    }
+    get matched() {
+        return this.blocks.filter((b) => b.locked).length;
+    }
+    get unlocked() {
+        return this.matched === this.blocks.length;
+    }
+    get heldPosition() {
+        return this.held?.handles.entity.getPosition();
     }
 
-    /** Consumes attack when releasing or when close enough to grab the movable block. */
+    release() {
+        this.held = null;
+    }
+
+    diagnostics() {
+        return this.blocks.map((b) => {
+            const p = b.handles.entity.getPosition();
+            return { symbol: b.symbol, x: p.x, z: p.z, locked: b.locked, grabbed: b === this.held };
+        });
+    }
+
+    private nearest(player: Point) {
+        let nearest: BlockState | null = null;
+        let distance = Infinity;
+        for (const b of this.blocks) {
+            if (b.locked) continue;
+            const p = b.handles.entity.getPosition();
+            const dx = Math.max(0, Math.abs(player.x - p.x) - PUZZLE.blockHalf);
+            const dz = Math.max(0, Math.abs(player.z - p.z) - PUZZLE.blockHalf);
+            const d = Math.hypot(player.x - p.x, player.z - p.z);
+            if (Math.hypot(dx, dz) <= PUZZLE.grabReach && d < distance) {
+                nearest = b;
+                distance = d;
+            }
+        }
+        return nearest;
+    }
+
+    /** Consumes attack when releasing or grabbing the nearest available block. */
     interact(player: Point) {
-        if (this.grabbed) {
-            this.grabbed = false;
+        if (this.held) {
+            this.release();
             return true;
         }
-        if (!this.canGrab(player)) return false;
-        this.grabbed = true;
-        return true;
-    }
-
-    /** Shared reach check for the input action and its visual cue. */
-    canGrab(player: Point) {
-        const bp = this.blockPosition;
-        const dx = Math.max(0, Math.abs(player.x - bp.x) - PUZZLE.blockHalf);
-        const dz = Math.max(0, Math.abs(player.z - bp.z) - PUZZLE.blockHalf);
-        return !this.unlocked && Math.hypot(dx, dz) <= PUZZLE.grabReach;
+        this.held = this.nearest(player);
+        return this.grabbed;
     }
 
     updateIndicator(player: Point, active = true) {
-        this.block.available.enabled = active && !this.grabbed && this.canGrab(player);
-        this.block.selected.enabled = active && this.grabbed;
-    }
-
-    /** Animate only the visual child. Returns true once on landing, for a sand puff. */
-    updateLift(dt: number) {
-        const wasRaised = this.lift > 0;
-        let height: number;
-        if (this.grabbed) {
-            this.dropSpeed = 0;
-            this.lift += (PUZZLE.liftHeight - this.lift) * (1 - Math.exp(-PUZZLE.liftRate * dt));
-            this.hoverTime += dt;
-            height =
-                this.lift +
-                Math.sin(this.hoverTime * PUZZLE.hoverRate) * PUZZLE.hoverAmplitude * (this.lift / PUZZLE.liftHeight);
-        } else {
-            // Start from the visible pose, including its bob, and land without an easing tail.
-            const previousHeight = this.block.visual.getLocalPosition().y;
-            height = Math.max(0, previousHeight - this.dropSpeed * dt - 0.5 * PUZZLE.dropGravity * dt * dt);
-            this.dropSpeed = height > 0 ? this.dropSpeed + PUZZLE.dropGravity * dt : 0;
-            this.lift = height;
-            this.hoverTime = 0;
+        const nearest = active && !this.held ? this.nearest(player) : null;
+        for (const b of this.blocks) {
+            b.handles.available.enabled = b === nearest;
+            b.handles.selected.enabled = active && b === this.held;
         }
-        this.block.visual.setLocalPosition(0, height, 0);
-        return wasRaised && this.lift === 0;
     }
 
-    /** Moves a grabbed pair together; either body's obstacles constrain both bodies. */
+    /** Animates visual children only; reports every landing for its sand puff. */
+    updateLift(dt: number): Point[] {
+        const landed: Point[] = [];
+        for (const b of this.blocks) {
+            const wasRaised = b.lift > 0;
+            let height: number;
+            if (b === this.held) {
+                b.dropSpeed = 0;
+                b.lift += (PUZZLE.liftHeight - b.lift) * (1 - Math.exp(-PUZZLE.liftRate * dt));
+                b.hoverTime += dt;
+                height =
+                    b.lift +
+                    Math.sin(b.hoverTime * PUZZLE.hoverRate) * PUZZLE.hoverAmplitude * (b.lift / PUZZLE.liftHeight);
+            } else {
+                const previousHeight = b.handles.visual.getLocalPosition().y;
+                height = Math.max(0, previousHeight - b.dropSpeed * dt - 0.5 * PUZZLE.dropGravity * dt * dt);
+                b.dropSpeed = height > 0 ? b.dropSpeed + PUZZLE.dropGravity * dt : 0;
+                b.lift = height;
+                b.hoverTime = 0;
+            }
+            b.handles.visual.setLocalPosition(0, height, 0);
+            if (wasRaised && b.lift === 0) {
+                const p = b.handles.entity.getPosition();
+                landed.push({ x: p.x, z: p.z });
+            }
+        }
+        return landed;
+    }
+
+    private overlapsBlocks(x: number, z: number, half: number, except: BlockState | null = null) {
+        return this.blocks.some((b) => {
+            if (b === except) return false;
+            const p = b.handles.entity.getPosition();
+            return Math.abs(x - p.x) < half && Math.abs(z - p.z) < half;
+        });
+    }
+
+    /** Resolves movement and damage shoves without pushing into another block. */
+    resolvePlayer(next: Point, from: Point) {
+        const safe = this.collision.resolve(next.x, next.z, PLAYER.radius);
+        const result = { ...from };
+        if (!this.overlapsBlocks(safe.x, from.z, PUZZLE.blockHalf)) result.x = safe.x;
+        if (!this.overlapsBlocks(result.x, safe.z, PUZZLE.blockHalf)) result.z = safe.z;
+        // Axis sliding must also remain outside static obstacles.
+        if (this.collision.overlaps(result.x, result.z, PLAYER.radius)) return { ...from };
+        return result;
+    }
+
+    /** Moves a held pair together; both footprints constrain every axis step. */
     constrain(stride: Stride, player: Point) {
-        const bp = this.blockPosition;
-        if (this.grabbed) {
-            let x = player.x,
-                z = player.z;
-            let bx = bp.x,
-                bz = bp.z;
-            const b = this.config.blockBounds;
-            const walk = this.collision.bounds;
-            const valid = (px: number, pz: number, blockX: number, blockZ: number) =>
-                blockX >= b.minX &&
-                blockX <= b.maxX &&
-                blockZ >= b.minZ &&
-                blockZ <= b.maxZ &&
-                px >= walk.minX &&
-                px <= walk.maxX &&
-                pz >= walk.minZ &&
-                pz <= walk.maxZ &&
-                !this.collision.overlaps(blockX, blockZ, PUZZLE.blockRadius) &&
-                !this.collision.overlaps(px, pz, PLAYER.radius);
-            const dx = (stride.x - x) * PUZZLE.moveRatio;
-            const dz = (stride.z - z) * PUZZLE.moveRatio;
-            if (valid(x + dx, z, bx + dx, bz)) {
-                x += dx;
-                bx += dx;
-            }
-            if (valid(x, z + dz, bx, bz + dz)) {
-                z += dz;
-                bz += dz;
-            }
-            this.block.entity.setPosition(bx, 0, bz);
-            return { x, z };
+        const held = this.held;
+        if (!held) return this.resolvePlayer(stride, player);
+        const bp = held.handles.entity.getPosition();
+        let x = player.x,
+            z = player.z,
+            bx = bp.x,
+            bz = bp.z;
+        const b = this.config.blockBounds;
+        const walk = this.collision.bounds;
+        const valid = (px: number, pz: number, blockX: number, blockZ: number) =>
+            blockX >= b.minX &&
+            blockX <= b.maxX &&
+            blockZ >= b.minZ &&
+            blockZ <= b.maxZ &&
+            px >= walk.minX &&
+            px <= walk.maxX &&
+            pz >= walk.minZ &&
+            pz <= walk.maxZ &&
+            !this.collision.overlaps(blockX, blockZ, PUZZLE.blockRadius) &&
+            !this.collision.overlaps(px, pz, PLAYER.radius) &&
+            !this.overlapsBlocks(blockX, blockZ, PUZZLE.blockRadius * 2, held) &&
+            !this.overlapsBlocks(px, pz, PUZZLE.blockHalf, held);
+        const dx = (stride.x - x) * PUZZLE.moveRatio;
+        const dz = (stride.z - z) * PUZZLE.moveRatio;
+        if (valid(x + dx, z, bx + dx, bz)) {
+            x += dx;
+            bx += dx;
         }
-        const next = this.collision.resolve(stride.x, stride.z, PLAYER.radius);
-        const dx = next.x - bp.x,
-            dz = next.z - bp.z;
-        const half = PUZZLE.blockHalf;
-        if (Math.abs(dx) < half && Math.abs(dz) < half) {
-            if (Math.abs(dx) > Math.abs(dz)) next.x = bp.x + (Math.sign(dx) || 1) * half;
-            else next.z = bp.z + (Math.sign(dz) || 1) * half;
+        if (valid(x, z + dz, bx, bz + dz)) {
+            z += dz;
+            bz += dz;
         }
-        return next;
+        held.handles.entity.setPosition(bx, 0, bz);
+        return { x, z };
     }
 
-    /** Advances the switch and chest. Reports the frame the switch clicks and the frame the chest is reached. */
+    /** Matches only like symbols. A matched block remains locked until reset. */
     update(dt: number, player: Point) {
-        const { switch: sw, chest } = this.config;
-        let clicked = false,
-            reached = false;
-        const bp = this.block.entity.getPosition();
-        if (!this.unlocked && Math.hypot(bp.x - sw.x, bp.z - sw.z) < PUZZLE.snapRadius) {
-            this.unlocked = true;
-            this.grabbed = false;
-            clicked = true;
-            this.block.entity.setPosition(sw.x, 0, sw.z);
-            this.sunSwitch.sunDisk.render!.meshInstances[0].material = this.materials.lit;
+        const clicked: PuzzlePiece[] = [];
+        for (const b of this.blocks) {
+            if (b.locked) continue;
+            const i = this.config.plates.findIndex((plate) => plate.symbol === b.symbol);
+            const plate = this.config.plates[i];
+            const p = b.handles.entity.getPosition();
+            if (Math.hypot(p.x - plate.x, p.z - plate.z) >= PUZZLE.snapRadius) continue;
+            if (this.overlapsBlocks(plate.x, plate.z, PUZZLE.blockRadius * 2, b)) continue;
+            // Do not snap onto the player when approaching from the far side.
+            if (Math.abs(player.x - plate.x) < PUZZLE.blockHalf && Math.abs(player.z - plate.z) < PUZZLE.blockHalf)
+                continue;
+            b.locked = true;
+            if (b === this.held) this.release();
+            b.handles.entity.setPosition(plate.x, 0.3, plate.z);
+            this.plates[i].sunDisk.render!.meshInstances[0].material = this.materials.lit;
+            this.plates[i].base.render!.meshInstances[0].material = this.materials.lit;
+            clicked.push(plate);
         }
         if (this.unlocked) {
             this.chestOpen = Math.min(100, this.chestOpen + dt * PUZZLE.lidSpeed);
             this.chest.lid.setLocalEulerAngles(-this.chestOpen, 0, 0);
-            reached = Math.hypot(player.x - chest.x, player.z - chest.z) < PUZZLE.chestReach;
         }
-        return { clicked, reached };
+        const chest = this.config.chest;
+        return {
+            clicked,
+            reached: this.unlocked && Math.hypot(player.x - chest.x, player.z - chest.z) < PUZZLE.chestReach
+        };
     }
 
     reset() {
-        this.lift = 0;
-        this.hoverTime = 0;
-        this.dropSpeed = 0;
-        this.block.visual.setLocalPosition(0, 0, 0);
-        this.grabbed = false;
-        this.block.available.enabled = false;
-        this.block.selected.enabled = false;
-        this.unlocked = false;
+        this.release();
         this.chestOpen = 0;
-        this.block.entity.setPosition(this.config.block.x, 0, this.config.block.z);
         this.chest.lid.setLocalEulerAngles(0, 0, 0);
-        this.sunSwitch.sunDisk.render!.meshInstances[0].material = this.materials.idle;
+        this.blocks.forEach((b, i) => {
+            b.locked = false;
+            b.lift = b.hoverTime = b.dropSpeed = 0;
+            b.handles.visual.setLocalPosition(0, 0, 0);
+            b.handles.available.enabled = b.handles.selected.enabled = false;
+            const start = this.config.blocks[i];
+            b.handles.entity.setPosition(start.x, 0, start.z);
+        });
+        for (const plate of this.plates) {
+            plate.sunDisk.render!.meshInstances[0].material = this.materials.idle;
+            plate.base.render!.meshInstances[0].material = this.materials.baseIdle;
+        }
     }
 }

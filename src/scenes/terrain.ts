@@ -39,6 +39,7 @@ export type IslandOptions = {
     /** Depth of the clay bank below the walkable top at y = 0. */
     wallHeight: number;
     clearing?: SandyClearing;
+    clearings?: SandyClearing[];
 };
 
 export type Island = {
@@ -66,7 +67,7 @@ export function createIsland(ctx: TerrainContext, root: Entity, options: IslandO
 
     const grass = resources.material('sunlit meadow', '#a3c040');
     const earth = resources.material('honey clay bank', '#b07c40');
-    paintMeadow(ctx, grass, options.clearing);
+    paintMeadow(ctx, grass, options.clearing ? [options.clearing] : (options.clearings ?? []));
     paintClayBank(ctx, earth);
 
     // Flat meadow top.
@@ -180,7 +181,7 @@ export function createIsland(ctx: TerrainContext, root: Entity, options: IslandO
 }
 
 /** Painted meadow: soft mottled greens, optionally with a sandy clearing. */
-function paintMeadow({ device, resources, rand }: TerrainContext, grass: StandardMaterial, clearing?: SandyClearing) {
+function paintMeadow({ device, resources, rand }: TerrainContext, grass: StandardMaterial, clearings: SandyClearing[]) {
     const size = MEADOW_TEXELS;
     const { c, x: ctx } = paintCanvas(size);
     ctx.fillStyle = '#bfd84f';
@@ -223,7 +224,7 @@ function paintMeadow({ device, resources, rand }: TerrainContext, grass: Standar
         ctx.fill();
     }
     ctx.globalAlpha = 1;
-    if (clearing) {
+    for (const clearing of clearings) {
         const { x: sx, y: sy, radius, innerRadius, path } = clearing;
         for (let i = 0; i < 2400; i++) {
             const a = rand() * Math.PI * 2,

@@ -4,7 +4,7 @@ This file applies to the whole repository. Preserve the project's identity when 
 
 ## What we are building
 
-Shrines currently opens **Mossy Meadow**, a small playable fantasy clearing: a hooded adventurer, three strawberry slimes, a grabbable turquoise block, a sun switch, and a treasure chest. `woodland` is a separate scene-composition example. Gameplay is optional for other scenes.
+Shrines currently opens **Mossy Meadow**, a small playable fantasy clearing: a hooded adventurer, two strawberry slimes, a grabbable turquoise block, a sun switch, and a treasure chest. Reaching the unlocked chest transports the player to **Sun & Moon Grove**, a 40 × 30 world with four slimes and two symbol-marked blocks and plates. Both matches unlock its treasure; defeating slimes is optional. Remaining hearts carry over. Restarting after defeat or victory returns to the first area with three hearts. `woodland` is a separate scene-composition example. Gameplay is optional for other scenes.
 
 The intended feel is warm, playful, tactile, and welcoming. Movement should respond promptly, enemies should communicate their intentions, and solving a small puzzle should feel rewarding. Keep the gentle tone of the existing quest and end-card text, including encouraging language after defeat.
 
@@ -56,7 +56,7 @@ All current models and terrain textures are procedural. Extend the existing prim
 
 Use `src/rendering/palette.ts` as the shared color/material vocabulary: clover greens, warm bark and stone, turquoise, sunshine gold, warm ivory, and strawberry pink. Preserve the relative prominence of the hero, puzzle objects, and enemies. New props should be legible at the actual gameplay camera distance.
 
-Start new scenes from `CameraRig` and `MEADOW_LIGHTING`: an elevated orthographic view, warm afternoon sun, cool fill, soft grounding shadows, restrained bloom, and ambient occlusion. The camera follows gently and adjusts its framing on resize. Keep effects and lighting subordinate to gameplay readability; avoid adding routine camera shake or large flashes as default feedback.
+Start new scenes from `CameraRig` and `MEADOW_LIGHTING`: an elevated orthographic view, warm afternoon sun, cool fill, soft grounding shadows, restrained bloom, and ambient occlusion. The camera follows gently and adjusts its framing on resize. Sun & Moon Grove uses full X/Z following at the original gameplay scale; the whole second world need not be visible at once. Keep effects and lighting subordinate to gameplay readability; avoid adding routine camera shake or large flashes as default feedback.
 
 The HUD uses rounded cream panels, soft shadows, rounded typography, and short friendly copy. Keep it separate from the 3D hierarchy and driven by game state. Noninteractive overlays should let pointer input reach the canvas; interactive end cards own their input.
 
@@ -91,11 +91,14 @@ Useful tuning references (the source constants remain authoritative):
 
 ## Time, state, and input
 
+`createJourneyScene` owns progression and queues area changes until after the active update returns. `createAdventureArea` shares construction and teardown; area configuration supplies scenery, puzzle pieces, enemies and camera settings.
+
 `AdventureGame` coordinates movement/block constraints/collision, player animation, combat, enemies, puzzle, ambience, and camera. Preserve deliberate update order when adding systems.
 
 - Frame time is in seconds. Gameplay currently clamps `rawDt` to 0.035; diagnostics use raw frame time. Advance durations and velocities with the gameplay timestep and use frame-rate-independent easing for new motion, such as `1 - Math.exp(-rate * dt)`.
-- Current states are `playing`, `paused`, `won`, and `over`. Gameplay time and ambient animation advance only while playing. Effects freeze while paused but finish after victory or defeat. Document any intentional new presentation behavior outside play.
+- Current states are `playing`, `paused`, `won`, `over`, and the transient `complete` state used while an area change is queued. Lethal damage takes precedence over puzzle completion in the same frame. Gameplay time and ambient animation advance only while playing. Effects freeze while paused but finish after victory or defeat. Document any intentional new presentation behavior outside play.
 - Use the existing `Input` owner. Controls are WASD/arrows, Space/canvas click to attack (or grab a nearby block / release the held block), and Escape to toggle pause. Blur clears held keys and pauses. Resume and restart behavior is centralized in `AdventureGame`.
+- Puzzles use arrays of uniquely symbol-marked blocks and plates (`sun` / `moon`). A correct match snaps and locks the box; a wrong match stays movable. Only one box can be held; nearest wins, with array order resolving ties. Other boxes constrain both the player and held box, including damage shoves.
 - The grabbed block and player move together, constrained by both collision footprints. Damage still applies while grabbing, but knockback is suppressed to preserve their spacing. The visual child eases up by 0.28 units while held, with a subtle bob and sandy grains on lift and landing. This presentation freezes on pause and settles after end states. Pause retains the grip; switch activation, end states, and reset release it.
 - New features must reset timers, transforms, visibility, health/state, hit tracking, spawned effects, and HUD feedback as applicable. Verify restarting during or after an action does not retain its pose or state.
 - Avoid wall-clock timers for simulation or independent animation loops that continue during pause. If adding input buffering, hit-stop, or slow motion, explicitly define which clocks and systems are affected.
@@ -105,12 +108,13 @@ Useful tuning references (the source constants remain authoritative):
 Use Node matching `package.json` (currently >=22.23.2). For code changes, run:
 
 ```sh
+npm test
 npm run typecheck
 npm run lint
 npm run build
 ```
 
-Use `npm run fmt` to check formatting; format only relevant files when unrelated formatting differences exist. Documentation-only changes need a targeted formatting/content check. There is currently no automated test script; do not claim a build verifies game feel.
+Use `npm run fmt` to check formatting; format only relevant files when unrelated formatting differences exist. Documentation-only changes need a targeted formatting/content check. The Node test suite checks puzzle rules and controller state with stubbed DOM/particle rendering; it does not verify rendering or game feel.
 
 For gameplay or rendering changes, run `npm run dev` and verify the relevant behavior in the browser:
 
@@ -118,7 +122,7 @@ For gameplay or rendering changes, run `npm run dev` and verify the relevant beh
 - Complete the block/switch/chest path after layout or puzzle changes. Check damage, defeat, victory, and restart after state changes.
 - Check pause/resume, focus loss, and repeat actions for stuck input, stale poses, or accumulating effects.
 - Inspect the scene at gameplay distance and at wide/narrow viewport sizes for framing, occlusion, HUD overlap, and consistent visual style.
-- Use development hooks `shrines.load('woodland')`, `shrines.load('meadow')`, and `shrines.unload()` to verify scene cleanup when ownership changes. `window.meadow` exposes live gameplay diagnostics; the hidden `#diagnostics` output is also available.
+- Use development hooks `shrines.load('woodland')`, `shrines.load('meadow')`, `shrines.load('sun-moon')`, and `shrines.unload()` to verify scene cleanup when ownership changes. `window.meadow` exposes live gameplay diagnostics; the hidden `#diagnostics` output is also available.
 - Watch draw calls, effects, and frame rate on representative hardware. The project targets more than 60 FPS on suitable hardware; retain static batching, shared materials, restrained effects, and the current pixel-ratio cap unless a measured change justifies adjustment.
 
 For visual refactors, compare the same seeded scene, camera, viewport, and gameplay state before and after. `.dream-loop/` contains ignored local reference/iteration artifacts when available; do not make development depend on files missing from a fresh checkout. Report which checks actually ran and any remaining limitations.

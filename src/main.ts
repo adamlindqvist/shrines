@@ -10,7 +10,9 @@ const SCENE: SceneName = 'meadow';
 const canvas = document.getElementById('application-canvas') as HTMLCanvasElement;
 const context = await createApp(canvas);
 const host = new SceneHost(context);
-host.load(scenes[SCENE]);
+const requestedScene = import.meta.env.DEV ? new URLSearchParams(location.search).get('scene') : null;
+const initialScene = requestedScene && Object.hasOwn(scenes, requestedScene) ? (requestedScene as SceneName) : SCENE;
+host.load(scenes[initialScene]);
 context.app.start();
 
 if (import.meta.env.DEV) {
