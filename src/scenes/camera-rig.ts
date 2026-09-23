@@ -59,7 +59,7 @@ export class CameraRig {
             projection: PROJECTION_ORTHOGRAPHIC,
             orthoHeight: view.orthoHeight,
             nearClip: 0.1,
-            farClip: 160,
+            farClip: 80,
             clearColor: view.clearColor,
             toneMapping: TONEMAP_LINEAR
         });
@@ -74,7 +74,7 @@ export class CameraRig {
             intensity: sun.intensity,
             castShadows: true,
             shadowDistance: sun.shadowDistance,
-            shadowResolution: 4096,
+            shadowResolution: 2048,
             shadowBias: 0.008,
             normalOffsetBias: 0.04,
             shadowType: SHADOW_PCF5,
@@ -95,14 +95,14 @@ export class CameraRig {
 
         const frame = new CameraFrame(app, camera.camera!);
         frame.rendering.toneMapping = TONEMAP_LINEAR;
-        frame.rendering.samples = 4;
+        frame.rendering.samples = 2;
         frame.rendering.sharpness = 0.2;
         frame.bloom.intensity = 0.012;
         frame.ssao.type = SSAOTYPE_LIGHTING;
         frame.ssao.intensity = 0.5;
         frame.ssao.radius = 2.5;
         frame.ssao.power = 4;
-        frame.ssao.samples = 12;
+        frame.ssao.samples = 8;
         frame.ssao.blurEnabled = true;
         frame.ssao.scale = 1;
         frame.update();
