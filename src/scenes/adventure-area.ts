@@ -11,8 +11,10 @@ import { SceneResources } from '../rendering/resources';
 import { SceneBuilder } from './builder';
 import { CameraRig } from './camera-rig';
 import type { CameraRigOptions } from './camera-rig';
+import { createRiverIsland } from './river-island';
+import type { RiverIslandOptions } from './river-island';
 import { createBackdrop, createIsland } from './terrain';
-import type { IslandOptions } from './terrain';
+import type { BackdropOptions, IslandOptions } from './terrain';
 
 declare global {
     // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -25,7 +27,8 @@ declare global {
 export type AdventureArea = {
     name: string;
     seed: number;
-    island: IslandOptions;
+    island: IslandOptions | RiverIslandOptions;
+    backdrop?: BackdropOptions;
     game: AdventureConfig;
     slimes: Point[];
     camera: CameraRigOptions;
@@ -42,8 +45,11 @@ export function createAdventureArea(context: AppContext, area: AdventureArea, ho
     const rand = createRandom(area.seed);
     const root = new Entity(area.name);
     app.root.addChild(root);
-    const island = createIsland({ device, resources, rand }, root, area.island);
+    const terrain = { device, resources, rand };
+    const river = 'kind' in area.island ? createRiverIsland(terrain, root, area.island) : null;
+    const island = river ?? createIsland(terrain, root, area.island as IslandOptions);
     const scene = new SceneBuilder({ device, palette }, rand, root);
+    for (const o of river?.obstacles ?? []) scene.addObstacle(o.x, o.z, o.r);
     area.decorate(scene);
     const { puzzle, spawn } = area.game;
     const cast = {
@@ -53,8 +59,17 @@ export function createAdventureArea(context: AppContext, area: AdventureArea, ho
         chest: scene.addChest({ ...puzzle.chest, rotation: 0 }),
         slimes: area.slimes.map((at) => scene.addSlime(at))
     };
-    createBackdrop({ device, resources }, root, island, { size: area.game.stage === 1 ? 34 : 60 });
-    const layout = scene.finish();
+    createBackdrop({ device, resources }, root, island, { size: area.game.stage === 1 ? 34 : 60, ...area.backdrop });
+    const built = scene.finish();
+    const layout = river
+        ? {
+              ...built,
+              animate(time: number) {
+                  built.animate(time);
+                  river.animate(time);
+              }
+          }
+        : built;
     const rig = new CameraRig(app, root, area.camera);
     const game = new AdventureGame({ context, root, rand, palette, layout, rig, cast, config: area.game, ...hooks });
     Object.defineProperty(window, 'meadow', { configurable: true, get: () => game.diagnostics() });

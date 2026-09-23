@@ -29,6 +29,8 @@ type Card = { title: string; copy: string };
 export type AdventureConfig = {
     area: string;
     stage: number;
+    /** Number of shrines in the whole journey. */
+    stages: number;
     spawn: Point;
     /** Rectangle the player and slimes are kept inside. */
     walkBounds: Bounds;
@@ -210,9 +212,9 @@ export class AdventureGame {
             block: this.puzzle.diagnostics()[0],
             switch: this.deps.config.puzzle.plates[0],
             blocks: this.puzzle.diagnostics(),
-            plates: this.deps.config.puzzle.plates.map((plate) => ({
+            plates: this.deps.config.puzzle.plates.map((plate, i) => ({
                 ...plate,
-                active: this.puzzle.diagnostics().some((b) => b.symbol === plate.symbol && b.locked)
+                active: this.puzzle.plateStates()[i]
             })),
             matched: this.puzzle.matched,
             camera: { x: this.deps.rig.camera.getPosition().x, z: this.deps.rig.camera.getPosition().z },
@@ -341,7 +343,7 @@ export class AdventureGame {
         const quest = this.puzzle.unlocked ? config.text.unlockedQuest : config.hud.quest;
         const progress = `${this.puzzle.matched}/${config.puzzle.blocks.length}`;
         this.hud.setQuest(
-            `Shrine ${config.stage}/2 · ${progress} · ${quest.title}`,
+            `Shrine ${config.stage}/${config.stages} · ${progress} · ${quest.title}`,
             this.puzzle.grabbed ? config.text.grabbed : quest.copy
         );
     }

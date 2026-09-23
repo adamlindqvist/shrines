@@ -33,6 +33,7 @@ const SLIMES = [
 const GAME: AdventureConfig = {
     area: 'meadow',
     stage: 1,
+    stages: 3,
     spawn: SPAWN,
     walkBounds: { minX: -WX + 1.4, maxX: WX - 1.4, minZ: -DZ + 1.1, maxZ: DZ - 1.1 },
     puzzle: {

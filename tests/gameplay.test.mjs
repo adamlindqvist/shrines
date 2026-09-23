@@ -66,6 +66,25 @@ for (const order of [
     });
 }
 
+test('matching symbols share plates one block at a time', () => {
+    const { puzzle, blocks, config, plates, materials } = fixture();
+    for (const b of config.blocks) b.symbol = 'sun';
+    for (const p of config.plates) p.symbol = 'sun';
+    puzzle.reset();
+    puzzle.blocks.forEach((b) => (b.symbol = 'sun'));
+    // The first block takes the second plate; the other block cannot reuse it.
+    blocks[0].entity.setPosition(-3.2, 0, -3);
+    assert.equal(puzzle.update(0.035, { x: 0, z: 0 }).clicked.length, 1);
+    assert.deepEqual(puzzle.plateStates(), [false, true]);
+    blocks[1].entity.setPosition(3.2, 0, -3);
+    assert.equal(puzzle.update(0.035, { x: 0, z: 0 }).clicked.length, 1);
+    assert.deepEqual(puzzle.plateStates(), [true, true]);
+    assert.equal(puzzle.unlocked, true);
+    assert.equal(plates[0].sunDisk.render.meshInstances[0].material, materials.lit);
+    puzzle.reset();
+    assert.deepEqual(puzzle.plateStates(), [false, false]);
+});
+
 test('wrong symbols never activate, and remain movable', () => {
     const { puzzle, blocks, config } = fixture();
     blocks[0].entity.setPosition(3, 0, -3);

@@ -4,9 +4,18 @@ import type { Obstacle } from '../gameplay/collision';
 import { createAdventurer } from '../objects/adventurer';
 import type { PropContext } from '../objects/context';
 import { appendBoulder, appendBush, boulderRadius, createBushBatch } from '../objects/foliage';
-import { LOG_HEIGHT, LOG_RADIUS, POT_RADIUS, createLog, createPot } from '../objects/props';
+import {
+    LOG_HEIGHT,
+    LOG_RADIUS,
+    POT_RADIUS,
+    SIGNPOST_RADIUS,
+    createLog,
+    createPot,
+    createSignpost
+} from '../objects/props';
 import { CHEST_RADIUS, createPushBlock, createSunSwitch, createTreasureChest } from '../objects/puzzle';
 import type { PuzzleSymbol } from '../objects/puzzle';
+import { BRIDGE, SHRINE, createShrineDais, createStoneBridge, shrineFront } from '../objects/shrine';
 import { createSlime } from '../objects/slime';
 import { createTree, treeRadius } from '../objects/tree';
 import { createGeo, meshEntity, rotateAppended, vertexCount } from '../rendering/geometry';
@@ -29,6 +38,8 @@ export type RockOptions = {
     scale: number;
     /** Icosphere subdivisions; 1 gives the chunky storybook facets. */
     detail?: number;
+    /** Ground height, e.g. a stepping stone sitting in sunken water. */
+    y?: number;
 } & Placement;
 
 export type BushClusterOptions = {
@@ -108,12 +119,60 @@ export class SceneBuilder {
     }
 
     /** Faceted boulder `scale` units wide, batched, with collision. */
-    addRock({ x, z, scale: w, rotation = 0, detail = 1 }: RockOptions) {
+    addRock({ x, z, scale: w, rotation = 0, detail = 1, y = 0 }: RockOptions) {
         this.assertOpen();
         const start = vertexCount(this.rocks);
         appendBoulder(this.rocks, this.rand, x, z, w, detail);
         rotateAppended(this.rocks, start, x, z, rotation);
+        if (y) for (let v = start * 3 + 1; v < this.rocks.p.length; v += 3) this.rocks.p[v] += y;
         this.obstacles.push({ x, z, r: boulderRadius(w) });
+    }
+
+    /** Wooden arrow sign; `rotation` 0 faces the camera and points toward +X. */
+    addSignpost(at: Placement) {
+        createSignpost(this.props, this.place('wooden signpost', at));
+        this.obstacles.push({ x: at.x, z: at.z, r: SIGNPOST_RADIUS });
+    }
+
+    /**
+     * Stone bridge centred on (x, z) spanning `length` along Z. Its curbs and
+     * pillars collide, keeping walkers and carried blocks on the deck.
+     */
+    addBridge({ x, z, length }: { x: number; z: number; length: number }) {
+        createStoneBridge(this.props, this.place('stone bridge', { x, z }), length);
+        const curbX = BRIDGE.width / 2 - BRIDGE.parapetWidth / 2;
+        // Curbs collide only between the pillars, so both ends open onto the meadow.
+        const span = length - BRIDGE.pillarInset * 2;
+        for (const side of [-1, 1]) {
+            const steps = Math.ceil(span / 0.45);
+            for (let i = 0; i <= steps; i++)
+                this.obstacles.push({ x: x + side * curbX, z: z - span / 2 + (span * i) / steps, r: 0.3 });
+            for (const end of [-1, 1])
+                this.obstacles.push({
+                    x: x + side * (BRIDGE.width / 2 - BRIDGE.pillarSize / 2 + 0.06),
+                    z: z + end * (length / 2 - BRIDGE.pillarInset),
+                    r: 0.52
+                });
+        }
+    }
+
+    /** Stepped shrine dais facing +Z; the whole footprint, steps included, is solid. */
+    addShrineDais({ x, z }: Placement) {
+        createShrineDais(this.props, this.place('shrine dais', { x, z }));
+        // Circles sit inside the footprint so their outer edge matches it.
+        const r = 0.42;
+        const minX = x - SHRINE.width / 2 + r,
+            maxX = x + SHRINE.width / 2 - r,
+            minZ = z - SHRINE.depth / 2 + r,
+            maxZ = z + shrineFront() - r;
+        for (let i = 0, n = Math.ceil((maxX - minX) / 0.5); i <= n; i++) {
+            const px = minX + ((maxX - minX) * i) / n;
+            this.obstacles.push({ x: px, z: minZ, r }, { x: px, z: maxZ, r });
+        }
+        for (let i = 1, n = Math.ceil((maxZ - minZ) / 0.5); i < n; i++) {
+            const pz = minZ + ((maxZ - minZ) * i) / n;
+            this.obstacles.push({ x: minX, z: pz, r }, { x: maxX, z: pz, r });
+        }
     }
 
     addPot({ x, z, scale = 1, rotation }: ScaledPlacement) {
@@ -145,8 +204,9 @@ export class SceneBuilder {
         return createSunSwitch(this.props, this.place(`${symbol} plate`, { x, z, rotation }), rotation, symbol);
     }
 
-    addChest(at: Placement) {
-        const handles = createTreasureChest(this.props, this.place('sunshine treasure chest', at));
+    /** Treasure chest; `y` lifts it onto a plinth such as the shrine dais. */
+    addChest(at: Placement & { y?: number }) {
+        const handles = createTreasureChest(this.props, this.place('sunshine treasure chest', at, at.y));
         this.obstacles.push({ x: at.x, z: at.z, r: CHEST_RADIUS });
         return handles;
     }

@@ -181,7 +181,11 @@ export function createIsland(ctx: TerrainContext, root: Entity, options: IslandO
 }
 
 /** Painted meadow: soft mottled greens, optionally with a sandy clearing. */
-function paintMeadow({ device, resources, rand }: TerrainContext, grass: StandardMaterial, clearings: SandyClearing[]) {
+export function paintMeadow(
+    { device, resources, rand }: TerrainContext,
+    grass: StandardMaterial,
+    clearings: SandyClearing[]
+) {
     const size = MEADOW_TEXELS;
     const { c, x: ctx } = paintCanvas(size);
     ctx.fillStyle = '#bfd84f';
@@ -268,7 +272,7 @@ function paintMeadow({ device, resources, rand }: TerrainContext, grass: Standar
 }
 
 /** Layered clay bank texture for the island wall. */
-function paintClayBank({ device, resources, rand }: TerrainContext, earth: StandardMaterial) {
+export function paintClayBank({ device, resources, rand }: TerrainContext, earth: StandardMaterial) {
     const { c, x: ctx } = paintCanvas(512);
     const grd = ctx.createLinearGradient(0, 0, 0, 512);
     grd.addColorStop(0, '#6c4720');

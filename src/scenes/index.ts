@@ -7,6 +7,7 @@ import { createWoodlandScene } from './woodland';
 export const scenes = {
     meadow: createJourneyScene,
     'sun-moon': (context) => createJourneyScene(context, 1),
+    'two-suns': (context) => createJourneyScene(context, 2),
     woodland: createWoodlandScene
 } satisfies Record<string, SceneFactory>;
 

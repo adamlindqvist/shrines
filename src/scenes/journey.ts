@@ -3,18 +3,19 @@ import type { AppContext, SceneInstance } from '../app/context';
 import { createAdventureArea } from './adventure-area';
 import { meadowArea } from './meadow';
 import { sunMoonArea } from './sun-moon';
+import { twoSunsArea } from './two-suns';
 
 /** Scene changes happen after update returns, never inside a running game's callback. */
 export function createJourneyScene(context: AppContext, startAt = 0): SceneInstance {
-    const areas = [meadowArea, sunMoonArea];
+    const areas = [meadowArea, sunMoonArea, twoSunsArea];
     let pending: { area: number; health: number } | null = null;
     const create = (index: number, health: number) =>
         createAdventureArea(context, areas[index], {
             initialHealth: health,
             onComplete:
-                index === 0
+                index < areas.length - 1
                     ? (remaining) => {
-                          pending = { area: 1, health: remaining };
+                          pending = { area: index + 1, health: remaining };
                       }
                     : undefined,
             onRestart: () => {

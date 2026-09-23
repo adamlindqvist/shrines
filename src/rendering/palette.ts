@@ -21,6 +21,7 @@ export function createPalette(resources: SceneResources) {
         leafLight: mat('sunlit leaves', '#86c740'),
         leafDark: mat('deep foliage', '#3a8130'),
         stone: mat('warm grey stone', '#c4bcb0', 12),
+        paving: mat('pale paving', '#d3cdc2', 14),
         teal: mat('turquoise enamel', '#45d3c4', 46, 0.13),
         tealDark: mat('turquoise inset', '#24a89e', 40, 0.1),
         gold: mat('sunshine gold', '#f7bd2c', 60, 0.2),

@@ -11,7 +11,10 @@ export type PuzzlePiece = Point & { symbol: PuzzleSymbol };
 export type PuzzleConfig = {
     blocks: PuzzlePiece[];
     plates: PuzzlePiece[];
-    chest: Point;
+    /** Chest position; `y` raises it onto a plinth. */
+    chest: Point & { y?: number };
+    /** Overrides `PUZZLE.chestReach`, e.g. when the chest stands behind steps. */
+    chestReach?: number;
     /** Rectangle the block centres may be moved within. */
     blockBounds: Bounds;
 };
@@ -20,6 +23,8 @@ type BlockState = {
     handles: PushBlockHandles;
     symbol: PuzzleSymbol;
     locked: boolean;
+    /** Index of the plate this block is locked onto, or -1. */
+    plate: number;
     lift: number;
     hoverTime: number;
     dropSpeed: number;
@@ -73,6 +78,7 @@ export class BlockPuzzle {
             handles,
             symbol: config.blocks[i].symbol,
             locked: false,
+            plate: -1,
             lift: 0,
             hoverTime: 0,
             dropSpeed: 0
@@ -105,6 +111,11 @@ export class BlockPuzzle {
             const p = b.handles.entity.getPosition();
             return { symbol: b.symbol, x: p.x, z: p.z, locked: b.locked, grabbed: b === this.held };
         });
+    }
+
+    /** Whether each plate, in config order, holds a locked block. */
+    plateStates() {
+        return this.config.plates.map((_, i) => this.blocks.some((b) => b.plate === i));
     }
 
     private nearest(player: Point) {
@@ -228,20 +239,26 @@ export class BlockPuzzle {
         return { x, z };
     }
 
-    /** Matches only like symbols. A matched block remains locked until reset. */
+    /** Matches only like symbols, one block per plate. A matched block remains locked until reset. */
     update(dt: number, player: Point) {
         const clicked: PuzzlePiece[] = [];
         for (const b of this.blocks) {
             if (b.locked) continue;
-            const i = this.config.plates.findIndex((plate) => plate.symbol === b.symbol);
-            const plate = this.config.plates[i];
             const p = b.handles.entity.getPosition();
-            if (Math.hypot(p.x - plate.x, p.z - plate.z) >= PUZZLE.snapRadius) continue;
+            const i = this.config.plates.findIndex(
+                (plate, index) =>
+                    plate.symbol === b.symbol &&
+                    !this.blocks.some((other) => other.plate === index) &&
+                    Math.hypot(p.x - plate.x, p.z - plate.z) < PUZZLE.snapRadius
+            );
+            if (i < 0) continue;
+            const plate = this.config.plates[i];
             if (this.overlapsBlocks(plate.x, plate.z, PUZZLE.blockRadius * 2, b)) continue;
             // Do not snap onto the player when approaching from the far side.
             if (Math.abs(player.x - plate.x) < PUZZLE.blockHalf && Math.abs(player.z - plate.z) < PUZZLE.blockHalf)
                 continue;
             b.locked = true;
+            b.plate = i;
             if (b === this.held) this.release();
             b.handles.entity.setPosition(plate.x, 0.3, plate.z);
             this.plates[i].sunDisk.render!.meshInstances[0].material = this.materials.lit;
@@ -255,7 +272,9 @@ export class BlockPuzzle {
         const chest = this.config.chest;
         return {
             clicked,
-            reached: this.unlocked && Math.hypot(player.x - chest.x, player.z - chest.z) < PUZZLE.chestReach
+            reached:
+                this.unlocked &&
+                Math.hypot(player.x - chest.x, player.z - chest.z) < (this.config.chestReach ?? PUZZLE.chestReach)
         };
     }
 
@@ -265,6 +284,7 @@ export class BlockPuzzle {
         this.chest.lid.setLocalEulerAngles(0, 0, 0);
         this.blocks.forEach((b, i) => {
             b.locked = false;
+            b.plate = -1;
             b.lift = b.hoverTime = b.dropSpeed = 0;
             b.handles.visual.setLocalPosition(0, 0, 0);
             b.handles.available.enabled = b.handles.selected.enabled = false;

@@ -1,6 +1,6 @@
 import type { Entity } from 'playcanvas';
 
-import { appendLathe, createGeo, meshEntity } from '../rendering/geometry';
+import { appendLathe, appendPrism, appendRoundedBox, createGeo, meshEntity } from '../rendering/geometry';
 import { cylinder } from '../rendering/primitives';
 
 import type { PropContext } from './context';
@@ -74,4 +74,35 @@ export function createLog({ device, palette }: PropContext, root: Entity) {
         );
         ring.setLocalEulerAngles(0, 0, 90);
     }
+}
+
+export const SIGNPOST_RADIUS = 0.3;
+
+/** Wooden signpost whose arrow board faces local +Z and points toward local +X. */
+export function createSignpost({ device, palette }: PropContext, root: Entity) {
+    cylinder(root, 'sign post', palette.bark, 0, 0.8, 0, 0.24, 1.6, 0.24);
+    const board = createGeo();
+    appendRoundedBox(board, 0, 1.3, 0.13, 1.5, 0.62, 0.14, 0.08, 3);
+    meshEntity(device, root, 'sign board', board, palette.barkLight);
+    const arrow = createGeo();
+    // Drawn in the board's X/Y plane as a flat prism, then stood upright.
+    appendPrism(
+        arrow,
+        [
+            [0.46, 0],
+            [0.08, 0.26],
+            [0.08, 0.12],
+            [-0.44, 0.12],
+            [-0.44, -0.12],
+            [0.08, -0.12],
+            [0.08, -0.26]
+        ],
+        0,
+        0,
+        0.035,
+        0
+    );
+    const glyph = meshEntity(device, root, 'sign arrow', arrow, palette.bark, false);
+    glyph.setLocalPosition(0, 1.3, 0.2);
+    glyph.setLocalEulerAngles(90, 0, 0);
 }
