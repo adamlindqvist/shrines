@@ -236,7 +236,7 @@ export function createRiverIsland(ctx: TerrainContext, root: Entity, options: Ri
     // Walkable meadow top.
     const top = createGeo();
     const shore = contour(grid, landField, { g: top, y: 0, uv: (x, z) => [texU(x), texV(z)] });
-    meshEntity(device, root, 'river meadow top', top, grass, false, true);
+    meshEntity(device, root, 'river meadow top', top, grass, true, true);
 
     // Clay banks: tall outer walls, and river banks that drop below the water.
     const riverProfile = [
