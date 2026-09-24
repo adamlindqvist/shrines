@@ -46,14 +46,14 @@ const GAME: AdventureConfig = {
         maxHealth: 3
     },
     text: {
-        unlocked: 'Click! The treasure is unlocked.',
-        matched: 'Click! One lovely match. Find the other symbol!',
-        paused: 'Paused · press a movement key or click to continue',
+        unlocked: 'Klick! Skatten är upplåst.',
+        matched: 'Klick! En fin träff! Hitta den andra symbolen!',
+        paused: 'Paus · tryck på en rörelsetangent eller klicka för att fortsätta',
         won: {
-            title: 'A pocketful of sunshine',
-            copy: 'You found the meadow’s treasure. The world feels a little warmer.'
+            title: 'En ficka full av solsken',
+            copy: 'Du hittade ängens skatt. Världen känns lite varmare.'
         },
-        over: { title: 'A little breather', copy: 'Even brave little adventurers need another try.' }
+        over: { title: 'Ta en liten paus', copy: 'Även modiga små äventyrare behöver försöka igen.' }
     },
     logTag: '[Meadow]'
 };

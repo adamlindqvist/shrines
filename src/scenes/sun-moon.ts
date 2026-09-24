@@ -42,8 +42,8 @@ export const sunMoonArea: AdventureArea = {
         text: {
             ...meadowArea.game.text,
             won: {
-                title: 'Sunshine and moonbeams',
-                copy: 'Two shrines, two treasures. You brought a little light to every corner.'
+                title: 'Solsken och månstrålar',
+                copy: 'Två helgedomar, två skatter. Du har spridit lite ljus i varje vrå.'
             }
         },
         logTag: '[Sun & Moon]'

@@ -106,10 +106,10 @@ export const twoSunsArea: AdventureArea = {
         },
         text: {
             ...meadowArea.game.text,
-            matched: 'Click! One sun is shining. Fetch the other one!',
+            matched: 'Klick! En sol lyser. Hämta den andra!',
             won: {
-                title: 'Three shrines aglow',
-                copy: 'Every shrine is shining. What a brave and kind little adventure!'
+                title: 'Tre lysande helgedomar',
+                copy: 'Alla helgedomar strålar. Vilket modigt och fint litet äventyr!'
             }
         },
         logTag: '[Two Suns]'

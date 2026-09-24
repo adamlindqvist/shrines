@@ -35,7 +35,7 @@ export class TouchControls {
         this.stick.appendChild(this.knob);
         this.button = document.createElement('button');
         this.button.className = 'touch-attack';
-        this.button.setAttribute('aria-label', 'Attack');
+        this.button.setAttribute('aria-label', 'Attackera');
         this.button.textContent = '⚔️';
         const overlay = parent.querySelector('#overlay');
         parent.insertBefore(this.stick, overlay);
