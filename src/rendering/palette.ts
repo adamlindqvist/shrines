@@ -13,6 +13,12 @@ export function createPalette(resources: SceneResources) {
     grabSelected.emissiveIntensity = 3.2;
     grabSelected.update();
     return {
+        blockStone: [
+            mat('turquoise stone', '#27bcb7', 25, 0.08),
+            mat('turquoise stone light facets', '#2bc1bb', 25, 0.08),
+            mat('turquoise stone shaded facets', '#25b7b2', 25, 0.08)
+        ],
+        blockRecess: mat('deep turquoise carving', '#087d79', 15),
         grabHint,
         grabSelected,
         bark: mat('warm bark', '#9c6530'),

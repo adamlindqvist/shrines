@@ -4,6 +4,7 @@ import { appendLathe, appendPrism, appendSphere, createGeo, meshEntity } from '.
 import type { Geo } from '../rendering/geometry';
 import { box, node, roundedBox, sphere } from '../rendering/primitives';
 
+import { createBlockStone } from './block-model';
 import type { PropContext } from './context';
 
 export type PuzzleSymbol = 'sun' | 'moon';
@@ -22,39 +23,7 @@ export function createPushBlock(
     symbol: PuzzleSymbol = 'sun'
 ): PushBlockHandles {
     const blockSpin = node(root, 'block facing');
-    roundedBox(device, blockSpin, 'rounded teal block', c.teal, 0, 0.66, 0, 1.46, 1.32, 1.46, 0.2);
-    for (const [ax, az] of [
-        [0, 1],
-        [0, -1],
-        [1, 0],
-        [-1, 0]
-    ]) {
-        roundedBox(
-            device,
-            blockSpin,
-            'inset face',
-            c.tealDark,
-            ax * 0.724,
-            0.66,
-            az * 0.724,
-            ax ? 0.04 : 1.0,
-            0.9,
-            az ? 0.04 : 1.0,
-            0.1
-        );
-    }
-    roundedBox(device, blockSpin, 'top inset border', c.tealDark, 0, 1.326, 0, 1.06, 0.022, 1.06, 0.09);
-    roundedBox(device, blockSpin, 'top enamel panel', c.teal, 0, 1.341, 0, 0.96, 0.018, 0.96, 0.08);
-    const top = createSymbol({ device, palette: c }, blockSpin, symbol, c.cream);
-    top.setLocalPosition(0, 1.355, 0);
-    for (const yaw of [0, 90, 180, 270]) {
-        const face = node(blockSpin, 'symbol face');
-        face.setLocalEulerAngles(0, yaw, 0);
-        const mark = createSymbol({ device, palette: c }, face, symbol, c.cream);
-        mark.setLocalPosition(0, 0.66, 0.753);
-        mark.setLocalEulerAngles(90, 0, 0);
-        mark.setLocalScale(0.8, 0.8, 0.8);
-    }
+    createBlockStone({ device, palette: c }, blockSpin, symbol);
     // Centre soft tubular arcs on the body rather than the ground-level pivot.
     // Each state is one mesh and follows the block without independent animation.
     const nearbyGeo = createGeo();
