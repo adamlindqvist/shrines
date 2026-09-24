@@ -1,6 +1,8 @@
 import type { Entity } from 'playcanvas';
 
 import type { Obstacle, WalkSurface } from '../gameplay/collision';
+import { createBridgeBlockers } from '../gameplay/level-objects';
+import type { BridgeHandles } from '../gameplay/level-objects';
 import { createAdventurer } from '../objects/adventurer';
 import type { PropContext } from '../objects/context';
 import { appendBoulder, appendBush, boulderRadius, createBushBatch } from '../objects/foliage';
@@ -140,8 +142,22 @@ export class SceneBuilder {
      * Stone bridge centred on (x, z) spanning `length` along Z. Its curbs and
      * pillars collide, keeping walkers and carried blocks on the deck.
      */
-    addBridge({ x, z, length }: { x: number; z: number; length: number }) {
-        createStoneBridge(this.props, this.place('stone bridge', { x, z }), length);
+    addBridge({
+        x,
+        z,
+        length,
+        dynamic = false
+    }: {
+        x: number;
+        z: number;
+        length: number;
+        dynamic?: boolean;
+    }): BridgeHandles {
+        const root = this.place('stone bridge', { x, z });
+        const visual = node(root, 'bridge deck');
+        createStoneBridge(this.props, visual, length);
+        const blockers = dynamic ? createBridgeBlockers(x, z, length) : [];
+        this.obstacles.push(...blockers);
         const curbX = BRIDGE.width / 2 - BRIDGE.parapetWidth / 2;
         // Curbs collide only between the pillars, so both ends open onto the meadow.
         const span = length - BRIDGE.pillarInset * 2;
@@ -156,6 +172,7 @@ export class SceneBuilder {
                     r: 0.52
                 });
         }
+        return { visual, blockers };
     }
 
     /** Registers a horizontal floor; adjacent small height changes form walkable stairs. */

@@ -3,6 +3,8 @@ export type Obstacle = {
     x: number;
     z: number;
     r: number;
+    /** Dynamic passage blockers; omitted means enabled. */
+    enabled?: boolean;
 };
 
 export type Bounds = {
@@ -56,6 +58,7 @@ export class Collision {
         x = Math.max(b.minX, Math.min(b.maxX, x));
         z = Math.max(b.minZ, Math.min(b.maxZ, z));
         for (const o of this.obstacles) {
+            if (o.enabled === false) continue;
             const dx = x - o.x,
                 dz = z - o.z,
                 d = Math.hypot(dx, dz),
@@ -70,6 +73,6 @@ export class Collision {
 
     /** True when a circle of radius `r` at (x, z) touches any obstacle. */
     overlaps(x: number, z: number, r: number) {
-        return this.obstacles.some((o) => Math.hypot(x - o.x, z - o.z) < o.r + r);
+        return this.obstacles.some((o) => o.enabled !== false && Math.hypot(x - o.x, z - o.z) < o.r + r);
     }
 }

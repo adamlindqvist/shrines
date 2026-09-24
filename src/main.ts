@@ -18,6 +18,12 @@ context.app.start();
 if (import.meta.env.DEV) {
     // Console hook for checking teardown: `shrines.load('woodland')`, `shrines.load('meadow')`.
     Object.assign(window, {
-        shrines: { load: (name: SceneName) => host.load(scenes[name]), unload: () => host.unload() }
+        shrines: {
+            load: (name: SceneName) => {
+                if (!Object.hasOwn(scenes, name)) throw new Error(`Unknown scene: ${name}`);
+                host.load(scenes[name]);
+            },
+            unload: () => host.unload()
+        }
     });
 }

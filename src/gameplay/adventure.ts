@@ -1,6 +1,7 @@
 import type { Entity } from 'playcanvas';
 
 import type { AppContext } from '../app/context';
+import type { LevelDefinition, SceneDefinition, SceneObject } from '../levels/types';
 import type { AdventurerHandles } from '../objects/adventurer';
 import type { ChestHandles, PushBlockHandles, SunSwitchHandles } from '../objects/puzzle';
 import type { SlimeHandles } from '../objects/slime';
@@ -9,42 +10,22 @@ import type { Random } from '../rendering/random';
 import type { SceneLayout } from '../scenes/builder';
 import type { CameraRig } from '../scenes/camera-rig';
 import { Hud } from '../ui/hud';
-import type { HudOptions } from '../ui/hud';
 import { TouchControls } from '../ui/touch-controls';
 
 import { Collision } from './collision';
-import type { Bounds } from './collision';
 import { SWORD, Sword } from './combat';
 import { Effects } from './effects';
 import { Input } from './input';
+import { BridgeController, ChestController, ZoneTracker } from './level-objects';
+import type { BridgeHandles } from './level-objects';
 import { PlayerController } from './player';
 import { BlockPuzzle } from './puzzle';
-import type { Point, PuzzleConfig } from './puzzle';
+import type { PuzzleConfig } from './puzzle';
+import { LevelRules } from './rules';
 import { SLIME, SlimePack } from './slimes';
 import type { Slime, SlimeTarget } from './slimes';
 
 export type GameState = 'playing' | 'paused' | 'won' | 'over' | 'complete';
-
-type Card = { title: string; copy: string };
-
-export type AdventureConfig = {
-    area: string;
-    stage: number;
-    spawn: Point;
-    /** Rectangle the player and slimes are kept inside. */
-    walkBounds: Bounds;
-    puzzle: PuzzleConfig;
-    hud: HudOptions;
-    text: {
-        unlocked: string;
-        matched: string;
-        paused: string;
-        won: Card;
-        over: Card;
-    };
-    /** Prefix for console diagnostics. */
-    logTag: string;
-};
 
 /** Entities the adventure animates, as returned by the scene builder. */
 export type AdventureCast = {
@@ -52,7 +33,8 @@ export type AdventureCast = {
     slimes: SlimeHandles[];
     blocks: PushBlockHandles[];
     plates: SunSwitchHandles[];
-    chest: ChestHandles;
+    chests: ChestHandles[];
+    bridges: BridgeHandles[];
 };
 
 export type AdventureDeps = {
@@ -64,7 +46,9 @@ export type AdventureDeps = {
     layout: SceneLayout;
     rig: CameraRig;
     cast: AdventureCast;
-    config: AdventureConfig;
+    scene: SceneDefinition;
+    level: LevelDefinition;
+    stage?: number;
     initialHealth?: number;
     onComplete?: (health: number) => void;
     onRestart?: () => void;
@@ -95,28 +79,48 @@ export class AdventureGame {
     private readonly slimes: SlimePack;
     private readonly puzzle: BlockPuzzle;
     private readonly slimeTarget: SlimeTarget;
+    private readonly rules: LevelRules;
+    private readonly chests: ChestController[];
+    private readonly bridges: BridgeController[];
+    private readonly zones: ZoneTracker;
+    private readonly puzzleConfig: PuzzleConfig;
+    private readonly objects: SceneObject[];
 
     private readonly deps: AdventureDeps;
 
     constructor(deps: AdventureDeps) {
         this.deps = deps;
-        const { context, root, rand, palette, layout, cast, config } = deps;
-        this.health = deps.initialHealth ?? config.hud.maxHealth;
-        this.collision = new Collision(layout.obstacles, config.walkBounds, layout.surfaces);
+        this.objects = [...deps.scene.scenery, ...deps.scene.objects];
+        const { context, root, rand, palette, layout, cast, scene, level } = deps;
+        this.health = deps.initialHealth ?? level.hud.maxHealth;
+        this.collision = new Collision(layout.obstacles, scene.walkBounds, layout.surfaces);
         this.effects = new Effects(root, rand, (x, z) => this.collision.heightAt(x, z));
         this.player = new PlayerController(cast.player, this.collision);
         this.slimes = new SlimePack(cast.slimes, this.collision);
-        this.puzzle = new BlockPuzzle(config.puzzle, cast.blocks, cast.plates, cast.chest, this.collision, {
+        this.puzzleConfig = {
+            blocks: this.objects.filter((o) => o.type === 'block'),
+            plates: this.objects.filter((o) => o.type === 'plate'),
+            blockBounds: scene.blockBounds
+        };
+        this.puzzle = new BlockPuzzle(this.puzzleConfig, cast.blocks, cast.plates, this.collision, {
             idle: palette.gold,
             lit: palette.teal,
             baseIdle: palette.sandstone
         });
+        this.rules = new LevelRules(level);
+        this.chests = this.objects
+            .filter((o) => o.type === 'chest')
+            .map((o, i) => new ChestController(o, cast.chests[i]));
+        this.bridges = this.objects
+            .filter((o) => o.type === 'bridge')
+            .map((o, i) => new BridgeController(o, cast.bridges[i]));
+        this.zones = new ZoneTracker(this.objects.filter((o) => o.type === 'zone'));
         this.slimeTarget = {
             entity: cast.player.entity,
             canBeHit: () => this.state === 'playing' && this.invincible === 0,
             hit: (ex, ez, d) => this.onPlayerHit(ex, ez, d)
         };
-        this.hud = new Hud(config.hud, () => this.restart());
+        this.hud = new Hud(level.hud, () => this.restart());
         const touch = new TouchControls(this.hud.root, {
             press: () => this.unpause(),
             attack: () => {
@@ -137,7 +141,7 @@ export class AdventureGame {
             touch
         );
         this.reset();
-        this.health = deps.initialHealth ?? config.hud.maxHealth;
+        this.health = deps.initialHealth ?? level.hud.maxHealth;
         this.hud.setHealth(this.health);
     }
 
@@ -176,15 +180,37 @@ export class AdventureGame {
         // A lethal slime strike takes precedence over puzzle completion this frame.
         if (this.state !== 'playing') return;
 
-        // Puzzle.
-        const { clicked, reached } = this.puzzle.update(dt, player.position);
-        const { text, puzzle } = this.deps.config;
+        const { clicked } = this.puzzle.update(player.position);
         if (clicked.length) {
-            this.announce(this.puzzle.unlocked ? text.unlocked : text.matched);
+            this.announce(this.deps.level.text.matched);
             for (const plate of clicked) this.effects.burst(plate.x, plate.z, this.deps.palette.gold, 20);
         }
-        if (reached) {
-            this.effects.burst(puzzle.chest.x, puzzle.chest.z, this.deps.palette.gold, 28);
+        for (const bridge of this.bridges) bridge.update(dt);
+        for (const chest of this.chests) chest.update(dt, player.position, this.collision);
+        this.zones.update(player.position);
+        const plates = this.puzzle.plateStates();
+        const enemies = this.objects.filter((o) => o.type === 'slime');
+        const snapshot = {
+            plateActive: new Set(
+                this.objects
+                    .filter((o) => o.type === 'plate')
+                    .filter((_, i) => plates[i])
+                    .map((o) => o.id)
+            ),
+            enemyDefeated: new Set(enemies.filter((_, i) => this.slimes.slimes[i].hp === 0).map((o) => o.id)),
+            chestReached: new Set(this.chests.filter((c) => c.reached).map((c) => c.definition.id)),
+            zoneVisited: new Set(this.zones.visited)
+        };
+        for (const rule of this.rules.update(snapshot)) {
+            for (const action of rule.actions) {
+                if (action.type === 'unlockChest') this.chests.find((c) => c.definition.id === action.target)!.unlock();
+                else this.bridges.find((b) => b.definition.id === action.target)!.open();
+            }
+            if (rule.message) this.announce(rule.message);
+        }
+        if (this.rules.complete) {
+            const reward = this.chests.find((c) => c.reached)?.definition ?? player.position;
+            this.effects.burst(reward.x, reward.z, this.deps.palette.gold, 28);
             if (this.deps.onComplete) {
                 this.puzzle.release();
                 this.input.clear();
@@ -207,8 +233,8 @@ export class AdventureGame {
         const player = this.player.position,
             sun = this.deps.rig.sun.forward;
         return Object.freeze({
-            area: this.deps.config.area,
-            stage: this.deps.config.stage,
+            area: this.deps.level.id,
+            stage: this.deps.stage ?? 1,
             state: this.state,
             health: this.health,
             elapsed: +this.time.toFixed(2),
@@ -216,18 +242,30 @@ export class AdventureGame {
             player: { x: player.x, y: player.y, z: player.z },
             // Keep the first-pair aliases for existing development tools.
             block: this.puzzle.diagnostics()[0],
-            switch: this.deps.config.puzzle.plates[0],
-            blocks: this.puzzle.diagnostics(),
-            plates: this.deps.config.puzzle.plates.map((plate, i) => ({
+            switch: this.puzzleConfig.plates[0],
+            blocks: this.puzzle
+                .diagnostics()
+                .map((b, i) => ({ ...b, id: this.objects.filter((o) => o.type === 'block')[i].id })),
+            plates: this.puzzleConfig.plates.map((plate, i) => ({
                 ...plate,
                 active: this.puzzle.plateStates()[i]
             })),
             matched: this.puzzle.matched,
             camera: { x: this.deps.rig.camera.getPosition().x, z: this.deps.rig.camera.getPosition().z },
-            unlocked: this.puzzle.unlocked,
+            unlocked: this.chests.length > 0 && this.chests.every((c) => c.unlocked),
             grabbed: this.puzzle.grabbed,
             kills: this.kills,
-            enemies: this.slimes.slimes.map((e) => ({ x: e.x, z: e.z, hp: e.hp, mode: e.mode })),
+            enemies: this.slimes.slimes.map((e, i) => ({
+                id: this.objects.filter((o) => o.type === 'slime')[i].id,
+                x: e.x,
+                z: e.z,
+                hp: e.hp,
+                mode: e.mode
+            })),
+            chests: this.chests.map((c) => ({ id: c.definition.id, unlocked: c.unlocked, reached: c.reached })),
+            bridges: this.bridges.map((b) => ({ id: b.definition.id, state: b.state })),
+            visitedZones: [...this.zones.visited],
+            ...this.rules.diagnostics(),
             attackCooldown: this.sword.cooldown,
             effects: this.effects.count,
             drawCalls: app.stats.drawCalls.total,
@@ -240,7 +278,7 @@ export class AdventureGame {
         if (this.state === 'playing') {
             this.state = 'paused';
             this.input.clear();
-            this.hud.notify(this.deps.config.text.paused);
+            this.hud.notify(this.deps.level.text.paused);
         }
     }
 
@@ -253,15 +291,19 @@ export class AdventureGame {
 
     /** Puts every piece of play state back to the start without rebuilding the scene. */
     reset() {
-        const { config, rig } = this.deps;
-        this.health = config.hud.maxHealth;
+        const { scene, level, rig } = this.deps;
+        this.health = level.hud.maxHealth;
         this.time = 0;
         this.invincible = 0;
         this.kills = 0;
         this.sword.reset();
-        this.player.reset(config.spawn.x, config.spawn.z);
+        this.player.reset(scene.spawn.x, scene.spawn.z);
         rig.reset();
         this.puzzle.reset();
+        this.rules.reset();
+        this.chests.forEach((c) => c.reset());
+        this.bridges.forEach((b) => b.reset());
+        this.zones.reset();
         this.slimes.reset();
         this.effects.clear();
         this.input.clear();
@@ -342,7 +384,7 @@ export class AdventureGame {
     }
 
     private announce(text: string) {
-        console.info(this.deps.config.logTag, text, this.diagnostics());
+        console.info(`[${this.deps.level.id}]`, text, this.diagnostics());
         this.hud.announce(text);
     }
 
@@ -350,8 +392,8 @@ export class AdventureGame {
         this.puzzle.release();
         this.puzzle.updateIndicator(this.player.position, false);
         this.state = next;
-        console.info(`${this.deps.config.logTag} state`, next, this.diagnostics());
-        const card = this.deps.config.text[next];
+        console.info(`${`[${this.deps.level.id}]`} state`, next, this.diagnostics());
+        const card = this.deps.level.text[next];
         this.hud.showEnd(card.title, card.copy);
     }
 }

@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Open the URL printed by Vite. Use **WASD or arrow keys** to move at 4.5 units/s and **Space or click** to swing your sword, with 0.30 seconds between swings. Press **Escape** to pause. On touch screens, drag the **joystick** in the bottom-left corner to move and tap the **⚔️ button** in the bottom-right corner to attack or grab. There is no sprint or dash. Near the turquoise block, **Space or click** grabs it instead of swinging. Move to carry it in front of you, keeping the pickup distance. Turning sweeps the box toward your facing at 600 degrees per second (a quarter-turn takes 0.15 seconds). Obstacles can temporarily leave it beside or behind you; it catches up when there is room, even after you stop moving. If the box is blocked, sideways movement can still swivel you around it. Then press **Space or click** again to release it. Bring it onto the sun switch to unlock the treasure; it releases automatically when it snaps into place. Two friendly-looking slimes provide a small combat challenge in the open meadow. Reaching its unlocked chest automatically takes you to **Sun & Moon Grove**, a larger 40 × 30 clearing with a following camera, four slimes, and two symbol-marked blocks. Follow the sandy paths and bring each block to its matching sun or moon plate. Correct matches lock in place; both unlock the second treasure. The second treasure leads to **Two Suns Shrine**. Match both sun blocks, then walk up the shrine steps to reach the final chest. Players, carried blocks, and slimes follow registered ground surfaces; small steps are walkable, while cliffs are blocked. Jumping, falling, and stacked floors are not supported. Defeating the slimes is optional. Your remaining hearts carry over; restarting after defeat or victory starts the whole adventure again with three hearts.
+Open the URL printed by Vite. Use **WASD or arrow keys** to move at 4.5 units/s and **Space or click** to swing your sword, with 0.30 seconds between swings. Press **Escape** to pause. On touch screens, drag the **joystick** in the bottom-left corner to move and tap the **⚔️ button** in the bottom-right corner to attack or grab. There is no sprint or dash. Near the turquoise block, **Space or click** grabs it instead of swinging. Move to carry it in front of you, keeping the pickup distance. Turning sweeps the box toward your facing at 1200 degrees per second (a quarter-turn takes 0.075 seconds). Obstacles can temporarily leave it beside or behind you; it catches up when there is room, even after you stop moving. If the box is blocked, sideways movement can still swivel you around it. Then press **Space or click** again to release it. Bring it onto the sun switch to unlock the treasure; it releases automatically when it snaps into place. Two friendly-looking slimes provide a small combat challenge in the open meadow. Reaching its unlocked chest automatically takes you to **Sun & Moon Grove**, a larger 40 × 30 clearing with a following camera, four slimes, and two symbol-marked blocks. Follow the sandy paths and bring each block to its matching sun or moon plate. Correct matches lock in place; both unlock the second treasure. The second treasure leads to **Two Suns Shrine**. Match both sun blocks, then walk up the shrine steps to reach the final chest. Players, carried blocks, and slimes follow registered ground surfaces; small steps are walkable, while cliffs are blocked. Jumping, falling, and stacked floors are not supported. Defeating the slimes is optional. Your remaining hearts carry over; restarting after defeat or victory starts the whole adventure again with three hearts.
 
 ## Install on an iPad or phone
 
@@ -41,11 +41,88 @@ Performance targets more than 60 FPS on suitable hardware; actual frame rate dep
 | `app/`       | Application startup and the scene host that forwards `update` and `resize` to one scene            |
 | `rendering/` | Seeded random, procedural geometry, primitives, textures, the material palette, resource ownership |
 | `objects/`   | Factories for trees, bushes, rocks, pots, logs, the adventurer, slimes and puzzle pieces           |
+| `levels/`    | Serializable scene/level definitions, defaults, validation and journey registry                    |
 | `gameplay/`  | Input, movement, collision, combat, slimes, puzzle, effects and the `AdventureGame` coordinator    |
 | `ui/`        | The HUD overlay                                                                                    |
 | `scenes/`    | The scene builder, terrain and camera/lighting building blocks, reusable groups and scenes         |
 
-## Building scenes
+## Building playable levels
+
+Playable scenes and their rules are separate, JSON-compatible TypeScript data. `src/levels/types.ts` defines the contracts; `src/levels/bridge-example.ts` is a complete box → plate → bridge → treasure example. Open `/?scene=bridge-example` in development, or call `shrines.load('bridge-example')`. It is separate from the three-level adventure.
+
+- `SceneDefinition` owns terrain, spawn, bounds, camera, lighting and ordered object lists. `scenery` is constructed before the player; `objects` afterwards. Preserve this order and the seed when keeping existing scenery unchanged.
+- `LevelDefinition` references a scene and owns rules, completion, HUD and text. Multiple levels can reference the same scene with different objectives.
+- `JourneyDefinition` lists level IDs in order and specifies the restart level. Health carries across levels; restart restores the restart level's maximum health.
+
+Definitions contain plain objects, arrays, strings, numbers and booleans. Use data spreads for defaults; do not add callbacks, `Color` instances or scene-building code. Object types cover trees, rocks, bushes, bush clusters, pots, logs, signs, shrine platforms, bridges, blocks, plates, chests, slimes and zones. Interactives have unique IDs across both lists. Rock scale is width in world units; other scale values retain their existing factory contracts. Camera RGB values are numeric triples.
+
+### Add a complete level
+
+Create `src/levels/little-shrine.ts`:
+
+```ts
+import { DEFAULT_HUD, DEFAULT_LIGHTING, DEFAULT_TEXT } from './defaults';
+import type { LevelDefinition, SceneDefinition } from './types';
+
+export const scene: SceneDefinition = {
+    id: 'little-shrine',
+    name: 'Little Shrine',
+    seed: 510,
+    terrain: { halfWidth: 12, halfDepth: 10, cornerRadius: 2, wallHeight: 1.8 },
+    backdrop: { size: 34 },
+    spawn: { x: 0, z: 7 },
+    walkBounds: { minX: -10, maxX: 10, minZ: -8, maxZ: 8 },
+    blockBounds: { minX: -9, maxX: 9, minZ: -7, maxZ: 7 },
+    camera: {
+        ...DEFAULT_LIGHTING,
+        camera: {
+            position: [0, 22, 19.2],
+            target: [0, 0, 0.74],
+            orthoHeight: 10,
+            minVisibleHalfWidth: 12,
+            clearColor: [0.78, 0.89, 0.81]
+        }
+    },
+    scenery: [{ type: 'tree', x: -8, z: -6, scale: 1.2 }],
+    objects: [
+        { type: 'block', id: 'box', symbol: 'sun', x: 0, z: 5 },
+        { type: 'plate', id: 'plate', symbol: 'sun', x: 0, z: -2 },
+        { type: 'chest', id: 'treasure', x: 5, z: -5, rotation: 0, locked: true }
+    ]
+};
+
+export const level: LevelDefinition = {
+    id: 'little-shrine',
+    scene: 'little-shrine',
+    hud: DEFAULT_HUD,
+    text: { ...DEFAULT_TEXT, matched: 'Klick! Solen lyser.' },
+    rules: [
+        {
+            id: 'unlock-treasure',
+            when: { type: 'plateActive', target: 'plate' },
+            actions: [{ type: 'unlockChest', target: 'treasure' }],
+            message: 'Skatten är upplåst!'
+        }
+    ],
+    completion: { type: 'chestReached', target: 'treasure' }
+};
+```
+
+Import these exports into `src/levels/index.ts` and add them under `'little-shrine'` in `sceneDefinitions` and `levelDefinitions`. This automatically exposes `shrines.load('little-shrine')` and `/?scene=little-shrine` in development. To include it in the adventure, also add its level ID to `adventureJourney.levels`. No changes to `AdventureGame` or object controllers are needed.
+
+### Conditions and actions
+
+Conditions are `plateActive`, `enemyDefeated`, `chestReached` and `zoneVisited`, each with a `target` ID. Combine them using `{ type: 'all' | 'any', conditions: [...] }`; the list must not be empty. A defeated enemy has zero health. A reached chest must be unlocked, nearby and on the player's floor. Zones have `minX`, `maxX`, `minZ`, `maxZ`, `minY`, `maxY`; visits remain recorded until reset. A level can have no boxes or no chests.
+
+Each rule fires once and can target multiple objects with `openBridge` and `unlockChest`. Conditions use one snapshot per playing frame; action consequences are observed in the next frame. `completion` uses the same condition syntax and is independent of any rule. A chest never implicitly ends a level. Lethal damage takes precedence over completion.
+
+Plates permanently snap and lock matching boxes. Chests stay unlocked and bridges stay open until reset. A bridge's `state` is initially `'open'` or `'closed'`; it extends along Z and rises in 0.8 seconds. The full passage stays blocked for players, carried blocks and slimes until it finishes rising. Shore openings are derived from bridge footprints, so river definitions do not contain hand-authored openings. Pause freezes progress. Restart restores every authored state, visited zone and rule.
+
+Definitions are validated before creating scene resources. Errors identify the level and invalid field, including missing/wrong references, duplicate IDs, nonfinite dimensions and empty condition groups. Validation does not prove puzzle solvability; play every transport route. `window.meadow` and `#diagnostics` expose object IDs, plate/chest/bridge states, visited zones, activated rules and completion.
+
+## Low-level scene composition
+
+The following builder API is for reusable factories and the independent `woodland` composition example. Playable levels use the data definitions above.
 
 Coordinates are on the X/Z ground plane (+Z points toward the camera) and rotations are yaws in degrees.
 

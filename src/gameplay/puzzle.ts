@@ -1,6 +1,6 @@
 import type { Material } from 'playcanvas';
 
-import type { ChestHandles, PushBlockHandles, SunSwitchHandles, PuzzleSymbol } from '../objects/puzzle';
+import type { PushBlockHandles, SunSwitchHandles, PuzzleSymbol } from '../objects/puzzle';
 
 import type { Bounds, Collision } from './collision';
 import { PLAYER } from './player';
@@ -11,10 +11,6 @@ export type PuzzlePiece = Point & { symbol: PuzzleSymbol };
 export type PuzzleConfig = {
     blocks: PuzzlePiece[];
     plates: PuzzlePiece[];
-    /** Chest position; `y` raises it onto a plinth. */
-    chest: Point & { y?: number };
-    /** Overrides `PUZZLE.chestReach`, e.g. when the chest stands behind steps. */
-    chestReach?: number;
     /** Rectangle the block centres may be moved within. */
     blockBounds: Bounds;
 };
@@ -37,8 +33,8 @@ export const PUZZLE = {
     moveRatio: 0.85,
     /** Maximum radial travel or orbit arc length per collision step. */
     grabStep: 0.05,
-    /** Facing-follow angular speed, in radians per second (600 degrees/s). */
-    carryTurnSpeed: (600 * Math.PI) / 90,
+    /** Facing-follow angular speed, in radians per second (1200 degrees/s). */
+    carryTurnSpeed: (1200 * Math.PI) / 180,
     /** Bisection precision when shortening a blocked movement step. */
     grabSearchSteps: 12,
     /** Extra reach beyond the block collision footprint. */
@@ -47,10 +43,6 @@ export const PUZZLE = {
     blockRadius: 0.76,
     /** The block snaps onto the switch within this distance. */
     snapRadius: 0.55,
-    /** The player opens the unlocked chest within this distance. */
-    chestReach: 1.7,
-    /** Lid opening speed in degrees per second, up to 100°. */
-    lidSpeed: 150,
     /** Visual hover height above the ground; collision stays on X/Z. */
     liftHeight: 0.28,
     liftRate: 12,
@@ -60,14 +52,12 @@ export const PUZZLE = {
     hoverRate: 3
 };
 
-/** One held block, independently matched plates, and a shared treasure reward. */
+/** One held block and independently matched plates; rewards belong to level rules. */
 export class BlockPuzzle {
     private held: BlockState | null = null;
     private grabDistance = 0;
-    private chestOpen = 0;
     private readonly blocks: BlockState[];
     private readonly plates: SunSwitchHandles[];
-    private readonly chest: ChestHandles;
     private readonly collision: Collision;
     private readonly materials: { idle: Material; lit: Material; baseIdle: Material };
     readonly config: PuzzleConfig;
@@ -76,7 +66,6 @@ export class BlockPuzzle {
         config: PuzzleConfig,
         blocks: PushBlockHandles[],
         plates: SunSwitchHandles[],
-        chest: ChestHandles,
         collision: Collision,
         materials: { idle: Material; lit: Material; baseIdle: Material }
     ) {
@@ -91,7 +80,6 @@ export class BlockPuzzle {
             dropSpeed: 0
         }));
         this.plates = plates;
-        this.chest = chest;
         this.collision = collision;
         this.materials = materials;
     }
@@ -101,9 +89,6 @@ export class BlockPuzzle {
     }
     get matched() {
         return this.blocks.filter((b) => b.locked).length;
-    }
-    get unlocked() {
-        return this.matched === this.blocks.length;
     }
     get heldPosition() {
         return this.held?.handles.entity.getPosition();
@@ -321,7 +306,7 @@ export class BlockPuzzle {
     }
 
     /** Matches only like symbols, one block per plate. A matched block remains locked until reset. */
-    update(dt: number, player: Point) {
+    update(player: Point) {
         const clicked: PuzzlePiece[] = [];
         for (const b of this.blocks) {
             if (b.locked) continue;
@@ -346,24 +331,11 @@ export class BlockPuzzle {
             this.plates[i].base.render!.meshInstances[0].material = this.materials.lit;
             clicked.push(plate);
         }
-        if (this.unlocked) {
-            this.chestOpen = Math.min(100, this.chestOpen + dt * PUZZLE.lidSpeed);
-            this.chest.lid.setLocalEulerAngles(-this.chestOpen, 0, 0);
-        }
-        const chest = this.config.chest;
-        return {
-            clicked,
-            reached:
-                this.unlocked &&
-                Math.abs(this.collision.heightAt(player.x, player.z) - (chest.y ?? 0)) < 0.08 &&
-                Math.hypot(player.x - chest.x, player.z - chest.z) < (this.config.chestReach ?? PUZZLE.chestReach)
-        };
+        return { clicked };
     }
 
     reset() {
         this.release();
-        this.chestOpen = 0;
-        this.chest.lid.setLocalEulerAngles(0, 0, 0);
         this.blocks.forEach((b, i) => {
             b.locked = false;
             b.plate = -1;

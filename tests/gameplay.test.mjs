@@ -40,7 +40,7 @@ function fixture() {
     const chest = { lid: new Entity() };
     const materials = { idle: {}, lit: {}, baseIdle: {} };
     const collision = new Collision([], { minX: -9, maxX: 9, minZ: -9, maxZ: 9 });
-    const puzzle = new BlockPuzzle(config, blocks, plates, chest, collision, materials);
+    const puzzle = new BlockPuzzle(config, blocks, plates, collision, materials);
     puzzle.reset();
     return { puzzle, config, blocks, plates, chest, materials, collision };
 }
@@ -54,14 +54,13 @@ for (const order of [
         for (const [step, i] of order.entries()) {
             const target = config.plates.find((p) => p.symbol === config.blocks[i].symbol);
             blocks[i].entity.setPosition(target.x + 0.2, 0, target.z);
-            const event = puzzle.update(0.035, { x: 0, z: 0 });
+            const event = puzzle.update({ x: 0, z: 0 });
             assert.equal(event.clicked.length, 1);
             assert.equal(puzzle.matched, step + 1);
-            assert.equal(puzzle.unlocked, step === 1);
+            assert.equal(puzzle.plateStates().every(Boolean), step === 1);
             assert.equal(puzzle.interact({ x: target.x, z: target.z + 1.2 }), false);
-            assert.equal(puzzle.update(0.035, { x: 0, z: 0 }).clicked.length, 0);
+            assert.equal(puzzle.update({ x: 0, z: 0 }).clicked.length, 0);
         }
-        assert.equal(puzzle.update(0.035, config.chest).reached, true);
         assert.ok(plates.every((p) => p.base.render.meshInstances[0].material === materials.lit));
     });
 }
@@ -74,12 +73,12 @@ test('matching symbols share plates one block at a time', () => {
     puzzle.blocks.forEach((b) => (b.symbol = 'sun'));
     // The first block takes the second plate; the other block cannot reuse it.
     blocks[0].entity.setPosition(-3.2, 0, -3);
-    assert.equal(puzzle.update(0.035, { x: 0, z: 0 }).clicked.length, 1);
+    assert.equal(puzzle.update({ x: 0, z: 0 }).clicked.length, 1);
     assert.deepEqual(puzzle.plateStates(), [false, true]);
     blocks[1].entity.setPosition(3.2, 0, -3);
-    assert.equal(puzzle.update(0.035, { x: 0, z: 0 }).clicked.length, 1);
+    assert.equal(puzzle.update({ x: 0, z: 0 }).clicked.length, 1);
     assert.deepEqual(puzzle.plateStates(), [true, true]);
-    assert.equal(puzzle.unlocked, true);
+    assert.equal(puzzle.plateStates().every(Boolean), true);
     assert.equal(plates[0].sunDisk.render.meshInstances[0].material, materials.lit);
     puzzle.reset();
     assert.deepEqual(puzzle.plateStates(), [false, false]);
@@ -89,7 +88,7 @@ test('wrong symbols never activate, and remain movable', () => {
     const { puzzle, blocks, config } = fixture();
     blocks[0].entity.setPosition(3, 0, -3);
     blocks[1].entity.setPosition(-3, 0, -3);
-    assert.deepEqual(puzzle.update(0.035, config.chest), { clicked: [], reached: false });
+    assert.deepEqual(puzzle.update(config.chest), { clicked: [] });
     assert.equal(puzzle.matched, 0);
     assert.equal(puzzle.interact({ x: 3, z: -1.7 }), true);
     assert.equal(puzzle.diagnostics()[0].grabbed, true);
@@ -129,7 +128,7 @@ test('walls constrain the held pair and snap cannot overlap another block', () =
     assert.ok(blocks[0].entity.getPosition().z >= 1 + PUZZLE.blockRadius);
     blocks[0].entity.setPosition(-3, 0, -3);
     blocks[1].entity.setPosition(-2, 0, -3);
-    assert.equal(puzzle.update(0.035, { x: 0, z: 0 }).clicked.length, 0);
+    assert.equal(puzzle.update({ x: 0, z: 0 }).clicked.length, 0);
 });
 
 // Isolate the existing translation/swivel rules from the new timed facing alignment.
@@ -279,11 +278,11 @@ test('reset clears lifted, held, matched and chest state', () => {
     puzzle.updateLift(0.2);
     assert.ok(blocks[0].visual.getLocalPosition().y > 0);
     blocks[1].entity.setPosition(3, 0, -3);
-    puzzle.update(0.2, { x: 0, z: 0 });
+    puzzle.update({ x: 0, z: 0 });
     puzzle.reset();
     assert.equal(puzzle.grabbed, false);
     assert.equal(puzzle.matched, 0);
-    assert.equal(puzzle.unlocked, false);
+    assert.equal(puzzle.plateStates().every(Boolean), false);
     assert.equal(chest.lid.getLocalEulerAngles().x, 0);
     blocks.forEach((b, i) => {
         assert.equal(b.visual.getLocalPosition().y, 0);
@@ -296,7 +295,8 @@ test('reset clears lifted, held, matched and chest state', () => {
 
 const { AdventureGame } = await import('../src/gameplay/adventure.ts');
 const { Effects } = await import('../src/gameplay/effects.ts');
-const { meadowArea } = await import('../src/scenes/meadow.ts');
+const { scene: meadowScene, level: meadowLevel } = await import('../src/levels/meadow.ts');
+const { ChestController } = await import('../src/gameplay/level-objects.ts');
 
 /** Controller integration fixture: real input/movement/combat, stubbed DOM and particle rendering. */
 function gameFixture(t, overrides = {}) {
@@ -342,12 +342,32 @@ function gameFixture(t, overrides = {}) {
         palette: {},
         layout: { obstacles: [], animate: noop },
         rig: { camera: new Entity(), sun: new Entity(), follow: noop, reset: noop },
-        cast: { player, blocks, plates, chest, slimes: [slime] },
-        config: {
-            ...meadowArea.game,
+        cast: { player, blocks, plates, chests: [chest], slimes: [slime], bridges: [] },
+        scene: {
+            ...meadowScene,
+            scenery: [],
+            objects: [
+                ...config.blocks.map((b, i) => ({ ...b, type: 'block', id: `block-${i + 1}` })),
+                ...config.plates.map((b, i) => ({ ...b, type: 'plate', id: `plate-${i + 1}` })),
+                { ...config.chest, type: 'chest', id: 'chest', locked: true },
+                { type: 'slime', id: 'enemy', x: 8, z: 8 }
+            ],
             spawn: { x: -3, z: 4.3 },
-            puzzle: config,
+            blockBounds: config.blockBounds,
             walkBounds: { minX: -9, maxX: 9, minZ: -9, maxZ: 9 }
+        },
+        level: {
+            ...meadowLevel,
+            rules: [
+                {
+                    id: 'unlock',
+                    when: {
+                        type: 'all',
+                        conditions: [1, 2].map((i) => ({ type: 'plateActive', target: `plate-${i}` }))
+                    },
+                    actions: [{ type: 'unlockChest', target: 'chest' }]
+                }
+            ]
         },
         ...overrides
     });
@@ -461,7 +481,7 @@ test('final shrine wins and restart delegates to the journey', (t) => {
     blocks[0].entity.setPosition(-3, 0, -3);
     blocks[1].entity.setPosition(3, 0, -3);
     player.entity.setPosition(0, 0, -6);
-    tick();
+    tick(2);
     assert.equal(game.state, 'won');
     tap('KeyR');
     assert.equal(restarts, 1);
@@ -527,17 +547,18 @@ test('carried blocks follow stairs, settle at elevation and reset to their start
 });
 
 test('an elevated chest requires standing on its floor after unlocking', () => {
-    const { puzzle, config, blocks, collision } = fixture();
-    config.chest.y = 0.45;
+    const { chest, collision } = fixture();
+    const controller = new ChestController({ type: 'chest', id: 'chest', x: 0, z: -6, y: 0.45, locked: true }, chest);
     collision.surfaces.push({ minX: -2, maxX: 2, minZ: -8, maxZ: -5.5, height: 0.45 });
-    for (let i = 0; i < blocks.length; i++) {
-        const plate = config.plates.find((p) => p.symbol === config.blocks[i].symbol);
-        blocks[i].entity.setPosition(plate.x, 0, plate.z);
-    }
-    puzzle.update(0.035, { x: 0, z: 0 });
-    assert.equal(puzzle.unlocked, true);
-    assert.equal(puzzle.update(0.035, { x: 0, z: -5 }).reached, false);
-    assert.equal(puzzle.update(0.035, { x: 0, z: -5.8 }).reached, true);
+    controller.unlock();
+    controller.update(0.035, { x: 0, z: -5 }, collision);
+    assert.equal(controller.reached, false);
+    controller.update(0.035, { x: 0, z: -5.8 }, collision);
+    assert.equal(controller.reached, true);
+    controller.reset();
+    assert.equal(controller.reached, false);
+    assert.equal(controller.unlocked, false);
+    assert.equal(chest.lid.getLocalEulerAngles().x, 0);
 });
 
 for (const heading of [0, Math.PI / 2, Math.PI, -Math.PI / 2, Math.PI / 4, (-Math.PI * 3) / 4]) {
@@ -583,7 +604,9 @@ test('reversals sweep clockwise without crossing the player; seam turns use the 
     puzzle.interact(player);
     puzzle.constrain(player, player, Math.PI, 0.025);
     assert.ok(puzzle.heldPosition.x < 0);
-    assert.ok(Math.abs(Math.atan2(puzzle.heldPosition.x, puzzle.heldPosition.z) + Math.PI / 12) < 1e-6);
+    assert.ok(
+        Math.abs(Math.atan2(puzzle.heldPosition.x, puzzle.heldPosition.z) + PUZZLE.carryTurnSpeed * 0.025) < 1e-6
+    );
     for (let i = 0; i < 11; i++) {
         puzzle.constrain(player, player, Math.PI, 0.025);
         assertGrabDistance(puzzle, player, 1.3);
@@ -639,4 +662,89 @@ test('keyboard turning drives held alignment and pause freezes an unfinished swe
     const b = blocks[0].entity.getPosition();
     assert.ok(Math.abs(b.z - p.z) < 1e-6);
     assert.ok(Math.abs(b.x - p.x - 1.3) < 1e-6);
+});
+
+test('rules wait for the next snapshot, pause freezes bridge progress, reset clears everything', (t) => {
+    const { game, blocks, player, tick, tap } = gameFixture(t, {
+        level: {
+            ...meadowLevel,
+            rules: [
+                {
+                    id: 'unlock',
+                    when: { type: 'plateActive', target: 'plate-1' },
+                    actions: [{ type: 'unlockChest', target: 'chest' }]
+                },
+                {
+                    id: 'raise',
+                    when: { type: 'chestReached', target: 'chest' },
+                    actions: [{ type: 'openBridge', target: 'bridge' }]
+                }
+            ],
+            completion: { type: 'enemyDefeated', target: 'enemy' }
+        }
+    });
+    const { BridgeController } = levelObjects;
+    const visual = new Entity();
+    const blocker = { x: 0, z: 0, r: 1 };
+    game.bridges.push(
+        new BridgeController(
+            { type: 'bridge', id: 'bridge', x: 0, z: 0, length: 5, state: 'closed' },
+            { visual, blockers: [blocker] }
+        )
+    );
+    blocks[1].entity.setPosition(3, 0, -3); // moon matches plate-1
+    player.entity.setPosition(0, 0, -6);
+    tick();
+    assert.deepEqual(game.diagnostics().activatedRules, ['unlock']);
+    assert.equal(game.diagnostics().chests[0].reached, false);
+    tick();
+    assert.deepEqual(game.diagnostics().activatedRules, ['unlock', 'raise']);
+    assert.equal(game.diagnostics().bridges[0].state, 'opening');
+    tick(10);
+    tap('Escape');
+    const height = visual.getLocalPosition().y;
+    tick(100);
+    assert.equal(visual.getLocalPosition().y, height);
+    assert.equal(blocker.enabled, true);
+    tap('Escape');
+    tick(60);
+    assert.equal(game.diagnostics().bridges[0].state, 'open');
+    assert.equal(blocker.enabled, false);
+    game.reset();
+    assert.deepEqual(game.diagnostics().activatedRules, []);
+    assert.equal(game.diagnostics().chests[0].unlocked, false);
+    assert.equal(game.diagnostics().bridges[0].state, 'closed');
+    assert.equal(blocker.enabled, true);
+});
+
+const levelObjects = await import('../src/gameplay/level-objects.ts');
+
+test('enemy completion and zone completion work independently of boxes and reset', (t) => {
+    const { game, tick, player } = gameFixture(t, {
+        level: {
+            ...meadowLevel,
+            rules: [],
+            completion: {
+                type: 'all',
+                conditions: [
+                    { type: 'enemyDefeated', target: 'enemy' },
+                    { type: 'zoneVisited', target: 'exit' }
+                ]
+            }
+        }
+    });
+    game.zones = new levelObjects.ZoneTracker([
+        { type: 'zone', id: 'exit', minX: -1, maxX: 1, minZ: -1, maxZ: 1, minY: -0.1, maxY: 0.1 }
+    ]);
+    player.entity.setPosition(0, 0, 0);
+    tick();
+    assert.equal(game.state, 'playing');
+    assert.deepEqual(game.diagnostics().visitedZones, ['exit']);
+    game.slimes.slimes[0].hp = 0;
+    tick();
+    assert.equal(game.state, 'won');
+    game.reset();
+    assert.equal(game.state, 'playing');
+    assert.deepEqual(game.diagnostics().visitedZones, []);
+    assert.equal(game.diagnostics().complete, false);
 });
