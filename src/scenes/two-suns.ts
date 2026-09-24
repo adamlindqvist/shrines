@@ -1,5 +1,7 @@
 import { Color } from 'playcanvas';
 
+import { BRIDGE as BRIDGE_SHAPE } from '../objects/shrine';
+
 import type { AdventureArea } from './adventure-area';
 import { ADVENTURE_VIEW, MEADOW_LIGHTING } from './camera-rig';
 import { meadowArea } from './meadow';
@@ -66,8 +68,8 @@ const ISLAND: RiverIslandOptions = {
     ],
     openings: [
         {
-            minX: BRIDGE.x - 1.9,
-            maxX: BRIDGE.x + 1.9,
+            minX: BRIDGE.x - BRIDGE_SHAPE.width / 2,
+            maxX: BRIDGE.x + BRIDGE_SHAPE.width / 2,
             minZ: BRIDGE.z - BRIDGE.length / 2,
             maxZ: BRIDGE.z + BRIDGE.length / 2
         }

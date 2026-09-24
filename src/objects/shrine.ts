@@ -7,11 +7,11 @@ import type { PropContext } from './context';
 
 /** Stone bridge proportions; the deck runs along local Z and its top is flush with the meadow. */
 export const BRIDGE = {
-    width: 3.8,
-    parapetWidth: 0.42,
-    parapetHeight: 0.3,
+    width: 4.6,
+    parapetWidth: 0.5,
+    parapetHeight: 0.38,
     pillarSize: 0.78,
-    pillarHeight: 1.0,
+    pillarHeight: 0.85,
     /** Pillars stand this far inside each end of the deck. */
     pillarInset: 0.35
 };
@@ -44,29 +44,44 @@ export function createStoneBridge({ device, palette }: PropContext, root: Entity
         paving = createGeo();
     // Deck slab and underside.
     appendRoundedBox(trim, 0, -0.22, 0, W, 0.5, length, 0.08, 3);
-    // Paving slabs in two staggered columns.
-    const inner = W - PW * 2 - 0.12;
-    const rows = Math.max(2, Math.round(length / 1.05));
+    // Three broad paving columns with fine joints, like the reference's cut stone deck.
+    const inner = W - PW * 2;
+    const columns = 3;
+    const rows = Math.max(2, Math.round(length / 0.9));
     const slab = length / rows;
+    const joint = 0.035;
     for (let r = 0; r < rows; r++)
-        for (let c = 0; c < 2; c++) {
+        for (let c = 0; c < columns; c++) {
             const z = -length / 2 + slab * (r + 0.5);
-            const x = (c - 0.5) * (inner / 2);
-            appendRoundedBox(paving, x, 0.02, z, inner / 2 - 0.08, 0.08, slab - 0.08, 0.03, 2);
+            const x = -inner / 2 + (c + 0.5) * (inner / columns);
+            appendRoundedBox(paving, x, 0.02, z, inner / columns - joint, 0.08, slab - joint, 0.018, 6);
         }
-    // Curbs along both sides.
+    // Individual curb stones and squat masonry posts with one broad, flat cap.
     for (const side of [-1, 1]) {
         const x = side * (W / 2 - PW / 2);
-        appendRoundedBox(trim, x, PH / 2, 0, PW, PH, length - 0.1, 0.07, 3);
-        for (const end of [-1, 1])
-            pillar(
-                trim,
-                side * (W / 2 - pillarSize / 2 + 0.06),
-                0,
-                end * (length / 2 - pillarInset),
-                pillarSize,
-                pillarHeight
-            );
+        for (let r = 0; r < rows; r++) {
+            const z = -length / 2 + slab * (r + 0.5);
+            appendRoundedBox(trim, x, PH / 2, z, PW, PH, slab - joint, 0.035, 3);
+        }
+        for (const end of [-1, 1]) {
+            const px = side * (W / 2 - pillarSize / 2 + 0.06);
+            const pz = end * (length / 2 - pillarInset);
+            appendRoundedBox(trim, px, 0.1, pz, pillarSize + 0.12, 0.2, pillarSize + 0.12, 0.035, 3);
+            const course = (pillarHeight - 0.2) / 2;
+            for (let row = 0; row < 2; row++)
+                appendRoundedBox(
+                    trim,
+                    px,
+                    0.2 + course * (row + 0.5),
+                    pz,
+                    pillarSize,
+                    course - 0.025,
+                    pillarSize,
+                    0.025,
+                    3
+                );
+            appendRoundedBox(paving, px, pillarHeight + 0.09, pz, pillarSize + 0.2, 0.18, pillarSize + 0.2, 0.045, 3);
+        }
     }
     meshEntity(device, root, 'bridge stonework', trim, palette.stone);
     meshEntity(device, root, 'bridge paving', paving, palette.paving);
