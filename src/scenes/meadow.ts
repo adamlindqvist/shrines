@@ -48,7 +48,6 @@ const GAME: AdventureConfig = {
     text: {
         unlocked: 'Click! The treasure is unlocked.',
         matched: 'Click! One lovely match. Find the other symbol!',
-        defeatedSlime: '',
         paused: 'Paused · press a movement key or click to continue',
         won: {
             title: 'A pocketful of sunshine',

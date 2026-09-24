@@ -38,7 +38,6 @@ export type AdventureConfig = {
     text: {
         unlocked: string;
         matched: string;
-        defeatedSlime: string;
         paused: string;
         won: Card;
         over: Card;
@@ -316,13 +315,12 @@ export class AdventureGame {
     }
 
     private onSlimeHit(slime: Slime) {
-        const { palette, config } = this.deps;
+        const { palette } = this.deps;
         this.effects.burst(slime.x, slime.z, palette.cream);
         if (slime.hp === 0) {
             this.kills++;
             slime.death = SLIME.deathTime;
             this.effects.burst(slime.x, slime.z, palette.pink, 12);
-            this.announce(config.text.defeatedSlime);
         }
     }
 
