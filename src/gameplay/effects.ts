@@ -20,10 +20,12 @@ export class Effects {
 
     private readonly parent: Entity;
     private readonly rand: Random;
+    private readonly heightAt: (x: number, z: number) => number;
 
-    constructor(parent: Entity, rand: Random) {
+    constructor(parent: Entity, rand: Random, heightAt = (_x: number, _z: number) => 0) {
         this.parent = parent;
         this.rand = rand;
+        this.heightAt = heightAt;
     }
 
     get count() {
@@ -34,7 +36,17 @@ export class Effects {
     burst(x: number, z: number, material: Material, count = 9) {
         const rand = this.rand;
         for (let i = 0; i < count; i++) {
-            const e = box(this.parent, 'spark', material, x, 0.4 + rand() * 0.3, z, 0.09, 0.09, 0.09);
+            const e = box(
+                this.parent,
+                'spark',
+                material,
+                x,
+                this.heightAt(x, z) + 0.4 + rand() * 0.3,
+                z,
+                0.09,
+                0.09,
+                0.09
+            );
             this.particles.push({
                 entity: e,
                 vx: (rand() - 0.5) * 3,
@@ -61,7 +73,7 @@ export class Effects {
                 'sand grain',
                 material,
                 x + dx * radius,
-                0.08,
+                this.heightAt(x, z) + 0.08,
                 z + dz * radius,
                 size,
                 size,
@@ -92,7 +104,7 @@ export class Effects {
                 'golden sword arc',
                 material,
                 x + Math.sin(a) * 1.45,
-                0.52,
+                this.heightAt(x, z) + 0.52,
                 z + Math.cos(a) * 1.45,
                 0.14,
                 0.07,

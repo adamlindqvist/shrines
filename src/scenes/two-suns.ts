@@ -1,6 +1,6 @@
 import { Color } from 'playcanvas';
 
-import { BRIDGE as BRIDGE_SHAPE } from '../objects/shrine';
+import { BRIDGE as BRIDGE_SHAPE, SHRINE_TOP } from '../objects/shrine';
 
 import type { AdventureArea } from './adventure-area';
 import { ADVENTURE_VIEW, MEADOW_LIGHTING } from './camera-rig';
@@ -101,9 +101,7 @@ export const twoSunsArea: AdventureArea = {
                 { symbol: 'sun', x: -0.75, z: -9.8 },
                 { symbol: 'sun', x: 8.85, z: -9.8 }
             ],
-            chest: { x: SHRINE.x, z: SHRINE.z, y: 0.45 },
-            // The chest stands on the dais, so it opens from the foot of the steps.
-            chestReach: 2.9,
+            chest: { x: SHRINE.x, z: SHRINE.z, y: SHRINE_TOP },
             blockBounds: { minX: -18.5, maxX: 18.5, minZ: -11.4, maxZ: 11.4 }
         },
         text: {

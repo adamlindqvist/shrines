@@ -87,7 +87,7 @@ export class SlimePack {
                 e.death = Math.max(0, e.death - dt);
                 const t = e.death / SLIME.deathTime;
                 entity.setLocalScale(Math.max(0.01, t), Math.max(0.01, t * (1.7 - t)), Math.max(0.01, t));
-                entity.setPosition(e.x, Math.sin((1 - t) * Math.PI) * 0.65, e.z);
+                entity.setPosition(e.x, this.collision.heightAt(e.x, e.z) + Math.sin((1 - t) * Math.PI) * 0.65, e.z);
                 if (t === 0) entity.enabled = false;
                 continue;
             }
@@ -110,11 +110,17 @@ export class SlimePack {
                 }
             }
             const safe = this.collision.resolve(e.x + (vx + e.vx) * dt, e.z + (vz + e.vz) * dt, SLIME.radius);
-            e.x = safe.x;
-            e.z = safe.z;
+            if (this.collision.canTravel(e, safe)) {
+                e.x = safe.x;
+                e.z = safe.z;
+            }
             e.vx *= Math.exp(-9 * dt);
             e.vz *= Math.exp(-9 * dt);
-            entity.setPosition(e.x, Math.max(0, Math.sin(time * 5 + i)) * 0.09, e.z);
+            entity.setPosition(
+                e.x,
+                this.collision.heightAt(e.x, e.z) + Math.max(0, Math.sin(time * 5 + i)) * 0.09,
+                e.z
+            );
             if (d < SLIME.sight) entity.setEulerAngles(0, (Math.atan2(ex, ez) * 180) / Math.PI, 0);
             const squash =
                 e.hurt > 0 ? 0.7 : e.windup > 0 ? 0.68 + Math.sin(time * 28) * 0.04 : 1 + Math.sin(time * 5 + i) * 0.06;
@@ -144,7 +150,7 @@ export class SlimePack {
             e.hurt = 0;
             e.vx = e.vz = 0;
             entity.enabled = true;
-            entity.setPosition(e.x, 0, e.z);
+            entity.setPosition(e.x, this.collision.heightAt(e.x, e.z), e.z);
         }
     }
 }

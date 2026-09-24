@@ -1,6 +1,6 @@
 import type { Entity } from 'playcanvas';
 
-import type { Obstacle } from '../gameplay/collision';
+import type { Obstacle, WalkSurface } from '../gameplay/collision';
 import { createAdventurer } from '../objects/adventurer';
 import type { PropContext } from '../objects/context';
 import { appendBoulder, appendBush, boulderRadius, createBushBatch } from '../objects/foliage';
@@ -15,7 +15,7 @@ import {
 } from '../objects/props';
 import { CHEST_RADIUS, createPushBlock, createSunSwitch, createTreasureChest } from '../objects/puzzle';
 import type { PuzzleSymbol } from '../objects/puzzle';
-import { BRIDGE, SHRINE, createShrineDais, createStoneBridge, shrineFront } from '../objects/shrine';
+import { BRIDGE, SHRINE, SHRINE_TOP, createShrineDais, createStoneBridge, shrineFront } from '../objects/shrine';
 import { createSlime } from '../objects/slime';
 import { createTree, treeRadius } from '../objects/tree';
 import { createGeo, meshEntity, rotateAppended, vertexCount } from '../rendering/geometry';
@@ -53,6 +53,7 @@ export type BushClusterOptions = {
 export type SceneLayout = {
     /** Static collision circles in registration order. */
     obstacles: readonly Obstacle[];
+    surfaces?: readonly WalkSurface[];
     /** Ambient motion (canopy sway) at scene time `time` seconds. */
     animate(time: number): void;
 };
@@ -64,6 +65,7 @@ export type SceneLayout = {
  */
 export class SceneBuilder {
     private readonly obstacles: Obstacle[] = [];
+    private readonly surfaces: WalkSurface[] = [];
     private readonly canopies: Entity[] = [];
     private readonly bushes = createBushBatch();
     private readonly rocks = createGeo();
@@ -156,22 +158,54 @@ export class SceneBuilder {
         }
     }
 
-    /** Stepped shrine dais facing +Z; the whole footprint, steps included, is solid. */
+    /** Registers a horizontal floor; adjacent small height changes form walkable stairs. */
+    addWalkSurface(surface: WalkSurface) {
+        this.assertOpen();
+        this.surfaces.push(surface);
+    }
+
+    /** Raised floor and front stairs, with solid rims and pillars. */
     addShrineDais({ x, z }: Placement) {
         createShrineDais(this.props, this.place('shrine dais', { x, z }));
-        // Circles sit inside the footprint so their outer edge matches it.
-        const r = 0.42;
-        const minX = x - SHRINE.width / 2 + r,
-            maxX = x + SHRINE.width / 2 - r,
-            minZ = z - SHRINE.depth / 2 + r,
-            maxZ = z + shrineFront() - r;
-        for (let i = 0, n = Math.ceil((maxX - minX) / 0.5); i <= n; i++) {
-            const px = minX + ((maxX - minX) * i) / n;
-            this.obstacles.push({ x: px, z: minZ, r }, { x: px, z: maxZ, r });
+        const { width, depth, height, stepCount, stepDepth, pillarSize } = SHRINE;
+        const halfSteps = (width - pillarSize * 2 - 0.2) / 2;
+        this.addWalkSurface({
+            minX: x - width / 2,
+            maxX: x + width / 2,
+            minZ: z - depth / 2,
+            maxZ: z + depth / 2,
+            height
+        });
+        this.addWalkSurface({
+            minX: x - (width - 0.7) / 2,
+            maxX: x + (width - 0.7) / 2,
+            minZ: z - (depth - 0.7) / 2,
+            maxZ: z + (depth - 0.7) / 2,
+            height: SHRINE_TOP
+        });
+        for (let step = 0; step < stepCount; step++) {
+            this.addWalkSurface({
+                minX: x - halfSteps,
+                maxX: x + halfSteps,
+                minZ: z + depth / 2 + stepDepth * step,
+                maxZ: z + depth / 2 + stepDepth * (step + 1),
+                height: (height * (stepCount - step)) / (stepCount + 1)
+            });
         }
-        for (let i = 1, n = Math.ceil((maxZ - minZ) / 0.5); i < n; i++) {
-            const pz = minZ + ((maxZ - minZ) * i) / n;
-            this.obstacles.push({ x: minX, z: pz, r }, { x: maxX, z: pz, r });
+        // Keep the sides/back solid, leaving the stair opening free.
+        const r = 0.17;
+        for (let px = -width / 2 + r; px <= width / 2 - r; px += 0.2) this.addObstacle(x + px, z - depth / 2 + r, r);
+        for (const side of [-1, 1]) {
+            for (let pz = -depth / 2 + r; pz <= depth / 2; pz += 0.2)
+                this.addObstacle(x + side * (width / 2 - r), z + pz, r);
+            for (const end of [-1, 1])
+                this.addObstacle(
+                    x + side * (width / 2 - pillarSize / 2),
+                    z + end * (depth / 2 - pillarSize / 2),
+                    pillarSize * 0.65
+                );
+            for (let pz = depth / 2; pz <= shrineFront(); pz += 0.15)
+                this.addObstacle(x + side * (halfSteps + r), z + pz, r);
         }
     }
 
@@ -231,6 +265,7 @@ export class SceneBuilder {
         const canopies = this.canopies;
         return {
             obstacles: this.obstacles,
+            surfaces: this.surfaces,
             animate(time) {
                 canopies.forEach((f, i) =>
                     f.setLocalEulerAngles(Math.sin(time * 0.8 + i) * 1.1, 0, Math.cos(time * 0.7 + i) * 1.2)

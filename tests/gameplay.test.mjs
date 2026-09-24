@@ -503,3 +503,53 @@ test('a lethal strike wins over reaching the chest in the same frame', (t) => {
     assert.equal(completed, false);
     assert.equal(game.diagnostics().unlocked, false);
 });
+
+test('stairs support ascent and descent but reject cliffs and crossing a raised obstacle', () => {
+    const surfaces = [
+        { minX: -2, maxX: 2, minZ: 0, maxZ: 0.3, height: 0.1 },
+        { minX: -2, maxX: 2, minZ: 0.3, maxZ: 0.6, height: 0.2 },
+        { minX: -2, maxX: 2, minZ: 0.6, maxZ: 0.9, height: 0.3 },
+        { minX: -2, maxX: 2, minZ: 0.9, maxZ: 3, height: 0.45 }
+    ];
+    const collision = new Collision([], { minX: -9, maxX: 9, minZ: -9, maxZ: 9 }, surfaces);
+    const bottom = { x: 0, z: -0.1 },
+        top = { x: 0, z: 1.5 };
+    assert.equal(collision.canTravel(bottom, top), true);
+    assert.equal(collision.canTravel(top, bottom), true);
+    assert.equal(collision.heightAt(0, 1.5), 0.45);
+    assert.equal(collision.heightAt(4, 1.5), 0);
+    assert.equal(collision.canTravel({ x: 3, z: 1.5 }, top), false);
+    assert.equal(collision.canTravel(top, { x: 3, z: 1.5 }), false);
+    assert.equal(collision.canTravel({ x: -3, z: 1.5 }, { x: 3, z: 1.5 }), false);
+});
+
+test('carried blocks follow stairs, settle at elevation and reset to their starting floor', () => {
+    const { puzzle, blocks, collision } = fixture();
+    collision.surfaces.push(
+        { minX: -5, maxX: -1, minZ: 1, maxZ: 2, height: 0.1 },
+        { minX: -5, maxX: -1, minZ: -2, maxZ: 1, height: 0.2 }
+    );
+    let player = { x: -3, z: 4.3 };
+    assert.equal(puzzle.interact(player), true);
+    for (let i = 0; i < 70; i++) player = puzzle.constrain({ x: player.x, z: player.z - 0.05 }, player);
+    assert.ok(Math.abs(blocks[0].entity.getPosition().y - 0.2) < 1e-6);
+    puzzle.release();
+    for (let i = 0; i < 60; i++) puzzle.updateLift(1 / 60);
+    assert.ok(Math.abs(blocks[0].entity.getPosition().y - 0.2) < 1e-6);
+    puzzle.reset();
+    assert.equal(blocks[0].entity.getPosition().y, 0);
+});
+
+test('an elevated chest requires standing on its floor after unlocking', () => {
+    const { puzzle, config, blocks, collision } = fixture();
+    config.chest.y = 0.45;
+    collision.surfaces.push({ minX: -2, maxX: 2, minZ: -8, maxZ: -5.5, height: 0.45 });
+    for (let i = 0; i < blocks.length; i++) {
+        const plate = config.plates.find((p) => p.symbol === config.blocks[i].symbol);
+        blocks[i].entity.setPosition(plate.x, 0, plate.z);
+    }
+    puzzle.update(0.035, { x: 0, z: 0 });
+    assert.equal(puzzle.unlocked, true);
+    assert.equal(puzzle.update(0.035, { x: 0, z: -5 }).reached, false);
+    assert.equal(puzzle.update(0.035, { x: 0, z: -5.8 }).reached, true);
+});

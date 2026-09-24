@@ -102,9 +102,9 @@ export class AdventureGame {
         this.deps = deps;
         const { context, root, rand, palette, layout, cast, config } = deps;
         this.health = deps.initialHealth ?? config.hud.maxHealth;
-        this.collision = new Collision(layout.obstacles, config.walkBounds);
-        this.effects = new Effects(root, rand);
-        this.player = new PlayerController(cast.player);
+        this.collision = new Collision(layout.obstacles, config.walkBounds, layout.surfaces);
+        this.effects = new Effects(root, rand, (x, z) => this.collision.heightAt(x, z));
+        this.player = new PlayerController(cast.player, this.collision);
         this.slimes = new SlimePack(cast.slimes, this.collision);
         this.puzzle = new BlockPuzzle(config.puzzle, cast.blocks, cast.plates, cast.chest, this.collision, {
             idle: palette.gold,
@@ -213,7 +213,7 @@ export class AdventureGame {
             health: this.health,
             elapsed: +this.time.toFixed(2),
             fps: Math.round(this.fps),
-            player: { x: player.x, z: player.z },
+            player: { x: player.x, y: player.y, z: player.z },
             // Keep the first-pair aliases for existing development tools.
             block: this.puzzle.diagnostics()[0],
             switch: this.deps.config.puzzle.plates[0],

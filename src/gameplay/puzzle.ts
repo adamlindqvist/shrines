@@ -115,7 +115,7 @@ export class BlockPuzzle {
     diagnostics() {
         return this.blocks.map((b) => {
             const p = b.handles.entity.getPosition();
-            return { symbol: b.symbol, x: p.x, z: p.z, locked: b.locked, grabbed: b === this.held };
+            return { symbol: b.symbol, x: p.x, y: p.y, z: p.z, locked: b.locked, grabbed: b === this.held };
         });
     }
 
@@ -207,6 +207,7 @@ export class BlockPuzzle {
         // Releasing after an orbit can leave the player inside a square corner margin.
         // Allow leaving that margin, never moving deeper or crossing through the block.
         const canStep = (to: Point, start: Point) =>
+            this.collision.canTravel(start, to) &&
             this.blocks.every((block) => {
                 const p = block.handles.entity.getPosition();
                 const dx = Math.abs(to.x - p.x);
@@ -253,6 +254,7 @@ export class BlockPuzzle {
             px <= walk.maxX &&
             pz >= walk.minZ &&
             pz <= walk.maxZ &&
+            this.collision.canTravel({ x, z }, { x: px, z: pz }) &&
             !this.collision.overlaps(px, pz, PLAYER.radius) &&
             !this.overlapsBlocks(px, pz, PUZZLE.blockHalf, held);
         const validBlock = (blockX: number, blockZ: number) =>
@@ -260,6 +262,7 @@ export class BlockPuzzle {
             blockX <= b.maxX &&
             blockZ >= b.minZ &&
             blockZ <= b.maxZ &&
+            this.collision.canTravel({ x: bx, z: bz }, { x: blockX, z: blockZ }) &&
             !this.collision.overlaps(blockX, blockZ, PUZZLE.blockRadius) &&
             !this.overlapsBlocks(blockX, blockZ, PUZZLE.blockRadius * 2, held);
         // The held footprint is circular: its square corners must not catch an orbit.
@@ -292,7 +295,7 @@ export class BlockPuzzle {
                 z = bz + Math.sin(angle + turn * orbit) * distance;
             }
         }
-        held.handles.entity.setPosition(bx, 0, bz);
+        held.handles.entity.setPosition(bx, this.collision.heightAt(bx, bz), bz);
         return { x, z };
     }
 
@@ -317,7 +320,7 @@ export class BlockPuzzle {
             b.locked = true;
             b.plate = i;
             if (b === this.held) this.release();
-            b.handles.entity.setPosition(plate.x, 0.3, plate.z);
+            b.handles.entity.setPosition(plate.x, this.collision.heightAt(plate.x, plate.z) + 0.3, plate.z);
             this.plates[i].sunDisk.render!.meshInstances[0].material = this.materials.lit;
             this.plates[i].base.render!.meshInstances[0].material = this.materials.lit;
             clicked.push(plate);
@@ -331,6 +334,7 @@ export class BlockPuzzle {
             clicked,
             reached:
                 this.unlocked &&
+                Math.abs(this.collision.heightAt(player.x, player.z) - (chest.y ?? 0)) < 0.08 &&
                 Math.hypot(player.x - chest.x, player.z - chest.z) < (this.config.chestReach ?? PUZZLE.chestReach)
         };
     }
@@ -346,7 +350,7 @@ export class BlockPuzzle {
             b.handles.visual.setLocalPosition(0, 0, 0);
             b.handles.available.enabled = b.handles.selected.enabled = false;
             const start = this.config.blocks[i];
-            b.handles.entity.setPosition(start.x, 0, start.z);
+            b.handles.entity.setPosition(start.x, this.collision.heightAt(start.x, start.z), start.z);
         });
         for (const plate of this.plates) {
             plate.sunDisk.render!.meshInstances[0].material = this.materials.idle;

@@ -1,6 +1,8 @@
 import { BOOT_X, BOOT_Y, BOOT_Z } from '../objects/adventurer';
 import type { AdventurerHandles } from '../objects/adventurer';
 
+import type { Collision } from './collision';
+
 export const PLAYER = {
     walkSpeed: 4.5,
     /** Exponential rate at which movement eases toward the input direction. */
@@ -25,9 +27,11 @@ export class PlayerController {
     moveZ = 0;
 
     readonly handles: AdventurerHandles;
+    private readonly ground?: Collision;
 
-    constructor(handles: AdventurerHandles) {
+    constructor(handles: AdventurerHandles, ground?: Collision) {
         this.handles = handles;
+        this.ground = ground;
     }
 
     get position() {
@@ -57,7 +61,7 @@ export class PlayerController {
     }
 
     moveTo(x: number, z: number) {
-        this.handles.entity.setPosition(x, 0, z);
+        this.handles.entity.setPosition(x, this.ground?.heightAt(x, z) ?? 0, z);
     }
 
     /** Walk bob, stepping boots, sword swing (`swing` counts down from `swingTime`) and damage flashing. */
@@ -80,7 +84,7 @@ export class PlayerController {
         this.moveX = 0;
         this.moveZ = 0;
         const { entity, visual, swordPivot } = this.handles;
-        entity.setPosition(x, 0, z);
+        entity.setPosition(x, this.ground?.heightAt(x, z) ?? 0, z);
         entity.setEulerAngles(0, 0, 0);
         visual.enabled = true;
         visual.setLocalPosition(0, 0, 0);
