@@ -1,7 +1,7 @@
 import { Color } from 'playcanvas';
 
 import type { AdventureArea } from './adventure-area';
-import { MEADOW_LIGHTING } from './camera-rig';
+import { ADVENTURE_VIEW, MEADOW_LIGHTING } from './camera-rig';
 import { meadowArea } from './meadow';
 
 const SPAWN = { x: 0, z: 10 };
@@ -59,8 +59,7 @@ export const sunMoonArea: AdventureArea = {
         camera: {
             position: [0, 22, SPAWN.z + 19.2],
             target: [0, 0, SPAWN.z + 0.74],
-            orthoHeight: 10,
-            framedHalfWidth: 6,
+            ...ADVENTURE_VIEW,
             clearColor: new Color(0.78, 0.89, 0.81)
         },
         follow: { x: 1, z: 1, anchorZ: SPAWN.z, rate: 4 }

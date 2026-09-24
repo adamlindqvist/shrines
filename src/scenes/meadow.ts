@@ -3,7 +3,7 @@ import { Color } from 'playcanvas';
 import type { AdventureConfig } from '../gameplay/adventure';
 
 import type { AdventureArea } from './adventure-area';
-import { MEADOW_LIGHTING } from './camera-rig';
+import { ADVENTURE_VIEW, MEADOW_LIGHTING } from './camera-rig';
 import type { IslandOptions } from './terrain';
 
 const WX = 12.4,
@@ -71,8 +71,7 @@ export const meadowArea: AdventureArea = {
         camera: {
             position: [0, 22, 19.2],
             target: [0, 0, 0.74],
-            orthoHeight: 10,
-            framedHalfWidth: 12,
+            ...ADVENTURE_VIEW,
             clearColor: new Color(0.78, 0.89, 0.81)
         },
         follow: { x: 0.07, z: 0.06, anchorZ: SPAWN.z, rate: 2.5 }

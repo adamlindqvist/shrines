@@ -12,8 +12,8 @@ import { node } from '../rendering/primitives';
 
 type Vec3Tuple = [number, number, number];
 
-/** Viewport height (CSS pixels) at which a scene shows exactly its authored `orthoHeight`. */
-export const CAMERA = { referenceHeight: 1200 };
+/** Shared framing keeps every adventure area at the same scale on a given viewport. */
+export const ADVENTURE_VIEW = { orthoHeight: 10, minVisibleHalfWidth: 12 };
 
 export type CameraRigOptions = {
     /** Scene-wide ambient light, applied when the rig is created. */
@@ -21,13 +21,10 @@ export type CameraRigOptions = {
     camera: {
         position: Vec3Tuple;
         target: Vec3Tuple;
-        /**
-         * Orthographic half-height in world units at `CAMERA.referenceHeight`. The view scales with the viewport
-         * so every size shows the world at the same pixels per unit; larger screens see more, not bigger.
-         */
+        /** Minimum orthographic half-height in world units. */
         orthoHeight: number;
-        /** Half-width the authored framing shows; narrower views follow the player fully on X instead of zooming out. */
-        framedHalfWidth: number;
+        /** Minimum visible half-width, so narrow viewports zoom out instead of cropping. */
+        minVisibleHalfWidth: number;
         clearColor: Color;
     };
     sun: { position: Vec3Tuple; color: Color; intensity: number; shadowDistance: number };
@@ -109,22 +106,19 @@ export class CameraRig {
         this.frame = frame;
     }
 
-    /** Keeps a constant world scale in CSS pixels; small viewports are handled by following instead. */
+    /** Fits the orthographic view to the window's aspect ratio. */
     resize() {
-        this.camera.camera!.orthoHeight = this.options.camera.orthoHeight * (innerHeight / CAMERA.referenceHeight);
+        const { orthoHeight, minVisibleHalfWidth } = this.options.camera;
+        this.camera.camera!.orthoHeight = Math.max(orthoHeight, minVisibleHalfWidth / (innerWidth / innerHeight));
     }
 
-    /** Eases the camera toward the followed point (x, z), fully on any axis the viewport crops. */
+    /** Eases the camera toward the followed point (x, z). */
     follow(x: number, z: number, dt: number) {
         const f = this.options.follow;
         if (!f) return;
-        const { position, orthoHeight, framedHalfWidth } = this.options.camera;
-        const [bx, by, bz] = position;
-        const halfHeight = this.camera.camera!.orthoHeight;
-        const narrow = halfHeight * (innerWidth / innerHeight) < framedHalfWidth,
-            short = halfHeight < orthoHeight;
-        const targetX = x * (narrow ? 1 : f.x),
-            targetZ = (z - f.anchorZ) * (short ? 1 : f.z);
+        const [bx, by, bz] = this.options.camera.position;
+        const targetX = x * f.x,
+            targetZ = (z - f.anchorZ) * f.z;
         const cp = this.camera.getPosition();
         const blend = 1 - Math.exp(-dt * f.rate);
         this.camera.setPosition(cp.x + (bx + targetX - cp.x) * blend, by, cp.z + (bz + targetZ - cp.z) * blend);

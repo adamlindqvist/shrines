@@ -1,7 +1,7 @@
 import { Color } from 'playcanvas';
 
 import type { AdventureArea } from './adventure-area';
-import { MEADOW_LIGHTING } from './camera-rig';
+import { ADVENTURE_VIEW, MEADOW_LIGHTING } from './camera-rig';
 import { meadowArea } from './meadow';
 import type { RiverIslandOptions } from './river-island';
 
@@ -124,8 +124,7 @@ export const twoSunsArea: AdventureArea = {
         camera: {
             position: [0, 22, SPAWN.z + 19.2],
             target: [0, 0, SPAWN.z + 0.74],
-            orthoHeight: 10,
-            framedHalfWidth: 6,
+            ...ADVENTURE_VIEW,
             clearColor: new Color(0.73, 0.9, 0.83)
         },
         follow: { x: 1, z: 1, anchorZ: SPAWN.z, rate: 4 }

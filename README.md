@@ -102,7 +102,7 @@ export function createWoodlandScene(context: AppContext): SceneInstance {
             position: [0, 22, 19.2],
             target: [0, 0, 0.74],
             orthoHeight: 6.2,
-            framedHalfWidth: 9.5,
+            minVisibleHalfWidth: 9.5,
             clearColor: new Color(0.78, 0.89, 0.81)
         }
     });
