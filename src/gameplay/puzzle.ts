@@ -38,7 +38,7 @@ export const PUZZLE = {
     /** Maximum radial travel or orbit arc length per collision step. */
     grabStep: 0.05,
     /** Facing-follow angular speed, in radians per second (600 degrees/s). */
-    carryTurnSpeed: (600 * Math.PI) / 180,
+    carryTurnSpeed: (600 * Math.PI) / 90,
     /** Bisection precision when shortening a blocked movement step. */
     grabSearchSteps: 12,
     /** Extra reach beyond the block collision footprint. */
