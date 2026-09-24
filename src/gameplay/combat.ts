@@ -1,8 +1,8 @@
 import type { Slime } from './slimes';
 
 export const SWORD = {
-    swingTime: 0.28,
-    cooldown: 0.42,
+    swingTime: 0.2,
+    cooldown: 0.2,
     /** Hits land while the remaining swing time is inside this window. */
     activeFrom: 0.21,
     activeUntil: 0.07,
