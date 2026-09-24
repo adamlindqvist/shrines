@@ -37,6 +37,8 @@ export const PUZZLE = {
     moveRatio: 0.85,
     /** Maximum radial travel or orbit arc length per collision step. */
     grabStep: 0.05,
+    /** Facing-follow angular speed, in radians per second (600 degrees/s). */
+    carryTurnSpeed: (600 * Math.PI) / 180,
     /** Bisection precision when shortening a blocked movement step. */
     grabSearchSteps: 12,
     /** Extra reach beyond the block collision footprint. */
@@ -237,8 +239,8 @@ export class BlockPuzzle {
         return low;
     }
 
-    /** Translate together when clear; swivel at fixed distance only when the block is stuck. */
-    constrain(stride: Stride, player: Point) {
+    /** Carry toward facing, retaining distance and collision-safe translation / stuck-block swiveling. */
+    constrain(stride: Stride, player: Point, heading: number, dt: number) {
         const held = this.held;
         if (!held) return this.resolvePlayer(stride, player);
         const bp = held.handles.entity.getPosition();
@@ -270,29 +272,48 @@ export class BlockPuzzle {
         if (distance < PLAYER.radius + PUZZLE.blockRadius) return { x, z };
         const dx = (stride.x - x) * PUZZLE.moveRatio;
         const dz = (stride.z - z) * PUZZLE.moveRatio;
-        const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / PUZZLE.grabStep));
+        const turnBudget = PUZZLE.carryTurnSpeed * dt;
+        const steps = Math.max(
+            1,
+            Math.ceil(Math.hypot(dx, dz) / PUZZLE.grabStep),
+            Math.ceil((turnBudget * distance) / PUZZLE.grabStep)
+        );
         for (let i = 0; i < steps; i++) {
             const sx = dx / steps;
             const sz = dz / steps;
             const blockFraction = this.allowedFraction((f) => validBlock(bx + sx * f, bz + sz * f));
             const playerFraction = this.allowedFraction((f) => validPlayer(x + sx * f, z + sz * f));
             const fraction = Math.min(blockFraction, playerFraction);
-            // In open space retain the current offset, including sideways movement.
+            // Translate the pair before steering the held offset toward facing.
             x += sx * fraction;
             z += sz * fraction;
             bx += sx * fraction;
             bz += sz * fraction;
-            if (blockFraction === 1 || playerFraction < blockFraction) continue;
+            if (blockFraction < 1 && playerFraction >= blockFraction) {
+                // Only the box blocking the remaining movement activates the swivel.
+                const angle = Math.atan2(z - bz, x - bx);
+                const turn = ((-sx * Math.sin(angle) + sz * Math.cos(angle)) * (1 - fraction)) / distance;
+                const orbit = this.allowedFraction((f) =>
+                    validPlayer(bx + Math.cos(angle + turn * f) * distance, bz + Math.sin(angle + turn * f) * distance)
+                );
+                if (orbit > 0 && turn !== 0) {
+                    x = bx + Math.cos(angle + turn * orbit) * distance;
+                    z = bz + Math.sin(angle + turn * orbit) * distance;
+                }
+            }
 
-            // Only the box blocking the remaining movement activates the swivel.
-            const angle = Math.atan2(z - bz, x - bx);
-            const turn = ((-sx * Math.sin(angle) + sz * Math.cos(angle)) * (1 - fraction)) / distance;
-            const orbit = this.allowedFraction((f) =>
-                validPlayer(bx + Math.cos(angle + turn * f) * distance, bz + Math.sin(angle + turn * f) * distance)
-            );
-            if (orbit > 0 && turn !== 0) {
-                x = bx + Math.cos(angle + turn * orbit) * distance;
-                z = bz + Math.sin(angle + turn * orbit) * distance;
+            // Heading is measured from +Z; negative turns are clockwise viewed from +Y.
+            const angle = Math.atan2(bx - x, bz - z);
+            const fullTurn = Math.PI * 2;
+            let difference = (((heading - angle) % fullTurn) + fullTurn) % fullTurn;
+            if (difference >= Math.PI - 1e-10) difference -= fullTurn;
+            const turn = Math.max(-turnBudget / steps, Math.min(turnBudget / steps, difference));
+            if (turn !== 0) {
+                const rotation = this.allowedFraction((f) =>
+                    validBlock(x + Math.sin(angle + turn * f) * distance, z + Math.cos(angle + turn * f) * distance)
+                );
+                bx = x + Math.sin(angle + turn * rotation) * distance;
+                bz = z + Math.cos(angle + turn * rotation) * distance;
             }
         }
         held.handles.entity.setPosition(bx, this.collision.heightAt(bx, bz), bz);

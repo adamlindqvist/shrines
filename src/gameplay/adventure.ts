@@ -161,10 +161,10 @@ export class AdventureGame {
         this.sword.tick(dt);
         this.hud.tick(dt);
 
-        // Movement: carry together when clear; swivel around the block when it is stuck.
+        // Movement: carry toward facing; swivel around the block when it is stuck.
         const player = this.player;
         const stride = player.stride(dt, this.input.axis());
-        const solved = this.puzzle.constrain(stride, player.position);
+        const solved = this.puzzle.constrain(stride, player.position, player.heading, dt);
         player.moveTo(solved.x, solved.z);
         player.animate(this.time, this.sword.swing, SWORD.swingTime, this.invincible);
 
