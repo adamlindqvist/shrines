@@ -48,6 +48,7 @@ Keep factories focused on constructing visuals. Put behavior in gameplay control
 - Use the scene's seeded `Random` for procedural generation. Generation order affects every later draw from the sequence; adding an early random draw can change unrelated scenery. Preserve call order during visual refactors, or deliberately introduce separate seeded streams for independent new systems.
 - A scene factory receives `AppContext` and returns `update(dt)`, `resize()`, and `destroy()`. `SceneHost` owns update/resize forwarding. Do not add independent frame loops for new features.
 - Scenes own their root, listeners, HUD, transient effects, camera post-processing, and allocated resources. Track scene-owned materials and textures with `SceneResources`; meshes are released with their entities. Shared application services remain alive across scene changes.
+- Production builds use `vite-plugin-pwa` to generate the app manifest and precache the complete game. Updates wait until every game window closes; do not force reloads during play. Keep installation icons in `public/`, retain HUD safe-area insets, and verify offline reopening against a production preview when changing PWA behavior. The generated app icon is branding; world art remains procedural.
 - Follow the meadow teardown order: remove diagnostics, destroy gameplay, destroy the camera frame, destroy the scene root, then destroy tracked resources. Every new subsystem needs a clear reset/cleanup path.
 
 ## Visual direction
