@@ -161,7 +161,7 @@ export class AdventureGame {
         this.sword.tick(dt);
         this.hud.tick(dt);
 
-        // Movement: steer and constrain the player and any grabbed block together.
+        // Movement: carry together when clear; swivel around the block when it is stuck.
         const player = this.player;
         const stride = player.stride(dt, this.input.axis());
         const solved = this.puzzle.constrain(stride, player.position);
@@ -331,7 +331,7 @@ export class AdventureGame {
         const p = this.player.position;
         this.effects.burst(p.x, p.z, this.deps.palette.gold, 7);
         const shove = this.puzzle.resolvePlayer({ x: p.x + (ex / (d || 1)) * 0.5, z: p.z + (ez / (d || 1)) * 0.5 }, p);
-        // Keep the held pair together when taking damage.
+        // Suppress shoves while holding to preserve the grab distance.
         if (!this.puzzle.grabbed) this.player.moveTo(shove.x, shove.z);
         if (this.health <= 0) this.showEnd('over');
     }
