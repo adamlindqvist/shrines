@@ -35,6 +35,8 @@ The generated [icon source](docs/shrines-icon-source.png) and [generation prompt
 
 ## Development
 
+The detailed gameplay spec lives in [`docs/mechanics.md`](docs/mechanics.md); project conventions for contributors and agents live in `AGENTS.md`.
+
 ```sh
 npm test
 npm run typecheck
@@ -128,7 +130,7 @@ Conditions are `plateActive`, `enemyDefeated`, `portalReached` and `zoneVisited`
 
 Each rule fires once and can target multiple objects with `openBridge`, `openPortal` and `activatePlatform`. Conditions use one snapshot per playing frame; action consequences are observed in the next frame. `completion` uses the same condition syntax and is independent of any rule. A portal never implicitly ends a level. Lethal damage takes precedence over completion.
 
-Plates permanently snap and lock matching boxes. Portals and bridges stay open until reset. A closed portal shows only its plinth; opening raises the gate over 0.9 seconds. A bridge's `state` is initially `'open'` or `'closed'`; it extends along Z and rises in 0.8 seconds. The full passage stays blocked for players, carried blocks and slimes until it finishes rising. Shore openings are derived from bridge footprints, so river definitions do not contain hand-authored openings. Pause freezes progress. Restart restores every authored state, visited zone and rule.
+Plates permanently snap and lock matching boxes. Portals and bridges stay open until reset. A closed portal shows only its plinth; opening raises the gate over 1.1 seconds. A bridge's `state` is initially `'open'` or `'closed'`; it extends along Z and rises in 0.8 seconds. The full passage stays blocked for players, carried blocks and slimes until it finishes rising. Shore openings are derived from bridge footprints, so river definitions do not contain hand-authored openings. Pause freezes progress. Restart restores every authored state, visited zone and rule.
 
 ### Floating platforms and open water
 
@@ -169,5 +171,3 @@ A scene factory receives the shared `AppContext` and returns `update(dt)`, `resi
 ### Select a scene
 
 Registered levels are exposed automatically in `src/scenes/index.ts`. Set `SCENE` in `src/main.ts` to choose the startup level. In development, use `shrines.load('sun-moon')` or `?level=2` (its 1-based position among `levelDefinitions`' keys) to inspect another area, and `shrines.unload()` to check teardown. URL overrides are ignored in production. `window.meadow` and the hidden `#diagnostics` output describe the active adventure area, including stage, remaining hearts, each block's symbol and lock state, activated plates, and camera position.
-
-Movement kicks up overlapping, varied-size warm-white billows with soft scalloped edges at irregular intervals around ground-level foot contacts along resolved travel, including while carrying. Dust renders over world geometry so plates and raised props cannot hide it. Puffs expand and fade over 0.7 gameplay seconds, freeze on pause, and clear on reset or scene teardown. The hero rises at most 0.035 world units per footstep (60% while carrying), without side-to-side body roll.
