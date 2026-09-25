@@ -218,7 +218,9 @@ test('bridge blocks throughout raising, opens once, and resets visual and collis
 test('portals open and reach independently, retain visits, and reset to authored locks', () => {
     const collision = new Collision([], { minX: -10, maxX: 10, minZ: -10, maxZ: 10 });
     const handles = () =>
-        Object.fromEntries(['entity', 'sigil', 'runesDim', 'runesLit', 'gate', 'swirl'].map((k) => [k, new Entity()]));
+        Object.fromEntries(
+            ['entity', 'sigil', 'runesDim', 'runesLit', 'gate', 'glow', 'swirl'].map((k) => [k, new Entity()])
+        );
     const portals = [true, false].map(
         (locked, i) => new PortalController({ type: 'portal', id: `c${i}`, x: i * 5, z: 0, locked }, handles())
     );
@@ -226,7 +228,7 @@ test('portals open and reach independently, retain visits, and reset to authored
     assert.equal(portals[0].reached, false);
     portals[0].open();
     portals[0].open();
-    portals[0].update(1, { x: 0, z: 0 }, collision);
+    portals[0].update(1.2, { x: 0, z: 0 }, collision);
     portals[1].update(0.1, { x: 0, z: 0 }, collision);
     assert.equal(portals[0].reached, true);
     assert.equal(portals[1].reached, false);

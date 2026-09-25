@@ -149,13 +149,15 @@ function createSymbol(ctx: PropContext, root: Entity, symbol: PuzzleSymbol, mate
 
 export type PortalHandles = {
     entity: Entity;
-    /** Ground marking that stays visible; sinks slightly as the gate rises. */
+    /** Ground marking that stays visible; rumbles while the gate breaks through. */
     sigil: Entity;
     /** Rune stones: dim while dormant, swapped for the glowing set once awake. */
     runesDim: Entity;
     runesLit: Entity;
-    /** Gate pivot at ground level, scaled up from zero while opening. */
+    /** Gate pivot at ground level, raised from below the plinth while opening. */
     gate: Entity;
+    /** Glow pane pivot at the centre of the doorway, widened from zero once the gate lands. */
+    glow: Entity;
     /** Swirl pivot inside the ring, spun about its local Y axis. */
     swirl: Entity;
 };
@@ -230,9 +232,12 @@ export function createPortal(ctx: PropContext, root: Entity): PortalHandles {
         emblem.setLocalEulerAngles(90, 0, 0);
         emblem.setLocalScale(0.66, 1, 0.66);
         createSymbol(ctx, emblem, 'sun', c.gold);
-        const glow = createGeo();
-        appendRoundedBox(glow, 0, height / 2, 0, opening + 0.04, height, 0.08, 0.04, 2);
-        meshEntity(device, frame, 'portal glow', glow, c.portalGlow, false, false);
+    }
+    const glow = node(frame, 'glow pane', 0, height / 2, 0);
+    {
+        const pane = createGeo();
+        appendRoundedBox(pane, 0, 0, 0, opening + 0.04, height, 0.08, 0.04, 2);
+        meshEntity(device, glow, 'portal glow', pane, c.portalGlow, false, false);
     }
     // Built flat around Y, then stood up so the swirl faces +Z.
     const upright = node(frame, 'swirl upright', 0, height / 2, 0);
@@ -269,5 +274,5 @@ export function createPortal(ctx: PropContext, root: Entity): PortalHandles {
         meshEntity(device, swirl, 'swirl arms', arms, c.portalLight, false, false);
     }
     gate.enabled = false;
-    return { entity: root, sigil, runesDim, runesLit, gate, swirl };
+    return { entity: root, sigil, runesDim, runesLit, gate, glow, swirl };
 }

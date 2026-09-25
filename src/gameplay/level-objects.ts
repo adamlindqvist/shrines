@@ -8,8 +8,28 @@ import type { Collision, Obstacle } from './collision';
 import type { Point } from './puzzle';
 
 export type BridgeHandles = { visual: Entity; blockers: Obstacle[] };
-/** `rise` in seconds, `spin` in radians/s, `sink` is how far below ground the gate starts. */
-export const PORTAL = { reach: 0.85, rise: 0.9, spin: 1.6, sink: -0.4 };
+/**
+ * `rise` is the whole opening in seconds and `spin` the resting swirl speed in radians/s.
+ * `depth` is how far below the plinth the gate starts; it clears the lintel so nothing shows while buried.
+ * Opening phases are fractions of `rise`: the plinth rumbles, the gate climbs with a slight overshoot,
+ * lands with a squash, then the glow widens and the swirl blooms while spinning down to its resting speed.
+ */
+export const PORTAL = {
+    reach: 0.85,
+    rise: 1.1,
+    spin: 1.6,
+    depth: 2.7,
+    climb: { start: 0.08, end: 0.62 },
+    land: 0.22,
+    bloom: { start: 0.58, end: 1 },
+    rumble: 0,
+    spinBoost: 4
+};
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+const span = (t: number, start: number, end: number) => clamp01((t - start) / (end - start));
+const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
+const easeOutBack = (t: number, back: number) => 1 + (back + 1) * (t - 1) ** 3 + back * (t - 1) ** 2;
 export const BRIDGE_MOTION = { duration: 0.8, depth: 2.4 };
 
 /** Overlapping circles cover the whole deck, including both shore approaches. */
@@ -80,10 +100,14 @@ export class PortalController {
     open() {
         this.unlocked = true;
     }
+    /** Advances the opening; `landed` is true on the frame the gate settles onto the plinth. */
     update(dt: number, player: Point, collision: Collision) {
-        if (!this.unlocked) return;
+        if (!this.unlocked) return { landed: false };
+        const before = this.progress;
         this.progress = Math.min(1, this.progress + dt / PORTAL.rise);
-        this.spin = (this.spin + dt * PORTAL.spin) % (Math.PI * 2);
+        // The swirl whirls in fast and eases down to its resting speed as the opening completes.
+        const boost = 1 + PORTAL.spinBoost * (1 - this.progress) ** 2;
+        this.spin = (this.spin + dt * PORTAL.spin * boost) % (Math.PI * 2);
         this.apply();
         const p = this.definition;
         if (
@@ -92,6 +116,8 @@ export class PortalController {
             Math.hypot(player.x - p.x, player.z - p.z) < (p.reach ?? PORTAL.reach)
         )
             this.reached = true;
+        const landedAt = PORTAL.climb.end;
+        return { landed: before < landedAt && this.progress >= landedAt };
     }
     reset() {
         this.unlocked = !this.definition.locked;
@@ -101,17 +127,33 @@ export class PortalController {
         this.apply();
     }
     private apply() {
-        const { gate, swirl, sigil, runesDim, runesLit } = this.handles;
+        const { gate, glow, swirl, sigil, runesDim, runesLit } = this.handles;
         const t = this.progress;
-        // Ease out with a small overshoot, settling exactly at 1.
-        const back = 1.6;
-        const u = t - 1;
-        const scale = t <= 0 ? 0 : 1 + (back + 1) * u * u * u + back * u * u;
+        const { climb, bloom } = PORTAL;
+        // Climb from below the plinth, overshooting a hair before settling at rest height.
+        const c = span(t, climb.start, climb.end);
+        const lift = c <= 0 ? 0 : easeOutBack(c, 0.9);
+        // Stretch slightly while climbing, then a damped squash and rebound after landing.
+        const l = span(t, climb.end, climb.end + PORTAL.land);
+        const squash = l > 0 ? Math.sin(l * Math.PI * 2) * (1 - l) ** 2 * 0.09 : 0;
+        const stretch = Math.sin(c * Math.PI) * 0.04;
+        const sy = 1 + stretch - squash;
+        const sxz = 1 - stretch * 0.5 + squash * 0.5;
         gate.enabled = t > 0;
-        gate.setLocalScale(scale, scale, scale);
-        gate.setLocalPosition(0, PORTAL.sink * (1 - t) * (1 - t), 0);
+        gate.setLocalScale(sxz, sy, sxz);
+        gate.setLocalPosition(0, -PORTAL.depth * (1 - lift), 0);
+        // The plinth trembles while the stone pushes through, quieting as the gate emerges.
+        const quake = t > 0 && c < 1 ? PORTAL.rumble * (1 - c) : 0;
+        sigil.setLocalPosition(Math.sin(t * 61) * quake, 0, Math.sin(t * 47 + 1.3) * quake * 0.6);
+        // The glow widens from the centre and the swirl blooms out once the gate has landed.
+        const b = span(t, bloom.start, bloom.end);
+        const pane = easeOutCubic(b);
+        glow.enabled = b > 0;
+        glow.setLocalScale(pane, 0.35 + 0.65 * pane, 1);
+        const bloomed = b <= 0 ? 0 : easeOutBack(b, 1.8);
+        swirl.enabled = b > 0;
+        swirl.setLocalScale(bloomed, 1, bloomed);
         swirl.setLocalEulerAngles(0, (this.spin * 180) / Math.PI, 0);
-        sigil.setLocalPosition(0, -0.012 * t, 0);
         runesDim.enabled = t <= 0;
         runesLit.enabled = t > 0;
     }

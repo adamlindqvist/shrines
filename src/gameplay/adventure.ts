@@ -186,7 +186,11 @@ export class AdventureGame {
             for (const plate of clicked) this.effects.burst(plate.x, plate.z, this.deps.palette.gold, 20);
         }
         for (const bridge of this.bridges) bridge.update(dt);
-        for (const portal of this.portals) portal.update(dt, player.position, this.collision);
+        for (const portal of this.portals) {
+            // Turquoise sparks mark the gate settling onto its plinth, just as the swirl blooms.
+            if (portal.update(dt, player.position, this.collision).landed)
+                this.effects.burst(portal.definition.x, portal.definition.z, this.deps.palette.teal, 16);
+        }
         this.zones.update(player.position);
         const plates = this.puzzle.plateStates();
         const enemies = this.objects.filter((o) => o.type === 'slime');
@@ -205,8 +209,9 @@ export class AdventureGame {
             for (const action of rule.actions) {
                 if (action.type === 'openPortal') {
                     const portal = this.portals.find((p) => p.definition.id === action.target)!;
+                    // Sand kicks off the plinth as the buried gate starts to push through.
                     if (!portal.unlocked)
-                        this.effects.burst(portal.definition.x, portal.definition.z, this.deps.palette.teal, 16);
+                        this.effects.sand(portal.definition.x, portal.definition.z, this.deps.palette.cream, 1.15);
                     portal.open();
                 } else this.bridges.find((b) => b.definition.id === action.target)!.open();
             }

@@ -41,7 +41,7 @@ function fixture() {
     const stage = new Entity();
     stage._enabledInHierarchy = true;
     const portal = Object.fromEntries(
-        ['entity', 'sigil', 'runesDim', 'runesLit', 'gate', 'swirl'].map((k) => {
+        ['entity', 'sigil', 'runesDim', 'runesLit', 'gate', 'glow', 'swirl'].map((k) => {
             const e = new Entity();
             stage.addChild(e);
             return [k, e];
@@ -482,7 +482,7 @@ test('completion reports surviving hearts once, without a victory state', (t) =>
     blocks[0].entity.setPosition(-3, 0, -3);
     blocks[1].entity.setPosition(3, 0, -3);
     player.entity.setPosition(0, 0, -6);
-    tick(60);
+    tick(Math.ceil(PORTAL.rise * 60) + 2);
     assert.deepEqual(completed, [2]);
     assert.equal(game.state, 'complete');
 });

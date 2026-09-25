@@ -60,21 +60,21 @@ export class Effects {
         }
     }
 
-    /** A small ring of sandy grains kicked outward from the block's footprint. */
-    sand(x: number, z: number, material: Material) {
+    /** A small ring of sandy grains kicked outward from a square footprint of half-width `radius`. */
+    sand(x: number, z: number, material: Material, radius = 0.77) {
         for (let i = 0; i < 14; i++) {
             const angle = ((i + this.rand() * 0.5) * Math.PI * 2) / 14;
             const dx = Math.cos(angle),
                 dz = Math.sin(angle);
-            const radius = 0.77 / Math.max(Math.abs(dx), Math.abs(dz));
+            const edge = radius / Math.max(Math.abs(dx), Math.abs(dz));
             const size = 0.055 + this.rand() * 0.045;
             const e = box(
                 this.parent,
                 'sand grain',
                 material,
-                x + dx * radius,
+                x + dx * edge,
                 this.heightAt(x, z) + 0.08,
-                z + dz * radius,
+                z + dz * edge,
                 size,
                 size,
                 size
