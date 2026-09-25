@@ -280,14 +280,14 @@ export const scene: SceneDefinition = {
             type: 'plate',
             id: 'plate-1',
             symbol: 'sun',
-            x: 4,
+            x: 7,
             z: -5.2
         },
         {
             type: 'portal',
             id: 'portal',
-            x: 9.15,
-            z: -5.4,
+            x: -1,
+            z: -6.4,
             rotation: 0,
             locked: true
         },
