@@ -18,6 +18,7 @@ import { Effects } from './effects';
 import { Input } from './input';
 import { BridgeController, PortalController, ZoneTracker } from './level-objects';
 import type { BridgeHandles } from './level-objects';
+import { MovementTrail } from './movement-trail';
 import { PlayerController } from './player';
 import { BlockPuzzle } from './puzzle';
 import type { PuzzleConfig } from './puzzle';
@@ -73,6 +74,7 @@ export class AdventureGame {
     private readonly input: Input;
     private readonly hud: Hud;
     private readonly effects: Effects;
+    private readonly movementTrail: MovementTrail;
     private readonly collision: Collision;
     private readonly player: PlayerController;
     private readonly sword = new Sword();
@@ -95,6 +97,7 @@ export class AdventureGame {
         this.health = deps.initialHealth ?? level.hud.maxHealth;
         this.collision = new Collision(layout.obstacles, scene.walkBounds, layout.surfaces);
         this.effects = new Effects(root, rand, (x, z) => this.collision.heightAt(x, z));
+        this.movementTrail = new MovementTrail(context.device, root, (x, z) => this.collision.heightAt(x, z));
         this.player = new PlayerController(cast.player, this.collision);
         this.slimes = new SlimePack(cast.slimes, this.collision);
         this.puzzleConfig = {
@@ -155,7 +158,10 @@ export class AdventureGame {
             this.hud.setDiagnostics(JSON.stringify(this.diagnostics()));
         }
         const dt = Math.min(rawDt, 0.035);
-        if (this.state !== 'paused') this.effects.update(dt);
+        if (this.state !== 'paused') {
+            this.effects.update(dt);
+            this.movementTrail.update(dt);
+        }
         if (this.state !== 'playing') {
             if (this.state !== 'paused') this.updateBlockLift(dt);
             return;
@@ -171,6 +177,7 @@ export class AdventureGame {
         const solved = this.puzzle.constrain(stride, player.position);
         const dx = solved.x - player.position.x,
             dz = solved.z - player.position.z;
+        this.movementTrail.sample(player.position.x, player.position.z, dx, dz);
         player.moveTo(solved.x, solved.z);
         player.animate({
             dt,
@@ -297,6 +304,7 @@ export class AdventureGame {
             ...this.rules.diagnostics(),
             attackCooldown: this.sword.cooldown,
             effects: this.effects.count,
+            movementSmoke: this.movementTrail.count,
             drawCalls: app.stats.drawCalls.total,
             backbuffer: { width: canvas.width, height: canvas.height },
             sun: { fx: +sun.x.toFixed(3), fy: +sun.y.toFixed(3), fz: +sun.z.toFixed(3) }
@@ -335,6 +343,7 @@ export class AdventureGame {
         this.zones.reset();
         this.slimes.reset();
         this.effects.clear();
+        this.movementTrail.reset();
         this.input.clear();
         this.state = 'playing';
         this.hud.hideEnd();
@@ -345,6 +354,7 @@ export class AdventureGame {
     destroy() {
         this.input.destroy();
         this.effects.clear();
+        this.movementTrail.destroy();
         this.hud.destroy();
     }
 

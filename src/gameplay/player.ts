@@ -18,7 +18,9 @@ export const PLAYER_MOTION = {
     settleRate: 18,
     stepLength: 0.15,
     stepHeight: 0.12,
-    bob: 0.022
+    /** Maximum visual-root lift in world units. */
+    bob: 0.035,
+    carryingBob: 0.6
 };
 
 export type PlayerAnimation = {
@@ -128,8 +130,13 @@ export class PlayerController {
             );
             boot.setLocalEulerAngles(-phase * this.stepZ * 12 * this.gait, 0, phase * this.stepX * 8 * this.gait);
         }
-        visual.setLocalPosition(0, Math.abs(step) * PLAYER_MOTION.bob * this.gait, 0);
-        visual.setLocalEulerAngles(0, 0, step * 1.5 * this.gait * (carrying ? 0.3 : 1));
+        const bounce = 0.5 * (1 - Math.cos(2 * this.stridePhase));
+        visual.setLocalPosition(
+            0,
+            bounce * PLAYER_MOTION.bob * this.gait * (carrying ? PLAYER_MOTION.carryingBob : 1),
+            0
+        );
+        visual.setLocalEulerAngles(0, 0, 0);
         const armWalk = step * 7 * this.gait * (carrying ? 0.2 : 1);
         let pitch = -12 + armWalk,
             yaw = -18,

@@ -4,6 +4,8 @@ import test from 'node:test';
 
 import { Entity } from 'playcanvas';
 
+import { stubSmokeRenderer } from './smoke-renderer.mjs';
+
 // Node strips TypeScript; resolve the extensionless imports used by Vite too.
 registerHooks({
     resolve(specifier, context, nextResolve) {
@@ -310,6 +312,7 @@ test('reset clears lifted, held and matched state', () => {
 });
 
 const { AdventureGame } = await import('../src/gameplay/adventure.ts');
+const { MovementTrail } = await import('../src/gameplay/movement-trail.ts');
 const { Effects } = await import('../src/gameplay/effects.ts');
 const { scene: meadowScene, level: meadowLevel } = await import('../src/levels/meadow.ts');
 const { PortalController, PORTAL } = await import('../src/gameplay/level-objects.ts');
@@ -343,6 +346,7 @@ function gameFixture(t, overrides = {}) {
         body: { appendChild: noop }
     };
     for (const name of ['burst', 'sand', 'arc']) t.mock.method(Effects.prototype, name, noop);
+    stubSmokeRenderer(t, MovementTrail);
     t.mock.method(console, 'info', noop);
     const { config, blocks, plates, portal } = fixture();
     const player = Object.fromEntries(
@@ -429,15 +433,18 @@ test('held input moves the pair; pause and blur freeze it, release settles it', 
     assert.ok(blocks[0].entity.getPosition().z < 2);
     tap('Escape');
     const before = game.diagnostics();
+    assert.ok(before.movementSmoke > 0);
     const lift = blocks[0].visual.getLocalPosition().y;
     tick(90);
     assert.equal(game.diagnostics().elapsed, before.elapsed);
+    assert.equal(game.diagnostics().movementSmoke, before.movementSmoke);
     assert.equal(blocks[0].visual.getLocalPosition().y, lift);
     assert.equal(game.diagnostics().grabbed, true);
     tap('Escape');
     tap('Space');
     tick(60);
     assert.equal(blocks[0].visual.getLocalPosition().y, 0);
+    assert.equal(game.diagnostics().movementSmoke, 0);
     key('keydown', 'KeyD');
     globalThis.window.dispatchEvent(new Event('blur'));
     const pausedX = game.diagnostics().player.x;

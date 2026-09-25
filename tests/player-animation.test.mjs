@@ -170,3 +170,25 @@ test('slash transition fires once, follows gameplay time, and clears on cancella
     assert.equal(sword.consumeActiveStart(), false);
     assert.equal(sword.ready, true);
 });
+
+test('running bounce is vertical, bounded, reduced while carrying, and settles at rest', (t) => {
+    const { player, handles, pose } = fixture(t);
+    const heights = [];
+    for (let i = 0; i < 120; i++) {
+        pose({ dz: 0.125 });
+        const p = handles.visual.getLocalPosition();
+        heights.push(p.y);
+        near(p.x, 0);
+        near(p.z, 0);
+        near(handles.visual.getLocalEulerAngles().z, 0);
+        assert.ok(p.y >= 0 && p.y <= 0.035);
+    }
+    assert.ok(Math.max(...heights) > 0.034);
+    player.reset(0, 0);
+    for (let i = 0; i < 120; i++) {
+        pose({ dz: 0.125, carrying: true });
+        near(handles.visual.getLocalPosition().y, heights[i] * 0.6);
+    }
+    for (let i = 0; i < 120; i++) pose();
+    near(handles.visual.getLocalPosition().y, 0);
+});

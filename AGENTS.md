@@ -66,7 +66,7 @@ The HUD uses rounded cream panels, soft shadows, rounded typography, and short f
 
 ### Current baseline
 
-Animation is procedural and driven by game state: a distance-driven player stride with foot arcs and gentle body sway, layered cloth and arm pivots, a phased sword slash, slime hops and squash, a portal gate that climbs out of its plinth and blooms a swirl that spins down to a slow turn, and short-lived primitive effects. There are no authored animation clips in the current game.
+Animation is procedural and driven by game state: a distance-driven player stride with foot arcs and a subtle vertical footstep bounce, layered cloth and arm pivots, a phased sword slash, slime hops and squash, a portal gate that climbs out of its plinth and blooms a swirl that spins down to a slow turn, and short-lived primitive effects. There are no authored animation clips in the current game.
 
 Useful tuning references (the source constants remain authoritative):
 
@@ -132,3 +132,5 @@ For gameplay or rendering changes, run `npm run dev` and verify the relevant beh
 - Watch draw calls, effects, and frame rate on representative hardware. The project targets more than 60 FPS on suitable hardware; retain static batching, shared materials, restrained effects, and the `RENDER` pixel-ratio range in `src/app/create-app.ts` (1.5× supersampling on standard screens, capped at 2×) unless a measured change justifies adjustment.
 
 For visual refactors, compare the same seeded scene, camera, viewport, and gameplay state before and after. `.dream-loop/` contains ignored local reference/iteration artifacts when available; do not make development depend on files missing from a fresh checkout. Report which checks actually ran and any remaining limitations.
+
+Movement kicks up overlapping, varied-size warm-white billows with soft scalloped edges at irregular intervals around ground-level foot contacts along resolved travel, including while carrying. Dust renders over world geometry so plates and raised props cannot hide it. Puffs expand and fade over 0.7 gameplay seconds, freeze on pause, and clear on reset or scene teardown. The hero rises at most 0.035 world units per footstep (60% while carrying), without side-to-side body roll.

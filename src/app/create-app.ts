@@ -5,6 +5,7 @@ import {
     ContainerHandler,
     FILLMODE_FILL_WINDOW,
     LightComponentSystem,
+    ParticleSystemComponentSystem,
     RESOLUTION_FIXED,
     RenderComponentSystem,
     TextureHandler,
@@ -32,7 +33,12 @@ export async function createApp(canvas: HTMLCanvasElement): Promise<AppContext> 
     device.maxPixelRatio = 1;
     const options = new AppOptions();
     options.graphicsDevice = device;
-    options.componentSystems = [RenderComponentSystem, CameraComponentSystem, LightComponentSystem];
+    options.componentSystems = [
+        RenderComponentSystem,
+        CameraComponentSystem,
+        LightComponentSystem,
+        ParticleSystemComponentSystem
+    ];
     options.resourceHandlers = [TextureHandler, ContainerHandler];
     const app = new AppBase(canvas);
     app.init(options);

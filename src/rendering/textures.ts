@@ -9,8 +9,9 @@ export function paintCanvas(size: number) {
 }
 
 /** Uploads a painted canvas as a clamped, filtered texture. */
-export function canvasTexture(device: GraphicsDevice, paint: HTMLCanvasElement, mips = true) {
+export function canvasTexture(device: GraphicsDevice, paint: HTMLCanvasElement, mips = true, srgb = false) {
     const t = new Texture(device, {
+        srgb,
         width: paint.width,
         height: paint.height,
         mipmaps: mips,
