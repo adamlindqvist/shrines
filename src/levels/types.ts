@@ -89,4 +89,13 @@ export type LevelDefinition = {
     rules: RuleDefinition[];
     completion: Condition;
 };
-export type JourneyDefinition = { levels: string[]; restart: string };
+/** Title splash shown once when a journey begins; `hint` and `touchHint` describe the controls. */
+export type TitleCard = {
+    eyebrow: string;
+    title: string;
+    copy: string;
+    start: string;
+    hint: string;
+    touchHint: string;
+};
+export type JourneyDefinition = { levels: string[]; restart: string; title?: TitleCard };

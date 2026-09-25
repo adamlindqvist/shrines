@@ -1,6 +1,6 @@
 import type { AppContext, SceneInstance } from '../app/context';
 import { adventureJourney, levelDefinitions, sceneDefinitions } from '../levels';
-import type { JourneyDefinition } from '../levels/types';
+import type { JourneyDefinition, TitleCard } from '../levels/types';
 import { validateLevel } from '../levels/validate';
 
 import { createAdventureArea } from './adventure-area';
@@ -22,12 +22,13 @@ export function createJourneyScene(
     }
     let pending: { id: string; health: number } | null = null;
     const maxHealth = levelDefinitions[journey.restart].hud.maxHealth;
-    const create = (id: string, health: number) => {
+    const create = (id: string, health: number, title?: TitleCard) => {
         const index = journey.levels.indexOf(id);
         const level = levelDefinitions[id];
         return createAdventureArea(context, sceneDefinitions[level.scene], level, {
             initialHealth: health,
             stage: index + 1,
+            title,
             onComplete:
                 index < journey.levels.length - 1
                     ? (remaining) => {
@@ -41,7 +42,8 @@ export function createJourneyScene(
             }
         });
     };
-    let active = create(startAt, maxHealth);
+    // Only the opening area shows the title splash; area changes and restarts go straight to play.
+    let active = create(startAt, maxHealth, journey.title);
     return {
         update(dt) {
             active.update(dt);

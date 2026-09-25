@@ -329,7 +329,8 @@ function gameFixture(t, overrides = {}) {
             textContent: '',
             hidden: false,
             style: {},
-            classList: { add: noop, remove: noop },
+            classList: { add: noop, remove: noop, contains: () => false },
+            querySelector: () => element(),
             remove: noop,
             appendChild: noop,
             insertBefore: noop,
@@ -339,7 +340,7 @@ function gameFixture(t, overrides = {}) {
         });
     globalThis.document = {
         createElement: () => {
-            const el = Object.assign(element(), { querySelector: () => element() });
+            const el = element();
             created.push(el);
             return el;
         },
@@ -454,6 +455,26 @@ test('held input moves the pair; pause and blur freeze it, release settles it', 
     tap('Escape');
     tick(60);
     assert.equal(game.diagnostics().player.x, pausedX);
+});
+
+test('title splash holds the area frozen until a key starts play', (t) => {
+    const title = { eyebrow: '', title: 'Shrines', copy: '', start: 'Start', hint: '', touchHint: '' };
+    const { game, tap, key, tick, canvas } = gameFixture(t, { title });
+    assert.equal(game.state, 'title');
+    canvas.dispatchEvent(new Event('pointerdown'));
+    tap('Escape');
+    tick(30);
+    assert.equal(game.state, 'title');
+    assert.equal(game.diagnostics().elapsed, 0);
+    tap('Space');
+    assert.equal(game.state, 'playing');
+    assert.equal(game.diagnostics().grabbed, false);
+    const start = game.diagnostics().player;
+    key('keydown', 'KeyD');
+    tick(30);
+    assert.ok(game.diagnostics().player.x > start.x + 0.5);
+    game.reset();
+    assert.equal(game.state, 'playing');
 });
 
 test('touch stick steers, releases on pause, and the attack button grabs', (t) => {

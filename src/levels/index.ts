@@ -24,5 +24,13 @@ export const levelDefinitions: Record<string, LevelDefinition> = {
 };
 export const adventureJourney: JourneyDefinition = {
     levels: ['meadow', 'sun-moon', 'two-suns', 'twin-bridges', 'drifting-stones', 'lantern-lake'],
-    restart: 'meadow'
+    restart: 'meadow',
+    title: {
+        eyebrow: 'Ett äventyr',
+        title: 'Shrines',
+        copy: 'Knuffa lådorna rätt så öppnas vägen vidare.',
+        start: 'Börja äventyret',
+        hint: 'WASD eller pilar för att gå · Mellanslag för att lyfta eller svinga',
+        touchHint: 'Styrspaken för att gå · ⚔️ för att lyfta eller svinga'
+    }
 };

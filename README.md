@@ -124,7 +124,7 @@ export const level: LevelDefinition = {
 };
 ```
 
-Import these exports into `src/levels/index.ts` and add them under `'little-shrine'` in `sceneDefinitions` and `levelDefinitions`. This automatically exposes `shrines.load('little-shrine')` and, in development, `/?level=N` where `N` is its 1-based position among `levelDefinitions`' keys. To include it in the adventure, also add its level ID to `adventureJourney.levels`. No changes to `AdventureGame` or object controllers are needed.
+Import these exports into `src/levels/index.ts` and add them under `'little-shrine'` in `sceneDefinitions` and `levelDefinitions`. This automatically exposes `shrines.load('little-shrine')` and, in development, `/?level=N` where `N` is its 1-based position among `levelDefinitions`' keys. To include it in the adventure, also add its level ID to `adventureJourney.levels`. The journey's `title` card is the splash shown once over whichever area the game opens in. No changes to `AdventureGame` or object controllers are needed.
 
 ### Conditions and actions
 

@@ -77,7 +77,8 @@ Bridges are Z-aligned and permanently open once activated. Closed bridges rise f
 
 ## States, pause and reset
 
-- States are `playing`, `paused`, `won`, `over`, and the transient `complete` state used while an area change is queued. Lethal damage takes precedence over puzzle completion in the same frame.
+- States are `title`, `playing`, `paused`, `won`, `over`, and the transient `complete` state used while an area change is queued. Lethal damage takes precedence over puzzle completion in the same frame.
+- The journey's opening area starts in `title` when the journey defines a `title` card: the area is built but frozen behind the splash. Its button or any key except Escape starts play; that key does nothing else (Space does not swing). Blur, pointer and R are ignored. Area changes and restarts skip the splash.
 - Gameplay time and ambient animation advance only while playing. Effects freeze while paused but finish after victory or defeat.
 - Pause freezes rules, portals, bridges, platforms and splashes.
 - Reset restores locks, bridge positions/collision, platform states and clocks, zone visits and fired rules; clears any splash; and moves the respawn point back to spawn.

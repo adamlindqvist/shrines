@@ -1,7 +1,7 @@
 import type { Entity } from 'playcanvas';
 
 import type { AppContext } from '../app/context';
-import type { LevelDefinition, SceneDefinition, SceneObject } from '../levels/types';
+import type { LevelDefinition, SceneDefinition, SceneObject, TitleCard } from '../levels/types';
 import type { AdventurerHandles } from '../objects/adventurer';
 import type { PortalHandles, PushBlockHandles, SunSwitchHandles } from '../objects/puzzle';
 import type { SlimeHandles } from '../objects/slime';
@@ -28,7 +28,7 @@ import { LevelRules } from './rules';
 import { SLIME, SlimePack } from './slimes';
 import type { Slime, SlimeTarget } from './slimes';
 
-export type GameState = 'playing' | 'paused' | 'won' | 'over' | 'complete';
+export type GameState = 'title' | 'playing' | 'paused' | 'won' | 'over' | 'complete';
 
 /**
  * Stepping into open water: the player drops `fallDepth` below the deck over `sinkTime`
@@ -60,6 +60,8 @@ export type AdventureDeps = {
     level: LevelDefinition;
     stage?: number;
     initialHealth?: number;
+    /** When set, the area opens frozen behind this title splash until the player starts. */
+    title?: TitleCard;
     onComplete?: (health: number) => void;
     /** Called from the end card; `over` restarts the current area, `won` the whole journey. */
     onRestart?: (after: 'won' | 'over') => void;
@@ -166,6 +168,10 @@ export class AdventureGame {
         this.reset();
         this.health = deps.initialHealth ?? level.hud.maxHealth;
         this.hud.setHealth(this.health);
+        if (deps.title) {
+            this.state = 'title';
+            this.hud.showTitle(deps.title, () => this.begin());
+        }
     }
 
     update(rawDt: number) {
@@ -380,6 +386,13 @@ export class AdventureGame {
         }
     }
 
+    /** Leaves the title splash and starts play. */
+    begin() {
+        if (this.state !== 'title') return;
+        this.state = 'playing';
+        this.hud.hideTitle();
+    }
+
     /** Puts every piece of play state back to the start without rebuilding the scene. */
     reset() {
         const { scene, level, rig } = this.deps;
@@ -406,6 +419,7 @@ export class AdventureGame {
         this.input.clear();
         this.state = 'playing';
         this.hud.hideEnd();
+        this.hud.hideTitle();
         this.hud.setHealth(this.health);
         this.hud.hideToast();
     }
@@ -418,6 +432,11 @@ export class AdventureGame {
     }
 
     private onKeyDown(code: string) {
+        if (this.state === 'title') {
+            // Any key but Escape starts; the key itself does nothing else, so Space never swings.
+            if (code !== 'Escape') this.begin();
+            return;
+        }
         if (code === 'KeyR' && this.state !== 'playing') {
             this.restart();
             return;

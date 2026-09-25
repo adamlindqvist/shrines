@@ -171,6 +171,138 @@ kbd {
     display: none;
 }
 
+/* Title splash: the opening area waits, softened, behind a welcome card. */
+#title {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 14px;
+    background: radial-gradient(ellipse at 50% 45%, #fdf7ea30, #33603f55);
+    backdrop-filter: blur(6px);
+    pointer-events: auto;
+    animation: title-in 0.5s ease-out;
+    transition: opacity 0.35s ease-in;
+}
+#title[hidden] {
+    display: none;
+}
+#title.leaving {
+    opacity: 0;
+    pointer-events: none;
+}
+.title-card {
+    background: #fdf7ea;
+    border-radius: 30px;
+    box-shadow: 0 20px 70px #29443635;
+    padding: 34px 48px 28px;
+    max-width: 470px;
+    text-align: center;
+    animation: title-card-in 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+#title.leaving .title-card {
+    transform: translateY(-10px) scale(0.97);
+    transition: transform 0.35s ease-in;
+}
+.title-icon {
+    font-size: 46px;
+}
+.title-eyebrow {
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #b08a3e;
+}
+.title-name {
+    font-size: 52px;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    color: #465742;
+    margin: 8px 0 14px;
+}
+.title-copy {
+    font-size: 15px;
+    line-height: 1.6;
+    color: #7d7c6c;
+    margin: 0 0 20px;
+}
+#start {
+    font:
+        700 17px ui-rounded,
+        'SF Pro Rounded',
+        'Varela Round',
+        'Avenir Next',
+        sans-serif;
+    border: 0;
+    padding: 15px 28px;
+    background: #52784f;
+    color: #fff9e9;
+    border-radius: 14px;
+    box-shadow: inset 0 -3px 0 #43653f;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+#start:hover {
+    transform: translateY(-1px);
+}
+#start:active {
+    transform: scale(0.97);
+}
+.title-hint {
+    margin: 18px 0 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #a7a391;
+}
+.hint-touch {
+    display: none;
+}
+#hud.touch .hint-keys {
+    display: none;
+}
+#hud.touch .hint-touch {
+    display: inline;
+}
+@media (pointer: coarse) {
+    .hint-keys {
+        display: none;
+    }
+    .hint-touch {
+        display: inline;
+    }
+}
+@media (max-width: 560px) {
+    .title-card {
+        padding: 28px 22px 22px;
+    }
+    .title-name {
+        font-size: 42px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    #title,
+    .title-card {
+        animation: none;
+    }
+    #title,
+    #title.leaving .title-card {
+        transition-duration: 0.01s;
+    }
+}
+@keyframes title-in {
+    from {
+        opacity: 0;
+    }
+}
+@keyframes title-card-in {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.96);
+    }
+}
+
 /* Touch controls: joystick bottom-left, attack bottom-right; shown on touch devices. */
 .touch-stick,
 .touch-attack {
