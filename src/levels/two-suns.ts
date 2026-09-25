@@ -11,21 +11,21 @@ export const scene: SceneDefinition = {
             {
                 minX: -20,
                 maxX: -6.9,
-                minZ: -10.9,
+                minZ: -14.9,
                 maxZ: 12.5,
                 radius: 2.6
             },
             {
                 minX: -20,
                 maxX: 15.5,
-                minZ: -8.8,
+                minZ: -11.8,
                 maxZ: 12.5,
                 radius: 2.4
             },
             {
                 minX: -4.9,
                 maxX: 15.5,
-                minZ: -12.5,
+                minZ: -16.5,
                 maxZ: -2,
                 radius: 2.4
             },
@@ -67,7 +67,7 @@ export const scene: SceneDefinition = {
             {
                 minX: -7.2,
                 maxX: -4.6,
-                minZ: -12,
+                minZ: -16,
                 maxZ: -3,
                 radius: 1
             }
@@ -85,51 +85,51 @@ export const scene: SceneDefinition = {
         clearings: [
             {
                 x: 611.84,
-                y: 602.112,
-                radius: [62, 52],
-                innerRadius: [40, 34],
+                y: 660.3,
+                radius: [62, 45],
+                innerRadius: [40, 29],
                 path: {
                     x: 611.84,
-                    y: 602.112,
+                    y: 660.3,
                     dx: 0,
-                    dy: 360
+                    dy: 310
                 }
             },
             {
                 x: 145.92,
-                y: 368.64,
-                radius: [46, 40],
-                innerRadius: [30, 26],
+                y: 459,
+                radius: [46, 34],
+                innerRadius: [30, 22],
                 path: {
                     x: 145.92,
-                    y: 368.64,
+                    y: 459,
                     dx: 54,
-                    dy: 400
+                    dy: 345
                 }
             },
             {
                 x: 611.84,
-                y: 176.12800000000004,
-                radius: [210, 100],
-                innerRadius: [150, 70],
+                y: 198,
+                radius: [230, 106],
+                innerRadius: [165, 78],
                 path: {
                     x: 611.84,
-                    y: 258.048,
+                    y: 293,
                     dx: 0,
-                    dy: -80
+                    dy: -88
                 }
             },
             {
-                x: 492.8,
-                y: 110.59199999999997,
-                radius: [70, 56],
-                innerRadius: [46, 36]
+                x: 473.6,
+                y: 148.3,
+                radius: [70, 48],
+                innerRadius: [46, 31]
             },
             {
-                x: 738.5600000000001,
-                y: 110.59199999999997,
-                radius: [70, 56],
-                innerRadius: [46, 36]
+                x: 750.08,
+                y: 148.3,
+                radius: [70, 48],
+                innerRadius: [46, 31]
             }
         ]
     },
@@ -146,13 +146,13 @@ export const scene: SceneDefinition = {
     walkBounds: {
         minX: -19.4,
         maxX: 19.4,
-        minZ: -12,
+        minZ: -16,
         maxZ: 12
     },
     blockBounds: {
         minX: -18.5,
         maxX: 18.5,
-        minZ: -11.4,
+        minZ: -15.4,
         maxZ: 11.4
     },
     camera: {
@@ -183,32 +183,32 @@ export const scene: SceneDefinition = {
         {
             type: 'shrineDais',
             x: 3.9,
-            z: -11.1
+            z: -13.6
         },
         {
             type: 'signpost',
             x: -17.7,
-            z: -8,
+            z: -12,
             rotation: -12
         },
         {
             type: 'tree',
             x: -9,
-            z: -9.4,
+            z: -13.4,
             scale: 1.11,
             rotation: 30
         },
         {
             type: 'rock',
             x: -11.3,
-            z: -9.5,
+            z: -13.5,
             scale: 1.8,
             rotation: 20
         },
         {
             type: 'bushCluster',
             x: -10.4,
-            z: -8.6,
+            z: -12.6,
             count: 4,
             spread: 0.9,
             scale: 0.42
@@ -216,21 +216,21 @@ export const scene: SceneDefinition = {
         {
             type: 'tree',
             x: -17.6,
-            z: -9.7,
+            z: -13.7,
             scale: 0.67,
             rotation: -20
         },
         {
             type: 'tree',
             x: -3.4,
-            z: -10.9,
+            z: -14.9,
             scale: 0.74,
             rotation: 60
         },
         {
             type: 'bushCluster',
             x: -2.3,
-            z: -10.6,
+            z: -14.6,
             count: 3,
             spread: 0.7,
             scale: 0.4
@@ -238,14 +238,14 @@ export const scene: SceneDefinition = {
         {
             type: 'tree',
             x: 13.2,
-            z: -9.7,
+            z: -13.7,
             scale: 1.11,
             rotation: -50
         },
         {
             type: 'bushCluster',
             x: 14.1,
-            z: -8.8,
+            z: -12.8,
             count: 4,
             spread: 0.9,
             scale: 0.4
@@ -394,7 +394,7 @@ export const scene: SceneDefinition = {
         {
             type: 'bushCluster',
             x: -11.2,
-            z: -10.4,
+            z: -14.4,
             count: 3,
             spread: 0.6,
             scale: 0.5
@@ -426,13 +426,13 @@ export const scene: SceneDefinition = {
         {
             type: 'bush',
             x: -17.5,
-            z: -7.2,
+            z: -11.2,
             scale: 0.6
         },
         {
             type: 'rock',
             x: 11.4,
-            z: -8.2,
+            z: -10.2,
             scale: 1.3,
             rotation: 25
         },
@@ -509,7 +509,7 @@ export const scene: SceneDefinition = {
         {
             type: 'rock',
             x: -5.5,
-            z: -8.4,
+            z: -10.4,
             scale: 1,
             y: -1.8
         },
@@ -527,7 +527,7 @@ export const scene: SceneDefinition = {
             id: 'block-1',
             symbol: 'sun',
             x: -14.9,
-            z: -6.8
+            z: -8.8
         },
         {
             type: 'block',
@@ -540,21 +540,21 @@ export const scene: SceneDefinition = {
             type: 'plate',
             id: 'plate-1',
             symbol: 'sun',
-            x: -0.75,
-            z: -9.8
+            x: -1.5,
+            z: -12.3
         },
         {
             type: 'plate',
             id: 'plate-2',
             symbol: 'sun',
-            x: 8.85,
-            z: -9.8
+            x: 9.3,
+            z: -12.3
         },
         {
             type: 'chest',
             id: 'chest',
             x: 3.9,
-            z: -11.1,
+            z: -13.6,
             y: 0.44999999999999996,
             rotation: 0,
             locked: true
@@ -563,7 +563,7 @@ export const scene: SceneDefinition = {
             type: 'slime',
             id: 'slime-1',
             x: -12.2,
-            z: -7.9
+            z: -9.9
         },
         {
             type: 'slime',
