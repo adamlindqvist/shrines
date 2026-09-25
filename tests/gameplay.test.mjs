@@ -26,7 +26,7 @@ function fixture() {
             { symbol: 'moon', x: 3, z: -3 },
             { symbol: 'sun', x: -3, z: -3 }
         ],
-        chest: { x: 0, z: -6 },
+        portal: { x: 0, z: -6 },
         blockBounds: { minX: -8, maxX: 8, minZ: -8, maxZ: 8 }
     };
     const blocks = config.blocks.map(() => ({
@@ -37,12 +37,21 @@ function fixture() {
     }));
     const materialHandle = () => ({ render: { meshInstances: [{ material: null }] } });
     const plates = config.plates.map(() => ({ sunDisk: materialHandle(), base: materialHandle() }));
-    const chest = { lid: new Entity() };
+    // Detached entities always report `enabled === false`; mount the portal under a live root.
+    const stage = new Entity();
+    stage._enabledInHierarchy = true;
+    const portal = Object.fromEntries(
+        ['entity', 'sigil', 'runesDim', 'runesLit', 'gate', 'swirl'].map((k) => {
+            const e = new Entity();
+            stage.addChild(e);
+            return [k, e];
+        })
+    );
     const materials = { idle: {}, lit: {}, baseIdle: {} };
     const collision = new Collision([], { minX: -9, maxX: 9, minZ: -9, maxZ: 9 });
     const puzzle = new BlockPuzzle(config, blocks, plates, collision, materials);
     puzzle.reset();
-    return { puzzle, config, blocks, plates, chest, materials, collision };
+    return { puzzle, config, blocks, plates, portal, materials, collision };
 }
 
 for (const order of [
@@ -88,7 +97,7 @@ test('wrong symbols never activate, and remain movable', () => {
     const { puzzle, blocks, config } = fixture();
     blocks[0].entity.setPosition(3, 0, -3);
     blocks[1].entity.setPosition(-3, 0, -3);
-    assert.deepEqual(puzzle.update(config.chest), { clicked: [] });
+    assert.deepEqual(puzzle.update(config.portal), { clicked: [] });
     assert.equal(puzzle.matched, 0);
     assert.equal(puzzle.interact({ x: 3, z: -1.7 }), true);
     assert.equal(puzzle.diagnostics()[0].grabbed, true);
@@ -280,8 +289,8 @@ test('release at a square corner allows escape, regrab captures new distance, re
     assertGrabDistance(puzzle, player, 1.5);
 });
 
-test('reset clears lifted, held, matched and chest state', () => {
-    const { puzzle, blocks, config, chest, plates, materials } = fixture();
+test('reset clears lifted, held and matched state', () => {
+    const { puzzle, blocks, config, plates, materials } = fixture();
     puzzle.interact({ x: -3, z: 4.3 });
     puzzle.updateLift(0.2);
     assert.ok(blocks[0].visual.getLocalPosition().y > 0);
@@ -291,7 +300,6 @@ test('reset clears lifted, held, matched and chest state', () => {
     assert.equal(puzzle.grabbed, false);
     assert.equal(puzzle.matched, 0);
     assert.equal(puzzle.plateStates().every(Boolean), false);
-    assert.equal(chest.lid.getLocalEulerAngles().x, 0);
     blocks.forEach((b, i) => {
         assert.equal(b.visual.getLocalPosition().y, 0);
         assert.equal(b.entity.getPosition().x, config.blocks[i].x);
@@ -304,7 +312,7 @@ test('reset clears lifted, held, matched and chest state', () => {
 const { AdventureGame } = await import('../src/gameplay/adventure.ts');
 const { Effects } = await import('../src/gameplay/effects.ts');
 const { scene: meadowScene, level: meadowLevel } = await import('../src/levels/meadow.ts');
-const { ChestController } = await import('../src/gameplay/level-objects.ts');
+const { PortalController, PORTAL } = await import('../src/gameplay/level-objects.ts');
 
 /** Controller integration fixture: real input/movement/combat, stubbed DOM and particle rendering. */
 function gameFixture(t, overrides = {}) {
@@ -336,7 +344,7 @@ function gameFixture(t, overrides = {}) {
     };
     for (const name of ['burst', 'sand', 'arc']) t.mock.method(Effects.prototype, name, noop);
     t.mock.method(console, 'info', noop);
-    const { config, blocks, plates, chest } = fixture();
+    const { config, blocks, plates, portal } = fixture();
     const player = Object.fromEntries(
         ['entity', 'visual', 'leftBoot', 'rightBoot', 'swordPivot'].map((k) => [k, new Entity()])
     );
@@ -350,14 +358,14 @@ function gameFixture(t, overrides = {}) {
         palette: {},
         layout: { obstacles: [], animate: noop },
         rig: { camera: new Entity(), sun: new Entity(), follow: noop, reset: noop },
-        cast: { player, blocks, plates, chests: [chest], slimes: [slime], bridges: [] },
+        cast: { player, blocks, plates, portals: [portal], slimes: [slime], bridges: [] },
         scene: {
             ...meadowScene,
             scenery: [],
             objects: [
                 ...config.blocks.map((b, i) => ({ ...b, type: 'block', id: `block-${i + 1}` })),
                 ...config.plates.map((b, i) => ({ ...b, type: 'plate', id: `plate-${i + 1}` })),
-                { ...config.chest, type: 'chest', id: 'chest', locked: true },
+                { ...config.portal, type: 'portal', id: 'portal', locked: true },
                 { type: 'slime', id: 'enemy', x: 8, z: 8 }
             ],
             spawn: { x: -3, z: 4.3 },
@@ -373,7 +381,7 @@ function gameFixture(t, overrides = {}) {
                         type: 'all',
                         conditions: [1, 2].map((i) => ({ type: 'plateActive', target: `plate-${i}` }))
                     },
-                    actions: [{ type: 'unlockChest', target: 'chest' }]
+                    actions: [{ type: 'openPortal', target: 'portal' }]
                 }
             ]
         },
@@ -489,13 +497,13 @@ test('final shrine wins and restart delegates to the journey', (t) => {
     blocks[0].entity.setPosition(-3, 0, -3);
     blocks[1].entity.setPosition(3, 0, -3);
     player.entity.setPosition(0, 0, -6);
-    tick(2);
+    tick(Math.ceil(PORTAL.rise * 60) + 2);
     assert.equal(game.state, 'won');
     tap('KeyR');
     assert.equal(restarts, 1);
 });
 
-test('a lethal strike wins over reaching the chest in the same frame', (t) => {
+test('a lethal strike wins over reaching the portal in the same frame', (t) => {
     let completed = false;
     const { game, blocks, player, tick } = gameFixture(t, {
         initialHealth: 1,
@@ -554,19 +562,37 @@ test('carried blocks follow stairs, settle at elevation and reset to their start
     assert.equal(blocks[0].entity.getPosition().y, 0);
 });
 
-test('an elevated chest requires standing on its floor after unlocking', () => {
-    const { chest, collision } = fixture();
-    const controller = new ChestController({ type: 'chest', id: 'chest', x: 0, z: -6, y: 0.45, locked: true }, chest);
+test('an elevated portal requires standing on its floor once fully risen', () => {
+    const { portal, collision } = fixture();
+    const controller = new PortalController(
+        { type: 'portal', id: 'portal', x: 0, z: -6, y: 0.45, locked: true },
+        portal
+    );
     collision.surfaces.push({ minX: -2, maxX: 2, minZ: -8, maxZ: -5.5, height: 0.45 });
-    controller.unlock();
-    controller.update(0.035, { x: 0, z: -5 }, collision);
+    assert.equal(portal.gate.enabled, false);
+    assert.equal(portal.runesDim.enabled, true);
+    controller.update(PORTAL.rise, { x: 0, z: -6 }, collision);
+    assert.equal(controller.progress, 0);
+    controller.open();
+    controller.update(0.035, { x: 0, z: -6 }, collision);
+    assert.equal(portal.gate.enabled, true);
+    assert.equal(portal.runesLit.enabled, true);
+    assert.equal(controller.reached, false);
+    for (let i = 0; i < 40; i++) controller.update(0.035, { x: 0, z: -5 }, collision);
+    assert.equal(controller.progress, 1);
+    assert.ok(Math.abs(portal.gate.getLocalScale().x - 1) < 1e-9);
+    assert.ok(Math.abs(portal.gate.getLocalPosition().y) < 1e-9);
     assert.equal(controller.reached, false);
     controller.update(0.035, { x: 0, z: -5.8 }, collision);
     assert.equal(controller.reached, true);
     controller.reset();
     assert.equal(controller.reached, false);
     assert.equal(controller.unlocked, false);
-    assert.equal(chest.lid.getLocalEulerAngles().x, 0);
+    assert.equal(controller.progress, 0);
+    assert.equal(portal.gate.enabled, false);
+    assert.equal(portal.runesDim.enabled, true);
+    assert.equal(portal.runesLit.enabled, false);
+    assert.equal(portal.swirl.getLocalEulerAngles().y, 0);
 });
 
 // The adventurer faces +Z at zero yaw, opposite the Engine forward vector.
@@ -614,11 +640,11 @@ test('rules wait for the next snapshot, pause freezes bridge progress, reset cle
                 {
                     id: 'unlock',
                     when: { type: 'plateActive', target: 'plate-1' },
-                    actions: [{ type: 'unlockChest', target: 'chest' }]
+                    actions: [{ type: 'openPortal', target: 'portal' }]
                 },
                 {
                     id: 'raise',
-                    when: { type: 'chestReached', target: 'chest' },
+                    when: { type: 'portalReached', target: 'portal' },
                     actions: [{ type: 'openBridge', target: 'bridge' }]
                 }
             ],
@@ -638,8 +664,14 @@ test('rules wait for the next snapshot, pause freezes bridge progress, reset cle
     player.entity.setPosition(0, 0, -6);
     tick();
     assert.deepEqual(game.diagnostics().activatedRules, ['unlock']);
-    assert.equal(game.diagnostics().chests[0].reached, false);
-    tick();
+    assert.equal(game.diagnostics().portals[0].reached, false);
+    // The portal must finish rising before it counts as reached.
+    const frames = Math.ceil(PORTAL.rise * 60);
+    tick(frames - 1);
+    assert.equal(game.diagnostics().portals[0].reached, false);
+    assert.deepEqual(game.diagnostics().activatedRules, ['unlock']);
+    tick(2);
+    assert.equal(game.diagnostics().portals[0].reached, true);
     assert.deepEqual(game.diagnostics().activatedRules, ['unlock', 'raise']);
     assert.equal(game.diagnostics().bridges[0].state, 'opening');
     tick(10);
@@ -654,7 +686,7 @@ test('rules wait for the next snapshot, pause freezes bridge progress, reset cle
     assert.equal(blocker.enabled, false);
     game.reset();
     assert.deepEqual(game.diagnostics().activatedRules, []);
-    assert.equal(game.diagnostics().chests[0].unlocked, false);
+    assert.equal(game.diagnostics().portals[0].unlocked, false);
     assert.equal(game.diagnostics().bridges[0].state, 'closed');
     assert.equal(blocker.enabled, true);
 });

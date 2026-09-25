@@ -1,14 +1,15 @@
 import type { Entity } from 'playcanvas';
 
-import type { BridgeDefinition, ChestDefinition, ZoneDefinition } from '../levels/types';
-import type { ChestHandles } from '../objects/puzzle';
+import type { BridgeDefinition, PortalDefinition, ZoneDefinition } from '../levels/types';
+import type { PortalHandles } from '../objects/puzzle';
 import { BRIDGE } from '../objects/shrine';
 
 import type { Collision, Obstacle } from './collision';
 import type { Point } from './puzzle';
 
 export type BridgeHandles = { visual: Entity; blockers: Obstacle[] };
-export const CHEST = { reach: 1.7, lidSpeed: 150 };
+/** `rise` in seconds, `spin` in radians/s, `sink` is how far below ground the gate starts. */
+export const PORTAL = { reach: 0.85, rise: 0.9, spin: 1.6, sink: -0.4 };
 export const BRIDGE_MOTION = { duration: 0.8, depth: 2.4 };
 
 /** Overlapping circles cover the whole deck, including both shore approaches. */
@@ -63,36 +64,56 @@ export class BridgeController {
     }
 }
 
-export class ChestController {
+export class PortalController {
     unlocked = false;
     reached = false;
-    private angle = 0;
-    readonly definition: ChestDefinition;
-    private readonly handles: ChestHandles;
-    constructor(definition: ChestDefinition, handles: ChestHandles) {
+    /** Opening progress, 0 while dormant and 1 once the gate is fully risen. */
+    progress = 0;
+    private spin = 0;
+    readonly definition: PortalDefinition;
+    private readonly handles: PortalHandles;
+    constructor(definition: PortalDefinition, handles: PortalHandles) {
         this.definition = definition;
         this.handles = handles;
         this.reset();
     }
-    unlock() {
+    open() {
         this.unlocked = true;
     }
     update(dt: number, player: Point, collision: Collision) {
         if (!this.unlocked) return;
-        this.angle = Math.min(100, this.angle + dt * CHEST.lidSpeed);
-        this.handles.lid.setLocalEulerAngles(-this.angle, 0, 0);
-        const c = this.definition;
+        this.progress = Math.min(1, this.progress + dt / PORTAL.rise);
+        this.spin = (this.spin + dt * PORTAL.spin) % (Math.PI * 2);
+        this.apply();
+        const p = this.definition;
         if (
-            Math.abs(collision.heightAt(player.x, player.z) - (c.y ?? 0)) < 0.08 &&
-            Math.hypot(player.x - c.x, player.z - c.z) < (c.reach ?? CHEST.reach)
+            this.progress >= 1 &&
+            Math.abs(collision.heightAt(player.x, player.z) - (p.y ?? 0)) < 0.08 &&
+            Math.hypot(player.x - p.x, player.z - p.z) < (p.reach ?? PORTAL.reach)
         )
             this.reached = true;
     }
     reset() {
         this.unlocked = !this.definition.locked;
         this.reached = false;
-        this.angle = 0;
-        this.handles.lid.setLocalEulerAngles(0, 0, 0);
+        this.progress = this.unlocked ? 1 : 0;
+        this.spin = 0;
+        this.apply();
+    }
+    private apply() {
+        const { gate, swirl, sigil, runesDim, runesLit } = this.handles;
+        const t = this.progress;
+        // Ease out with a small overshoot, settling exactly at 1.
+        const back = 1.6;
+        const u = t - 1;
+        const scale = t <= 0 ? 0 : 1 + (back + 1) * u * u * u + back * u * u;
+        gate.enabled = t > 0;
+        gate.setLocalScale(scale, scale, scale);
+        gate.setLocalPosition(0, PORTAL.sink * (1 - t) * (1 - t), 0);
+        swirl.setLocalEulerAngles(0, (this.spin * 180) / Math.PI, 0);
+        sigil.setLocalPosition(0, -0.012 * t, 0);
+        runesDim.enabled = t <= 0;
+        runesLit.enabled = t > 0;
     }
 }
 

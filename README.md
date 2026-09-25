@@ -19,7 +19,7 @@ npm install
 npm run dev
 ```
 
-Open the URL printed by Vite. Use **WASD or arrow keys** to move at 4.5 units/s and **Space or click** to swing your sword, with 0.30 seconds between swings. Press **Escape** to pause. On touch screens, drag the **joystick** in the bottom-left corner to move and tap the **⚔️ button** in the bottom-right corner to attack or grab. There is no sprint or dash. Near the turquoise block, **Space or click** grabs it instead of swinging. Grabbing turns you to face the box and locks your facing: moving carries the box in any direction while keeping its offset, so with the box on your right, pressing up sidesteps you both upward. If the box is blocked, you stop; diagonal pushes slide along walls. Then press **Space or click** again to release it. Bring it onto the sun switch to unlock the treasure; it releases automatically when it snaps into place. Two friendly-looking slimes provide a small combat challenge in the open meadow. Reaching its unlocked chest automatically takes you to **Sun & Moon Grove**, a larger 40 × 30 clearing with a following camera, four slimes, and two symbol-marked blocks. Follow the sandy paths and bring each block to its matching sun or moon plate. Correct matches lock in place; both unlock the second treasure. The second treasure leads to **Two Suns Shrine**. Match both sun blocks, then walk up the shrine steps to reach its chest. That leads to **Twin Bridges Isle**, a 48 × 40 island cut by two rivers: the sun block raises the first bridge, the moon block the second, and a second sun block carried to the shrine plate unlocks the final chest. Players, carried blocks, and slimes follow registered ground surfaces; small steps are walkable, while cliffs are blocked. Jumping, falling, and stacked floors are not supported. Defeating the slimes is optional. Your remaining hearts carry over; restarting after defeat or victory starts the whole adventure again with three hearts.
+Open the URL printed by Vite. Use **WASD or arrow keys** to move at 4.5 units/s and **Space or click** to swing your sword, with 0.30 seconds between swings. Press **Escape** to pause. On touch screens, drag the **joystick** in the bottom-left corner to move and tap the **⚔️ button** in the bottom-right corner to attack or grab. There is no sprint or dash. Near the turquoise block, **Space or click** grabs it instead of swinging. Grabbing turns you to face the box and locks your facing: moving carries the box in any direction while keeping its offset, so with the box on your right, pressing up sidesteps you both upward. If the box is blocked, you stop; diagonal pushes slide along walls. Then press **Space or click** again to release it. Bring it onto the sun switch to open the portal; it releases automatically when it snaps into place. Two friendly-looking slimes provide a small combat challenge in the open meadow. Solving it raises a portal; walking into it takes you to **Sun & Moon Grove**, a larger 40 × 30 clearing with a following camera, four slimes, and two symbol-marked blocks. Follow the sandy paths and bring each block to its matching sun or moon plate. Correct matches lock in place; both open the second portal, which leads to **Two Suns Shrine**. Match both sun blocks, then walk up the shrine steps to enter its portal. That leads to **Twin Bridges Isle**, a 48 × 40 island cut by two rivers: the sun block raises the first bridge, the moon block the second, and a second sun block carried to the shrine plate opens the final portal. Players, carried blocks, and slimes follow registered ground surfaces; small steps are walkable, while cliffs are blocked. Jumping, falling, and stacked floors are not supported. Defeating the slimes is optional. Your remaining hearts carry over; restarting after defeat or victory starts the whole adventure again with three hearts.
 
 ## Install on an iPad or phone
 
@@ -58,13 +58,13 @@ Performance targets more than 60 FPS on suitable hardware; actual frame rate dep
 
 ## Building playable levels
 
-Playable scenes and their rules are separate, JSON-compatible TypeScript data. `src/levels/types.ts` defines the contracts; `src/levels/twin-bridges.ts` shows a complete box → plate → bridge → treasure setup.
+Playable scenes and their rules are separate, JSON-compatible TypeScript data. `src/levels/types.ts` defines the contracts; `src/levels/twin-bridges.ts` shows a complete box → plate → bridge → portal setup.
 
 - `SceneDefinition` owns terrain, spawn, bounds, camera, lighting and ordered object lists. `scenery` is constructed before the player; `objects` afterwards. Preserve this order and the seed when keeping existing scenery unchanged.
 - `LevelDefinition` references a scene and owns rules, completion, HUD and text. Multiple levels can reference the same scene with different objectives.
 - `JourneyDefinition` lists level IDs in order and specifies the restart level. Health carries across levels; restart restores the restart level's maximum health.
 
-Definitions contain plain objects, arrays, strings, numbers and booleans. Use data spreads for defaults; do not add callbacks, `Color` instances or scene-building code. Object types cover trees, rocks, bushes, bush clusters, pots, logs, signs, shrine platforms, bridges, blocks, plates, chests, slimes and zones. Interactives have unique IDs across both lists. Rock scale is width in world units; other scale values retain their existing factory contracts. Camera RGB values are numeric triples.
+Definitions contain plain objects, arrays, strings, numbers and booleans. Use data spreads for defaults; do not add callbacks, `Color` instances or scene-building code. Object types cover trees, rocks, bushes, bush clusters, pots, logs, signs, shrine platforms, bridges, blocks, plates, portals, slimes and zones. Interactives have unique IDs across both lists. Rock scale is width in world units; other scale values retain their existing factory contracts. Camera RGB values are numeric triples.
 
 ### Add a complete level
 
@@ -97,7 +97,7 @@ export const scene: SceneDefinition = {
     objects: [
         { type: 'block', id: 'box', symbol: 'sun', x: 0, z: 5 },
         { type: 'plate', id: 'plate', symbol: 'sun', x: 0, z: -2 },
-        { type: 'chest', id: 'treasure', x: 5, z: -5, rotation: 0, locked: true }
+        { type: 'portal', id: 'portal', x: 5, z: -5, rotation: 0, locked: true }
     ]
 };
 
@@ -108,13 +108,13 @@ export const level: LevelDefinition = {
     text: { ...DEFAULT_TEXT, matched: 'Klick! Solen lyser.' },
     rules: [
         {
-            id: 'unlock-treasure',
+            id: 'open-portal',
             when: { type: 'plateActive', target: 'plate' },
-            actions: [{ type: 'unlockChest', target: 'treasure' }],
-            message: 'Skatten är upplåst!'
+            actions: [{ type: 'openPortal', target: 'portal' }],
+            message: 'En portal öppnar sig!'
         }
     ],
-    completion: { type: 'chestReached', target: 'treasure' }
+    completion: { type: 'portalReached', target: 'portal' }
 };
 ```
 
@@ -122,13 +122,13 @@ Import these exports into `src/levels/index.ts` and add them under `'little-shri
 
 ### Conditions and actions
 
-Conditions are `plateActive`, `enemyDefeated`, `chestReached` and `zoneVisited`, each with a `target` ID. Combine them using `{ type: 'all' | 'any', conditions: [...] }`; the list must not be empty. A defeated enemy has zero health. A reached chest must be unlocked, nearby and on the player's floor. Zones have `minX`, `maxX`, `minZ`, `maxZ`, `minY`, `maxY`; visits remain recorded until reset. A level can have no boxes or no chests.
+Conditions are `plateActive`, `enemyDefeated`, `portalReached` and `zoneVisited`, each with a `target` ID. Combine them using `{ type: 'all' | 'any', conditions: [...] }`; the list must not be empty. A defeated enemy has zero health. A reached portal must be open and fully risen, and the player must be nearby on its floor. Zones have `minX`, `maxX`, `minZ`, `maxZ`, `minY`, `maxY`; visits remain recorded until reset. A level can have no boxes or no portals.
 
-Each rule fires once and can target multiple objects with `openBridge` and `unlockChest`. Conditions use one snapshot per playing frame; action consequences are observed in the next frame. `completion` uses the same condition syntax and is independent of any rule. A chest never implicitly ends a level. Lethal damage takes precedence over completion.
+Each rule fires once and can target multiple objects with `openBridge` and `openPortal`. Conditions use one snapshot per playing frame; action consequences are observed in the next frame. `completion` uses the same condition syntax and is independent of any rule. A portal never implicitly ends a level. Lethal damage takes precedence over completion.
 
-Plates permanently snap and lock matching boxes. Chests stay unlocked and bridges stay open until reset. A bridge's `state` is initially `'open'` or `'closed'`; it extends along Z and rises in 0.8 seconds. The full passage stays blocked for players, carried blocks and slimes until it finishes rising. Shore openings are derived from bridge footprints, so river definitions do not contain hand-authored openings. Pause freezes progress. Restart restores every authored state, visited zone and rule.
+Plates permanently snap and lock matching boxes. Portals and bridges stay open until reset. A closed portal shows only its plinth; opening raises the gate over 0.9 seconds. A bridge's `state` is initially `'open'` or `'closed'`; it extends along Z and rises in 0.8 seconds. The full passage stays blocked for players, carried blocks and slimes until it finishes rising. Shore openings are derived from bridge footprints, so river definitions do not contain hand-authored openings. Pause freezes progress. Restart restores every authored state, visited zone and rule.
 
-Definitions are validated before creating scene resources. Errors identify the level and invalid field, including missing/wrong references, duplicate IDs, nonfinite dimensions and empty condition groups. Validation does not prove puzzle solvability; play every transport route. `window.meadow` and `#diagnostics` expose object IDs, plate/chest/bridge states, visited zones, activated rules and completion.
+Definitions are validated before creating scene resources. Errors identify the level and invalid field, including missing/wrong references, duplicate IDs, nonfinite dimensions and empty condition groups. Validation does not prove puzzle solvability; play every transport route. `window.meadow` and `#diagnostics` expose object IDs, plate/portal/bridge states, visited zones, activated rules and completion.
 
 ## Low-level scene composition
 

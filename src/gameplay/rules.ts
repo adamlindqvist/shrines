@@ -3,7 +3,7 @@ import type { Condition, LevelDefinition } from '../levels/types';
 export type RuleSnapshot = {
     plateActive: ReadonlySet<string>;
     enemyDefeated: ReadonlySet<string>;
-    chestReached: ReadonlySet<string>;
+    portalReached: ReadonlySet<string>;
     zoneVisited: ReadonlySet<string>;
 };
 

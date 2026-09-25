@@ -15,7 +15,7 @@ import {
     createPot,
     createSignpost
 } from '../objects/props';
-import { CHEST_RADIUS, createPushBlock, createSunSwitch, createTreasureChest } from '../objects/puzzle';
+import { createPortal, createPushBlock, createSunSwitch } from '../objects/puzzle';
 import type { PuzzleSymbol } from '../objects/puzzle';
 import { BRIDGE, SHRINE, SHRINE_TOP, createShrineDais, createStoneBridge, shrineFront } from '../objects/shrine';
 import { createSlime } from '../objects/slime';
@@ -252,11 +252,9 @@ export class SceneBuilder {
         return createSunSwitch(this.props, this.place(`${symbol} plate`, { x, z, rotation }), rotation, symbol);
     }
 
-    /** Treasure chest; `y` lifts it onto a plinth such as the shrine dais. */
-    addChest(at: Placement & { y?: number }) {
-        const handles = createTreasureChest(this.props, this.place('sunshine treasure chest', at, at.y));
-        this.obstacles.push({ x: at.x, z: at.z, r: CHEST_RADIUS });
-        return handles;
+    /** Walk-in portal without collision; `y` lifts it onto a plinth such as the shrine dais. */
+    addPortal(at: Placement & { y?: number }) {
+        return createPortal(this.props, this.place('shrine portal', at, at.y));
     }
 
     /** Registers an extra collision circle, for scene-specific solids. */

@@ -27,7 +27,7 @@ export const SHRINE = {
     pillarHeight: 1.45
 };
 
-/** Height of the dais top, where the chest stands. */
+/** Height of the dais top, where the portal stands. */
 export const SHRINE_TOP = SHRINE.height + 0.03;
 
 function pillar(g: Geo, x: number, y: number, z: number, size: number, height: number) {

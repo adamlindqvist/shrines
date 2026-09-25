@@ -17,7 +17,7 @@ export type CameraDefinition = {
 };
 export type BlockDefinition = Point & { type: 'block'; id: string; symbol: PuzzleSymbol };
 export type PlateDefinition = Point & { type: 'plate'; id: string; symbol: PuzzleSymbol };
-export type ChestDefinition = Placement & { type: 'chest'; id: string; y?: number; locked: boolean; reach?: number };
+export type PortalDefinition = Placement & { type: 'portal'; id: string; y?: number; locked: boolean; reach?: number };
 export type EnemyDefinition = Point & { type: 'slime'; id: string };
 export type BridgeDefinition = Point & { type: 'bridge'; id: string; length: number; state: 'closed' | 'open' };
 export type ZoneDefinition = Bounds & { type: 'zone'; id: string; minY: number; maxY: number };
@@ -28,7 +28,7 @@ export type SceneObject =
     | (Placement & { type: 'signpost' | 'shrineDais' })
     | BlockDefinition
     | PlateDefinition
-    | ChestDefinition
+    | PortalDefinition
     | EnemyDefinition
     | BridgeDefinition
     | ZoneDefinition;
@@ -48,9 +48,9 @@ export type SceneDefinition = {
     objects: SceneObject[];
 };
 export type Condition =
-    | { type: 'plateActive' | 'enemyDefeated' | 'chestReached' | 'zoneVisited'; target: string }
+    | { type: 'plateActive' | 'enemyDefeated' | 'portalReached' | 'zoneVisited'; target: string }
     | { type: 'all' | 'any'; conditions: Condition[] };
-export type Action = { type: 'openBridge' | 'unlockChest'; target: string };
+export type Action = { type: 'openBridge' | 'openPortal'; target: string };
 export type RuleDefinition = { id: string; when: Condition; actions: Action[]; message?: string };
 export type LevelText = {
     matched: string;

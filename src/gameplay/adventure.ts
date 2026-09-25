@@ -3,7 +3,7 @@ import type { Entity } from 'playcanvas';
 import type { AppContext } from '../app/context';
 import type { LevelDefinition, SceneDefinition, SceneObject } from '../levels/types';
 import type { AdventurerHandles } from '../objects/adventurer';
-import type { ChestHandles, PushBlockHandles, SunSwitchHandles } from '../objects/puzzle';
+import type { PortalHandles, PushBlockHandles, SunSwitchHandles } from '../objects/puzzle';
 import type { SlimeHandles } from '../objects/slime';
 import type { Palette } from '../rendering/palette';
 import type { Random } from '../rendering/random';
@@ -16,7 +16,7 @@ import { Collision } from './collision';
 import { SWORD, Sword } from './combat';
 import { Effects } from './effects';
 import { Input } from './input';
-import { BridgeController, ChestController, ZoneTracker } from './level-objects';
+import { BridgeController, PortalController, ZoneTracker } from './level-objects';
 import type { BridgeHandles } from './level-objects';
 import { PlayerController } from './player';
 import { BlockPuzzle } from './puzzle';
@@ -33,7 +33,7 @@ export type AdventureCast = {
     slimes: SlimeHandles[];
     blocks: PushBlockHandles[];
     plates: SunSwitchHandles[];
-    chests: ChestHandles[];
+    portals: PortalHandles[];
     bridges: BridgeHandles[];
 };
 
@@ -80,7 +80,7 @@ export class AdventureGame {
     private readonly puzzle: BlockPuzzle;
     private readonly slimeTarget: SlimeTarget;
     private readonly rules: LevelRules;
-    private readonly chests: ChestController[];
+    private readonly portals: PortalController[];
     private readonly bridges: BridgeController[];
     private readonly zones: ZoneTracker;
     private readonly puzzleConfig: PuzzleConfig;
@@ -108,9 +108,9 @@ export class AdventureGame {
             baseIdle: palette.sandstone
         });
         this.rules = new LevelRules(level);
-        this.chests = this.objects
-            .filter((o) => o.type === 'chest')
-            .map((o, i) => new ChestController(o, cast.chests[i]));
+        this.portals = this.objects
+            .filter((o) => o.type === 'portal')
+            .map((o, i) => new PortalController(o, cast.portals[i]));
         this.bridges = this.objects
             .filter((o) => o.type === 'bridge')
             .map((o, i) => new BridgeController(o, cast.bridges[i]));
@@ -186,7 +186,7 @@ export class AdventureGame {
             for (const plate of clicked) this.effects.burst(plate.x, plate.z, this.deps.palette.gold, 20);
         }
         for (const bridge of this.bridges) bridge.update(dt);
-        for (const chest of this.chests) chest.update(dt, player.position, this.collision);
+        for (const portal of this.portals) portal.update(dt, player.position, this.collision);
         this.zones.update(player.position);
         const plates = this.puzzle.plateStates();
         const enemies = this.objects.filter((o) => o.type === 'slime');
@@ -198,18 +198,22 @@ export class AdventureGame {
                     .map((o) => o.id)
             ),
             enemyDefeated: new Set(enemies.filter((_, i) => this.slimes.slimes[i].hp === 0).map((o) => o.id)),
-            chestReached: new Set(this.chests.filter((c) => c.reached).map((c) => c.definition.id)),
+            portalReached: new Set(this.portals.filter((p) => p.reached).map((p) => p.definition.id)),
             zoneVisited: new Set(this.zones.visited)
         };
         for (const rule of this.rules.update(snapshot)) {
             for (const action of rule.actions) {
-                if (action.type === 'unlockChest') this.chests.find((c) => c.definition.id === action.target)!.unlock();
-                else this.bridges.find((b) => b.definition.id === action.target)!.open();
+                if (action.type === 'openPortal') {
+                    const portal = this.portals.find((p) => p.definition.id === action.target)!;
+                    if (!portal.unlocked)
+                        this.effects.burst(portal.definition.x, portal.definition.z, this.deps.palette.teal, 16);
+                    portal.open();
+                } else this.bridges.find((b) => b.definition.id === action.target)!.open();
             }
             if (rule.message) this.announce(rule.message);
         }
         if (this.rules.complete) {
-            const reward = this.chests.find((c) => c.reached)?.definition ?? player.position;
+            const reward = this.portals.find((p) => p.reached)?.definition ?? player.position;
             this.effects.burst(reward.x, reward.z, this.deps.palette.gold, 28);
             if (this.deps.onComplete) {
                 this.puzzle.release();
@@ -252,7 +256,7 @@ export class AdventureGame {
             })),
             matched: this.puzzle.matched,
             camera: { x: this.deps.rig.camera.getPosition().x, z: this.deps.rig.camera.getPosition().z },
-            unlocked: this.chests.length > 0 && this.chests.every((c) => c.unlocked),
+            unlocked: this.portals.length > 0 && this.portals.every((p) => p.unlocked),
             grabbed: this.puzzle.grabbed,
             kills: this.kills,
             enemies: this.slimes.slimes.map((e, i) => ({
@@ -262,7 +266,12 @@ export class AdventureGame {
                 hp: e.hp,
                 mode: e.mode
             })),
-            chests: this.chests.map((c) => ({ id: c.definition.id, unlocked: c.unlocked, reached: c.reached })),
+            portals: this.portals.map((p) => ({
+                id: p.definition.id,
+                unlocked: p.unlocked,
+                reached: p.reached,
+                progress: +p.progress.toFixed(2)
+            })),
             bridges: this.bridges.map((b) => ({ id: b.definition.id, state: b.state })),
             visitedZones: [...this.zones.visited],
             ...this.rules.diagnostics(),
@@ -301,7 +310,7 @@ export class AdventureGame {
         rig.reset();
         this.puzzle.reset();
         this.rules.reset();
-        this.chests.forEach((c) => c.reset());
+        this.portals.forEach((p) => p.reset());
         this.bridges.forEach((b) => b.reset());
         this.zones.reset();
         this.slimes.reset();

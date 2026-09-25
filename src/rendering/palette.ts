@@ -12,6 +12,14 @@ export function createPalette(resources: SceneResources) {
     grabSelected.emissive.copy(grabSelected.diffuse);
     grabSelected.emissiveIntensity = 3.2;
     grabSelected.update();
+    const portalGlow = mat('portal glow', '#63e3d4', 70, 0.2);
+    portalGlow.emissive.copy(portalGlow.diffuse);
+    portalGlow.emissiveIntensity = 1.4;
+    portalGlow.update();
+    const portalLight = mat('portal swirl', '#fff6dc', 70, 0.2);
+    portalLight.emissive.copy(portalLight.diffuse);
+    portalLight.emissiveIntensity = 1.8;
+    portalLight.update();
     return {
         blockStone: [
             mat('turquoise stone', '#27bcb7', 25, 0.08),
@@ -21,6 +29,8 @@ export function createPalette(resources: SceneResources) {
         blockRecess: mat('deep turquoise carving', '#087d79', 15),
         grabHint,
         grabSelected,
+        portalGlow,
+        portalLight,
         bark: mat('warm bark', '#9c6530'),
         barkLight: mat('cut timber', '#d6ab6c'),
         leaf: mat('clover leaves', '#5ca936'),

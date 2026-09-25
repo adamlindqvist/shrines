@@ -10,7 +10,7 @@ registerHooks({
     }
 });
 const { evaluateCondition, LevelRules } = await import('../src/gameplay/rules.ts');
-const { BridgeController, ChestController, ZoneTracker } = await import('../src/gameplay/level-objects.ts');
+const { BridgeController, PortalController, ZoneTracker } = await import('../src/gameplay/level-objects.ts');
 const { Collision } = await import('../src/gameplay/collision.ts');
 const { validateLevel } = await import('../src/levels/validate.ts');
 const { levelDefinitions, sceneDefinitions } = await import('../src/levels/index.ts');
@@ -19,11 +19,11 @@ const { DEFAULT_HUD, DEFAULT_LIGHTING, DEFAULT_TEXT } = await import('../src/lev
 const empty = () => ({
     plateActive: new Set(),
     enemyDefeated: new Set(),
-    chestReached: new Set(),
+    portalReached: new Set(),
     zoneVisited: new Set()
 });
 const zone = { type: 'zoneVisited', target: 'exit' };
-// A standalone box → plate → bridge → chest fixture, independent of the registered levels, to
+// A standalone box → plate → bridge → portal fixture, independent of the registered levels, to
 // exercise validation and rules without coupling these tests to any one adventure area's layout.
 const fixtureScene = {
     id: 'bridge-fixture',
@@ -63,7 +63,7 @@ const fixtureScene = {
         { type: 'block', id: 'box', symbol: 'sun', x: 0, z: 6 },
         { type: 'plate', id: 'plate', symbol: 'sun', x: 0, z: 3.8 },
         { type: 'bridge', id: 'bridge', x: 4, z: 0, length: 7, state: 'closed' },
-        { type: 'chest', id: 'treasure', x: 4, z: -7, rotation: 0, locked: false }
+        { type: 'portal', id: 'portal', x: 4, z: -7, rotation: 0, locked: false }
     ]
 };
 const fixtureLevel = {
@@ -79,7 +79,7 @@ const fixtureLevel = {
             message: 'Bron vaknar! Nu kan du gå över.'
         }
     ],
-    completion: { type: 'chestReached', target: 'treasure' }
+    completion: { type: 'portalReached', target: 'portal' }
 };
 const base = () => structuredClone({ level: fixtureLevel, scene: fixtureScene });
 
@@ -92,7 +92,7 @@ test('all registered levels are plain JSON data and validate', () => {
     }
 });
 
-test('nested all/any supports plates, enemies, treasure and visited zones', () => {
+test('nested all/any supports plates, enemies, portals and visited zones', () => {
     const state = empty();
     const condition = {
         type: 'all',
@@ -105,26 +105,26 @@ test('nested all/any supports plates, enemies, treasure and visited zones', () =
                     { type: 'enemyDefeated', target: 'b' }
                 ]
             },
-            { type: 'chestReached', target: 'c' }
+            { type: 'portalReached', target: 'c' }
         ]
     };
     state.zoneVisited.add('exit');
-    state.chestReached.add('c');
+    state.portalReached.add('c');
     assert.equal(evaluateCondition(condition, state), false);
     state.enemyDefeated.add('b');
     assert.equal(evaluateCondition(condition, state), true);
     state.enemyDefeated.clear();
     state.plateActive.add('a');
     assert.equal(evaluateCondition(condition, state), true);
-    state.chestReached.clear();
+    state.portalReached.clear();
     assert.equal(evaluateCondition(condition, state), false);
 });
 
 test('rules fire once, in definition order, with multiple actions and reset', () => {
     const actions = [
         { type: 'openBridge', target: 'bridge' },
-        { type: 'unlockChest', target: 'c1' },
-        { type: 'unlockChest', target: 'c2' }
+        { type: 'openPortal', target: 'c1' },
+        { type: 'openPortal', target: 'c2' }
     ];
     const definition = {
         ...base().level,
@@ -215,29 +215,30 @@ test('bridge blocks throughout raising, opens once, and resets visual and collis
     assert.equal(blocker.enabled, true);
 });
 
-test('chests unlock and reach independently, retain visits, and reset to authored locks', () => {
+test('portals open and reach independently, retain visits, and reset to authored locks', () => {
     const collision = new Collision([], { minX: -10, maxX: 10, minZ: -10, maxZ: 10 });
-    const chests = [true, false].map(
-        (locked, i) =>
-            new ChestController({ type: 'chest', id: `c${i}`, x: i * 5, z: 0, locked }, { lid: new Entity() })
+    const handles = () =>
+        Object.fromEntries(['entity', 'sigil', 'runesDim', 'runesLit', 'gate', 'swirl'].map((k) => [k, new Entity()]));
+    const portals = [true, false].map(
+        (locked, i) => new PortalController({ type: 'portal', id: `c${i}`, x: i * 5, z: 0, locked }, handles())
     );
-    chests[0].update(0.1, { x: 0, z: 0 }, collision);
-    assert.equal(chests[0].reached, false);
-    chests[0].unlock();
-    chests[0].unlock();
-    chests[0].update(0.1, { x: 0, z: 0 }, collision);
-    chests[1].update(0.1, { x: 0, z: 0 }, collision);
-    assert.equal(chests[0].reached, true);
-    assert.equal(chests[1].reached, false);
-    chests[0].update(0.1, { x: 5, z: 0 }, collision);
-    chests[1].update(0.1, { x: 5, z: 0 }, collision);
-    assert.ok(chests.every((c) => c.reached));
-    chests.forEach((c) => c.reset());
+    portals[0].update(0.1, { x: 0, z: 0 }, collision);
+    assert.equal(portals[0].reached, false);
+    portals[0].open();
+    portals[0].open();
+    portals[0].update(1, { x: 0, z: 0 }, collision);
+    portals[1].update(0.1, { x: 0, z: 0 }, collision);
+    assert.equal(portals[0].reached, true);
+    assert.equal(portals[1].reached, false);
+    portals[0].update(0.1, { x: 5, z: 0 }, collision);
+    portals[1].update(0.1, { x: 5, z: 0 }, collision);
+    assert.ok(portals.every((c) => c.reached));
+    portals.forEach((c) => c.reset());
     assert.deepEqual(
-        chests.map((c) => c.unlocked),
+        portals.map((c) => c.unlocked),
         [false, true]
     );
-    assert.ok(chests.every((c) => !c.reached));
+    assert.ok(portals.every((c) => !c.reached));
 });
 
 test('zones require X/Z and height and remain visited until reset', () => {
@@ -280,7 +281,7 @@ test('data interpreter preserves scenery, player and object construction order',
             'addPushBlock',
             'addSunSwitch',
             'addBridge',
-            'addChest'
+            'addPortal'
         ]
     );
     assert.equal(calls[6][1].rotation, 0);

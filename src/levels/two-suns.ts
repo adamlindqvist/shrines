@@ -551,8 +551,8 @@ export const scene: SceneDefinition = {
             z: -12.3
         },
         {
-            type: 'chest',
-            id: 'chest',
+            type: 'portal',
+            id: 'portal',
             x: 3.9,
             z: -13.6,
             y: 0.44999999999999996,
@@ -588,7 +588,7 @@ export const level: LevelDefinition = {
     },
     rules: [
         {
-            id: 'unlock-treasure',
+            id: 'open-portal',
             when: {
                 type: 'all',
                 conditions: [
@@ -604,15 +604,15 @@ export const level: LevelDefinition = {
             },
             actions: [
                 {
-                    type: 'unlockChest',
-                    target: 'chest'
+                    type: 'openPortal',
+                    target: 'portal'
                 }
             ],
-            message: 'Klick! Skatten är upplåst.'
+            message: 'Klick! En portal öppnar sig.'
         }
     ],
     completion: {
-        type: 'chestReached',
-        target: 'chest'
+        type: 'portalReached',
+        target: 'portal'
     }
 };

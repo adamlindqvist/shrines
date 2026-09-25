@@ -80,7 +80,7 @@ export function validateLevel(level: LevelDefinition, scene: SceneDefinition) {
             positive(object.length, `${path}.length`);
             if (object.length <= BRIDGE.pillarInset * 2) fail(`${path}.length`, 'too short for bridge pillars');
         }
-        if (object.type === 'chest' && object.reach !== undefined) positive(object.reach, `${path}.reach`);
+        if (object.type === 'portal' && object.reach !== undefined) positive(object.reach, `${path}.reach`);
         if (object.type === 'bushCluster') {
             if (object.count !== undefined && (!Number.isInteger(object.count) || object.count < 0))
                 fail(path, 'invalid count');
@@ -109,8 +109,8 @@ export function validateLevel(level: LevelDefinition, scene: SceneDefinition) {
             case 'enemyDefeated':
                 reference(c.target, 'slime', path);
                 break;
-            case 'chestReached':
-                reference(c.target, 'chest', path);
+            case 'portalReached':
+                reference(c.target, 'portal', path);
                 break;
             case 'zoneVisited':
                 reference(c.target, 'zone', path);
@@ -126,8 +126,8 @@ export function validateLevel(level: LevelDefinition, scene: SceneDefinition) {
         ids.add(rule.id);
         condition(rule.when, `${path}.when`);
         for (const [j, action] of rule.actions.entries()) {
-            if (action.type !== 'openBridge' && action.type !== 'unlockChest') fail(path, 'unknown action');
-            reference(action.target, action.type === 'openBridge' ? 'bridge' : 'chest', `${path}.actions[${j}]`);
+            if (action.type !== 'openBridge' && action.type !== 'openPortal') fail(path, 'unknown action');
+            reference(action.target, action.type === 'openBridge' ? 'bridge' : 'portal', `${path}.actions[${j}]`);
         }
     }
     condition(level.completion, 'completion');

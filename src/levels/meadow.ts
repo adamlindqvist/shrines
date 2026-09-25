@@ -284,8 +284,8 @@ export const scene: SceneDefinition = {
             z: -5.2
         },
         {
-            type: 'chest',
-            id: 'chest',
+            type: 'portal',
+            id: 'portal',
             x: 9.15,
             z: -5.4,
             rotation: 0,
@@ -315,12 +315,12 @@ export const level: LevelDefinition = {
         matched: 'Klick! En fin tr\u00e4ff! Hitta den andra symbolen!',
         won: {
             title: 'En ficka full av solsken',
-            copy: 'Du hittade \u00e4ngens skatt. V\u00e4rlden k\u00e4nns lite varmare.'
+            copy: 'Du v\u00e4ckte \u00e4ngens portal. V\u00e4rlden k\u00e4nns lite varmare.'
         }
     },
     rules: [
         {
-            id: 'unlock-treasure',
+            id: 'open-portal',
             when: {
                 type: 'all',
                 conditions: [
@@ -332,15 +332,15 @@ export const level: LevelDefinition = {
             },
             actions: [
                 {
-                    type: 'unlockChest',
-                    target: 'chest'
+                    type: 'openPortal',
+                    target: 'portal'
                 }
             ],
-            message: 'Klick! Skatten är upplåst.'
+            message: 'Klick! En portal öppnar sig.'
         }
     ],
     completion: {
-        type: 'chestReached',
-        target: 'chest'
+        type: 'portalReached',
+        target: 'portal'
     }
 };

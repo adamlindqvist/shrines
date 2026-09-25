@@ -306,8 +306,8 @@ export const scene: SceneDefinition = {
             z: -8
         },
         {
-            type: 'chest',
-            id: 'chest',
+            type: 'portal',
+            id: 'portal',
             x: 0,
             z: -11,
             rotation: 0,
@@ -349,12 +349,12 @@ export const level: LevelDefinition = {
         matched: 'Klick! En fin tr\u00e4ff! Hitta den andra symbolen!',
         won: {
             title: 'Solsken och m\u00e5nstr\u00e5lar',
-            copy: 'Tv\u00e5 helgedomar, tv\u00e5 skatter. Du har spridit lite ljus i varje vr\u00e5.'
+            copy: 'Tv\u00e5 helgedomar, tv\u00e5 portaler. Du har spridit lite ljus i varje vr\u00e5.'
         }
     },
     rules: [
         {
-            id: 'unlock-treasure',
+            id: 'open-portal',
             when: {
                 type: 'all',
                 conditions: [
@@ -370,15 +370,15 @@ export const level: LevelDefinition = {
             },
             actions: [
                 {
-                    type: 'unlockChest',
-                    target: 'chest'
+                    type: 'openPortal',
+                    target: 'portal'
                 }
             ],
-            message: 'Klick! Skatten är upplåst.'
+            message: 'Klick! En portal öppnar sig.'
         }
     ],
     completion: {
-        type: 'chestReached',
-        target: 'chest'
+        type: 'portalReached',
+        target: 'portal'
     }
 };

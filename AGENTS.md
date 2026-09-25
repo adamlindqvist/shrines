@@ -4,7 +4,7 @@ This file applies to the whole repository. Preserve the project's identity when 
 
 ## What we are building
 
-Shrines currently opens **Mossy Meadow**, a small playable fantasy clearing: a hooded adventurer, two strawberry slimes, a grabbable turquoise block, a sun switch, and a treasure chest. Reaching the unlocked chest transports the player to **Sun & Moon Grove**, a 40 × 30 world with four slimes and two symbol-marked blocks and plates. Both matches unlock its treasure, which transports the player to **Two Suns Shrine**: a river island where two sun blocks must be carried over a stone bridge onto two sun plates beside a raised shrine. Its chest transports the player to **Twin Bridges Isle**, where two rivers split the island into three banks: each box-and-plate trigger raises the next bridge, and a final sun block carried to the shrine plate unlocks the last treasure. Defeating slimes is optional. Remaining hearts carry over. Restarting after defeat or victory returns to the first area with three hearts.
+Shrines currently opens **Mossy Meadow**, a small playable fantasy clearing: a hooded adventurer, two strawberry slimes, a grabbable turquoise block, a sun switch, and a dormant portal plinth. Solving the puzzle raises a turquoise portal; walking into it transports the player to **Sun & Moon Grove**, a 40 × 30 world with four slimes and two symbol-marked blocks and plates. Both matches open its portal, which transports the player to **Two Suns Shrine**: a river island where two sun blocks must be carried over a stone bridge onto two sun plates beside a raised shrine. Its portal transports the player to **Twin Bridges Isle**, where two rivers split the island into three banks: each box-and-plate trigger raises the next bridge, and a final sun block carried to the shrine plate opens the last portal. Defeating slimes is optional. Remaining hearts carry over. Restarting after defeat or victory returns to the first area with three hearts.
 
 The intended feel is warm, playful, tactile, and welcoming. Movement should respond promptly, enemies should communicate their intentions, and solving a small puzzle should feel rewarding. Keep the gentle tone of the existing toast and end-card text, including encouraging language after defeat.
 
@@ -45,7 +45,7 @@ Keep factories focused on constructing visuals. Put behavior in gameplay control
 - Give each independently placed object a semantic root. Use children and explicit pivots for visual offsets, scaling, and animation. Return handles instead of searching the hierarchy by name during updates.
 - Use `SceneBuilder` for placement and collision registration. Call `finish()` once after construction; it uploads shared bush meshes and returns obstacles and ambient animation. Batched geometry cannot be treated as individually movable entities.
 - Read each placement API's scale contract: rock `scale` is width in world units, while other factories may use a multiplier. Verify visual size and collision footprint together, especially when introducing scaled props.
-- Collision uses static circles and rectangular walk bounds, with separate grabbed-block movement logic. SceneBuilder registers horizontal walk surfaces; the highest surface at X/Z supplies ground height (default 0). Player, carried blocks, slimes, and effects use this height. Steps up to 0.16 units are traversable in both directions; larger height changes are blocked. The shrine has walkable front stairs and solid side/back rims; its chest requires reaching the raised floor. This is a height field, without jumping, falling, or stacked floors. Keep this simple model consistent; test corners, narrow gaps, and puzzle routes when changing layouts.
+- Collision uses static circles and rectangular walk bounds, with separate grabbed-block movement logic. SceneBuilder registers horizontal walk surfaces; the highest surface at X/Z supplies ground height (default 0). Player, carried blocks, slimes, and effects use this height. Steps up to 0.16 units are traversable in both directions; larger height changes are blocked. The shrine has walkable front stairs and solid side/back rims; its portal requires reaching the raised floor. Portals register no collision so the player can walk in. This is a height field, without jumping, falling, or stacked floors. Keep this simple model consistent; test corners, narrow gaps, and puzzle routes when changing layouts.
 - Use the scene's seeded `Random` for procedural generation. Generation order affects every later draw from the sequence; adding an early random draw can change unrelated scenery. Preserve call order during visual refactors, or deliberately introduce separate seeded streams for independent new systems.
 - A scene factory receives `AppContext` and returns `update(dt)`, `resize()`, and `destroy()`. `SceneHost` owns update/resize forwarding. Do not add independent frame loops for new features.
 - Scenes own their root, listeners, HUD, transient effects, camera post-processing, and allocated resources. Track scene-owned materials and textures with `SceneResources`; meshes are released with their entities. Shared application services remain alive across scene changes.
@@ -66,18 +66,18 @@ The HUD uses rounded cream panels, soft shadows, rounded typography, and short f
 
 ### Current baseline
 
-Animation is procedural and driven by game state: player bob and alternating boots, a sword pivot, slime hops and squash, a chest-lid pivot, and short-lived primitive effects. There are no authored animation clips in the current game.
+Animation is procedural and driven by game state: player bob and alternating boots, a sword pivot, slime hops and squash, a rising portal gate with a slowly turning swirl, and short-lived primitive effects. There are no authored animation clips in the current game.
 
 Useful tuning references (the source constants remain authoritative):
 
-| Action         | Current baseline                                                                                              |
-| -------------- | ------------------------------------------------------------------------------------------------------------- |
-| Movement       | Normalized eight-way input, 4.5 units/s, exponential smoothing rate 14.                                       |
-| Sword          | 0.28 s swing, 0.30 s cooldown; active while remaining swing time is 0.21–0.07 s; one hit per enemy per swing. |
-| Slime attack   | 0.45 s visible windup, followed by a hit or miss cooldown.                                                    |
-| Slime reaction | Squash, knockback, stagger, and a 0.45 s death animation.                                                     |
-| Player damage  | Health feedback, a short shove and burst, and flashing during 1.2 s of invulnerability.                       |
-| Puzzle         | Block snaps within 0.55 units; switch changes material, lid opens, and toast/effect feedback marks progress.  |
+| Action         | Current baseline                                                                                                |
+| -------------- | --------------------------------------------------------------------------------------------------------------- |
+| Movement       | Normalized eight-way input, 4.5 units/s, exponential smoothing rate 14.                                         |
+| Sword          | 0.28 s swing, 0.30 s cooldown; active while remaining swing time is 0.21–0.07 s; one hit per enemy per swing.   |
+| Slime attack   | 0.45 s visible windup, followed by a hit or miss cooldown.                                                      |
+| Slime reaction | Squash, knockback, stagger, and a 0.45 s death animation.                                                       |
+| Player damage  | Health feedback, a short shove and burst, and flashing during 1.2 s of invulnerability.                         |
+| Puzzle         | Block snaps within 0.55 units; switch changes material, portal rises, and toast/effect feedback marks progress. |
 
 ### Guidance for future features
 
@@ -95,9 +95,9 @@ Useful tuning references (the source constants remain authoritative):
 
 `createJourneyScene` uses `JourneyDefinition` for progression and restart, and queues area changes until after the active update returns. `createAdventureArea` validates and builds a `SceneDefinition` with a separate `LevelDefinition`. Definitions are plain JSON-compatible TypeScript data, with no callbacks or PlayCanvas instances. Shared defaults live in `src/levels/defaults.ts`; levels must not inherit gameplay defaults from Meadow. `scenery` is built before the player and `objects` afterwards; preserve both list orders to retain seeded generation. Interactives have unique IDs across both lists. New playable levels require data and registry entries only; see the complete authoring example in README.
 
-`BlockPuzzle` owns carrying and plate matching only. Chest and bridge controllers own their independent states. `LevelRules` evaluates `plateActive`, `enemyDefeated`, `chestReached` and `zoneVisited`, combined with nonempty `all`/`any`. Rules read one snapshot after combat and object updates, fire once in definition order, and perform idempotent `openBridge`/`unlockChest` actions. Their consequences are observed next frame. Completion is an explicit condition; reaching a chest never implicitly finishes a level. Zone visits include height and persist until reset. Generic plate feedback must not assume a chest was unlocked.
+`BlockPuzzle` owns carrying and plate matching only. Portal and bridge controllers own their independent states. `LevelRules` evaluates `plateActive`, `enemyDefeated`, `portalReached` and `zoneVisited`, combined with nonempty `all`/`any`. Rules read one snapshot after combat and object updates, fire once in definition order, and perform idempotent `openBridge`/`openPortal` actions. Their consequences are observed next frame. Completion is an explicit condition; reaching a portal never implicitly finishes a level. Zone visits include height and persist until reset. Generic plate feedback must not assume a portal was opened. Closed portals show only their sandstone plinth; opened portals rise over 0.9 gameplay seconds and count as reached only once fully risen.
 
-Bridges are Z-aligned and permanently open once activated. Closed bridges rise from 2.4 units below their authored position over 0.8 gameplay seconds; their whole passage is blocked until fully open. Dynamic collision blockers are shared by the player, carried boxes and enemies. River shore openings derive from bridge footprints. Pause freezes rules, chests and bridges; reset restores locks, bridge positions/collision, zone visits and fired rules.
+Bridges are Z-aligned and permanently open once activated. Closed bridges rise from 2.4 units below their authored position over 0.8 gameplay seconds; their whole passage is blocked until fully open. Dynamic collision blockers are shared by the player, carried boxes and enemies. River shore openings derive from bridge footprints. Pause freezes rules, portals and bridges; reset restores locks, bridge positions/collision, zone visits and fired rules.
 
 `AdventureGame` coordinates movement/block constraints/collision, player animation, combat, enemies, puzzle, ambience, and camera. Preserve deliberate update order when adding systems.
 
@@ -125,7 +125,7 @@ Use `npm run fmt` to check formatting; format only relevant files when unrelated
 For gameplay or rendering changes, run `npm run dev` and verify the relevant behavior in the browser:
 
 - Check movement, diagonals, stopping, attacks, enemy warnings/reactions, and obstacle contact as applicable.
-- Complete the block/switch/chest path after layout or puzzle changes. Check damage, defeat, victory, and restart after state changes.
+- Complete the block/switch/portal path after layout or puzzle changes. Check damage, defeat, victory, and restart after state changes.
 - Check pause/resume, focus loss, and repeat actions for stuck input, stale poses, or accumulating effects.
 - Inspect the scene at gameplay distance and at wide/narrow viewport sizes for framing, occlusion, HUD overlap, and consistent visual style.
 - Use development hooks `shrines.load('meadow')`, `shrines.load('sun-moon')`, `shrines.load('two-suns')`, `shrines.load('twin-bridges')`, and `shrines.unload()` to verify scene cleanup when ownership changes. `window.meadow` exposes live gameplay diagnostics; the hidden `#diagnostics` output is also available.

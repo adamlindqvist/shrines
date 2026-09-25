@@ -4,7 +4,7 @@ import type { LevelDefinition, SceneDefinition } from './types';
 /**
  * Two rivers cut the island into three banks. The sun box raises the first
  * bridge, the moon box the second, and a second sun box carried to the shrine
- * unlocks the treasure. Clearing texels span X -24..24 and Z -20..20.
+ * opens the portal. Clearing texels span X -24..24 and Z -20..20.
  */
 export const scene: SceneDefinition = {
     id: 'twin-bridges',
@@ -150,7 +150,7 @@ export const scene: SceneDefinition = {
         { type: 'plate', id: 'south-plate', symbol: 'sun', x: 5.52, z: 10.28 },
         { type: 'plate', id: 'north-plate', symbol: 'moon', x: 5.75, z: -5.03 },
         { type: 'plate', id: 'shrine-plate', symbol: 'sun', x: -0.69, z: -15.29 },
-        { type: 'chest', id: 'treasure', x: -6.32, z: -16.4, y: 0.45, rotation: 0, locked: true },
+        { type: 'portal', id: 'portal', x: -6.32, z: -16.4, y: 0.45, rotation: 0, locked: true },
         { type: 'zone', id: 'north-bank', minX: 6.9, maxX: 13.8, minZ: -15.15, maxZ: -12.25, minY: -0.1, maxY: 0.2 },
         { type: 'slime', id: 'grove-slime', x: -12.65, z: -2.29 },
         { type: 'slime', id: 'plaza-slime', x: 14.37, z: 0.78 },
@@ -167,7 +167,7 @@ export const level: LevelDefinition = {
         matched: 'Klick! Något vaknar i närheten.',
         won: {
             title: 'Broarnas hjälte',
-            copy: 'Båda broarna står stadigt och skatten glittrar. Så fint gjort!'
+            copy: 'Båda broarna står stadigt och portalen glittrar. Så fint gjort!'
         }
     },
     rules: [
@@ -190,11 +190,11 @@ export const level: LevelDefinition = {
             message: 'Helgedomen väntar. Den vill ha en sol till!'
         },
         {
-            id: 'unlock-treasure',
+            id: 'open-portal',
             when: { type: 'plateActive', target: 'shrine-plate' },
-            actions: [{ type: 'unlockChest', target: 'treasure' }],
-            message: 'Klick! Skatten är upplåst.'
+            actions: [{ type: 'openPortal', target: 'portal' }],
+            message: 'Klick! En portal öppnar sig.'
         }
     ],
-    completion: { type: 'chestReached', target: 'treasure' }
+    completion: { type: 'portalReached', target: 'portal' }
 };
