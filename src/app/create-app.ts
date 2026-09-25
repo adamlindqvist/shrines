@@ -44,5 +44,6 @@ export async function createApp(canvas: HTMLCanvasElement): Promise<AppContext> 
     app.init(options);
     app.setCanvasFillMode(FILLMODE_FILL_WINDOW);
     app.setCanvasResolution(RESOLUTION_FIXED, innerWidth, innerHeight);
-    return { app, device, canvas };
+    const debug = import.meta.env.DEV && new URLSearchParams(location.search).get('debug') === 'true';
+    return { app, device, canvas, debug };
 }

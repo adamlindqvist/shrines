@@ -185,15 +185,32 @@ const platform = {
     state: 'dormant'
 };
 
-test('the journey ends at Drifting Stones, whose platforms wake from the moon plate', () => {
-    const { adventureJourney } = journeyModule;
-    assert.equal(adventureJourney.levels.at(-1), 'drifting-stones');
+test('Drifting Stones platforms wake from the moon plate', () => {
     const level = levelDefinitions['drifting-stones'];
     const wake = level.rules.find((rule) => rule.actions.some((a) => a.type === 'activatePlatform'));
     assert.deepEqual(wake.when, { type: 'plateActive', target: 'moon-plate' });
     const platforms = sceneDefinitions['drifting-stones'].objects.filter((o) => o.type === 'platform');
     assert.equal(platforms.length, 2);
     assert.ok(platforms.every((p) => p.state === 'dormant'));
+});
+
+test('the journey ends at Lantern Lake, whose lanterns both raise the bridge', () => {
+    const { adventureJourney } = journeyModule;
+    assert.equal(adventureJourney.levels.at(-1), 'lantern-lake');
+    const level = levelDefinitions['lantern-lake'];
+    const scene = sceneDefinitions['lantern-lake'];
+    const wake = level.rules.find((rule) => rule.actions.some((a) => a.type === 'activatePlatform'));
+    assert.deepEqual(wake.when, { type: 'plateActive', target: 'west-lantern' });
+    const raise = level.rules.find((rule) => rule.actions.some((a) => a.type === 'openBridge'));
+    assert.equal(raise.when.type, 'all');
+    assert.deepEqual(raise.when.conditions.map((c) => c.target).sort(), ['east-lantern', 'west-lantern']);
+    const platforms = scene.objects.filter((o) => o.type === 'platform');
+    assert.ok(platforms.length === 1 && platforms[0].state === 'dormant');
+    // Matches lock permanently, so every symbol needs at least as many blocks as plates.
+    for (const symbol of ['sun', 'moon']) {
+        const count = (type) => scene.objects.filter((o) => o.type === type && o.symbol === symbol).length;
+        assert.ok(count('block') >= count('plate'), symbol);
+    }
 });
 
 for (const [label, change, pattern] of [

@@ -9,7 +9,8 @@ Shrines opens **Mossy Meadow**, a small clearing with a hooded adventurer, two s
 1. **Sun & Moon Grove** — a 40 × 30 world with four slimes and two symbol-marked blocks and plates. Both matches open its portal.
 2. **Two Suns Shrine** — a river island where two sun blocks are carried over a stone bridge onto two sun plates beside a raised shrine.
 3. **Twin Bridges Isle** — two rivers split the island into three banks. Each box-and-plate trigger raises the next bridge; a sun block carried to the shrine plate opens the portal.
-4. **Drifting Stones** (final) — a moon plate wakes two floating stones that drift sideways out of step across a wide river between piers and a mid-river pad. The sun block must ride both to reach the shrine plate and open the last portal.
+4. **Drifting Stones** — a moon plate wakes two floating stones that drift sideways out of step across a wide river between piers and a mid-river pad. The sun block must ride both to reach the shrine plate and open its portal.
+5. **Lantern Lake** (final) — the shrine stands on a lake islet and wants a moon block. A sun block on the west lantern wakes a ferry stone in the east bay; a second sun block, hidden in the north-west grove, must ride it to the east lantern. Both lanterns together raise the lake bridge, and the moon block from the far shore rides back across to the shrine plate to open the last portal.
 
 Defeating slimes is optional. Remaining hearts carry over between areas. Restarting after defeat or victory returns to the first area with three hearts.
 

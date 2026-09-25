@@ -15,7 +15,8 @@ registerHooks({
 const { createAdventurer } = await import('../src/objects/adventurer.ts');
 const { createPalette } = await import('../src/rendering/palette.ts');
 const { SceneResources } = await import('../src/rendering/resources.ts');
-const { PlayerController } = await import('../src/gameplay/player.ts');
+const playerModule = await import('../src/gameplay/player.ts');
+const { PlayerController } = playerModule;
 const { Sword, SWORD } = await import('../src/gameplay/combat.ts');
 
 function fixture(t) {
@@ -191,4 +192,15 @@ test('running bounce is vertical, bounded, reduced while carrying, and settles a
     }
     for (let i = 0; i < 120; i++) pose();
     near(handles.visual.getLocalPosition().y, 0);
+});
+
+test('a scaled walk speed (debug mode) scales each stride', (t) => {
+    const { PLAYER } = playerModule;
+    const { player } = fixture(t);
+    const fast = new PlayerController(player.handles, undefined, PLAYER.walkSpeed * PLAYER.debugSpeedScale);
+    fast.reset(0, 0);
+    const normal = player.stride(1 / 60, { x: 1, z: 0 });
+    const scaled = fast.stride(1 / 60, { x: 1, z: 0 });
+    assert.equal(scaled.speed, normal.speed * PLAYER.debugSpeedScale);
+    assert.ok(Math.abs(scaled.x - normal.x * PLAYER.debugSpeedScale) < 1e-9);
 });

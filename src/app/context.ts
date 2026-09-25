@@ -5,6 +5,8 @@ export type AppContext = {
     app: AppBase;
     device: GraphicsDevice;
     canvas: HTMLCanvasElement;
+    /** Development aids, enabled in development builds with `?debug=true`. */
+    debug: boolean;
 };
 
 /** Hooks a running scene exposes to the application. */

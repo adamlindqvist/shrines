@@ -21,7 +21,7 @@ import type { BridgeHandles } from './level-objects';
 import { MovementTrail } from './movement-trail';
 import { PlatformController } from './platforms';
 import type { PlatformHandles } from './platforms';
-import { PlayerController } from './player';
+import { PLAYER, PlayerController } from './player';
 import { BlockPuzzle } from './puzzle';
 import type { Point, PuzzleConfig } from './puzzle';
 import { LevelRules } from './rules';
@@ -113,7 +113,8 @@ export class AdventureGame {
         this.collision = new Collision(layout.obstacles, scene.walkBounds, layout.surfaces, layout.water);
         this.effects = new Effects(root, rand, (x, z) => this.collision.heightAt(x, z));
         this.movementTrail = new MovementTrail(context.device, root, (x, z) => this.collision.heightAt(x, z));
-        this.player = new PlayerController(cast.player, this.collision);
+        const walkSpeed = PLAYER.walkSpeed * (context.debug ? PLAYER.debugSpeedScale : 1);
+        this.player = new PlayerController(cast.player, this.collision, walkSpeed);
         this.slimes = new SlimePack(cast.slimes, this.collision);
         this.puzzleConfig = {
             blocks: this.objects.filter((o) => o.type === 'block'),

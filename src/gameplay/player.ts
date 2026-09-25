@@ -6,6 +6,8 @@ import { SWORD } from './combat';
 
 export const PLAYER = {
     walkSpeed: 7.5,
+    /** Walk speed multiplier while debug mode is on. */
+    debugSpeedScale: 2,
     /** Exponential rate at which movement eases toward the input direction. */
     responsiveness: 14,
     /** Collision radius. */
@@ -61,10 +63,13 @@ export class PlayerController {
 
     readonly handles: AdventurerHandles;
     private readonly ground?: Collision;
+    /** World units per second at full input. */
+    private readonly walkSpeed: number;
 
-    constructor(handles: AdventurerHandles, ground?: Collision) {
+    constructor(handles: AdventurerHandles, ground?: Collision, walkSpeed = PLAYER.walkSpeed) {
         this.handles = handles;
         this.ground = ground;
+        this.walkSpeed = walkSpeed;
     }
 
     get position() {
@@ -83,7 +88,7 @@ export class PlayerController {
         this.moveX += (desiredX - this.moveX) * smooth;
         this.moveZ += (desiredZ - this.moveZ) * smooth;
         if (length && turn) this.face(Math.atan2(desiredX, desiredZ));
-        const speed = PLAYER.walkSpeed;
+        const speed = this.walkSpeed;
         const pos = this.position;
         return {
             x: pos.x + this.moveX * speed * dt,
@@ -107,7 +112,7 @@ export class PlayerController {
     animate({ dt, time, dx, dz, carrying, swing, attackHeading, invincible }: PlayerAnimation) {
         const { visual, torso, leftBoot, rightBoot, swordPivot, shieldPivot } = this.handles;
         const distance = Math.hypot(dx, dz);
-        const amount = dt > 0 ? Math.min(1, distance / (dt * PLAYER.walkSpeed)) : 0;
+        const amount = dt > 0 ? Math.min(1, distance / (dt * this.walkSpeed)) : 0;
         this.gait += (amount - this.gait) * (1 - Math.exp(-PLAYER_MOTION.settleRate * dt));
         this.stridePhase = (this.stridePhase + distance * ((Math.PI * 2) / PLAYER_MOTION.strideLength)) % (Math.PI * 2);
         if (distance > 0.00001) {
