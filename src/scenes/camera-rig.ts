@@ -2,6 +2,7 @@ import {
     CameraFrame,
     Color,
     PROJECTION_ORTHOGRAPHIC,
+    SHADOW_PCF3,
     SHADOW_PCF5,
     SSAOTYPE_LIGHTING,
     TONEMAP_LINEAR
@@ -11,6 +12,35 @@ import type { AppBase, Entity, Quat } from 'playcanvas';
 import { node } from '../rendering/primitives';
 
 type Vec3Tuple = [number, number, number];
+
+/**
+ * Post-processing and shadow settings. `full` is the reference look; `light`
+ * trims the passes that cost most on tablet GPUs (full-screen SSAO, bloom,
+ * MSAA resolve and wide shadow filtering) and is used on touch devices.
+ */
+export const RENDER_QUALITY = {
+    full: {
+        samples: 2,
+        bloom: 0.012,
+        ssao: { scale: 1, samples: 8 },
+        shadow: { resolution: 2048, type: SHADOW_PCF5 }
+    },
+    light: {
+        samples: 1,
+        bloom: 0.012,
+        ssao: { scale: 0.5, samples: 6 },
+        shadow: { resolution: 1024, type: SHADOW_PCF3 }
+    }
+};
+
+export type RenderQuality = keyof typeof RENDER_QUALITY;
+
+/** `light` on touch devices; in development, `?quality=full|light` overrides for comparison. */
+export function renderQuality(): RenderQuality {
+    const requested = import.meta.env.DEV ? new URLSearchParams(location.search).get('quality') : null;
+    if (requested === 'full' || requested === 'light') return requested;
+    return window.matchMedia?.('(pointer: coarse)').matches ? 'light' : 'full';
+}
 
 /** Shared framing keeps every adventure area at the same scale on a given viewport. */
 export const ADVENTURE_VIEW = { orthoHeight: 10, minVisibleHalfWidth: 12 };
@@ -48,6 +78,7 @@ export class CameraRig {
 
     constructor(app: AppBase, root: Entity, options: CameraRigOptions) {
         this.options = options;
+        const quality = RENDER_QUALITY[renderQuality()];
         app.scene.ambientLight = options.ambient;
         const { camera: view, sun, fill } = options;
 
@@ -71,10 +102,10 @@ export class CameraRig {
             intensity: sun.intensity,
             castShadows: true,
             shadowDistance: sun.shadowDistance,
-            shadowResolution: 2048,
+            shadowResolution: quality.shadow.resolution,
             shadowBias: 0.008,
             normalOffsetBias: 0.04,
-            shadowType: SHADOW_PCF5,
+            shadowType: quality.shadow.type,
             shadowIntensity: 1
         });
         light.lookAt(0, 0, 0);
@@ -92,16 +123,16 @@ export class CameraRig {
 
         const frame = new CameraFrame(app, camera.camera!);
         frame.rendering.toneMapping = TONEMAP_LINEAR;
-        frame.rendering.samples = 2;
+        frame.rendering.samples = quality.samples;
         frame.rendering.sharpness = 0.2;
-        frame.bloom.intensity = 0.012;
+        frame.bloom.intensity = quality.bloom;
         frame.ssao.type = SSAOTYPE_LIGHTING;
         frame.ssao.intensity = 0.5;
         frame.ssao.radius = 2.5;
         frame.ssao.power = 4;
-        frame.ssao.samples = 8;
+        frame.ssao.samples = quality.ssao.samples;
         frame.ssao.blurEnabled = true;
-        frame.ssao.scale = 1;
+        frame.ssao.scale = quality.ssao.scale;
         frame.update();
         this.frame = frame;
     }
