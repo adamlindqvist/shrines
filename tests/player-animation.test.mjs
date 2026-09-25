@@ -204,3 +204,16 @@ test('a scaled walk speed (debug mode) scales each stride', (t) => {
     assert.equal(scaled.speed, normal.speed * PLAYER.debugSpeedScale);
     assert.ok(Math.abs(scaled.x - normal.x * PLAYER.debugSpeedScale) < 1e-9);
 });
+
+test('partial analog input walks proportionally slower and diagonals are capped at full speed', (t) => {
+    const { player } = fixture(t);
+    const settle = (axis) => {
+        player.reset(0, 0);
+        let step;
+        for (let i = 0; i < 120; i++) step = player.stride(1 / 60, axis);
+        return Math.hypot(step.x, step.z);
+    };
+    const full = settle({ x: 1, z: 0 });
+    near(settle({ x: 0.5, z: 0 }), full / 2);
+    near(settle({ x: 1, z: 1 }), full);
+});

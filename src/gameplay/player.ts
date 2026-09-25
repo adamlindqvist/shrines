@@ -51,7 +51,7 @@ export type Stride = {
     speed: number;
 };
 
-/** Adventurer locomotion: eased 8-way movement, facing and the walk/flash animation. */
+/** Adventurer locomotion: eased movement (analog-speed aware), facing and the walk/flash animation. */
 export class PlayerController {
     heading = 0;
     moveX = 0;
@@ -81,13 +81,15 @@ export class PlayerController {
      * With `turn` false (holding a block) facing stays locked and movement strafes.
      */
     stride(dt: number, axis: { x: number; z: number }, turn = true): Stride {
+        // Keyboard diagonals are capped at full speed; shorter analog input walks proportionally slower.
         const length = Math.hypot(axis.x, axis.z);
-        const desiredX = length ? axis.x / length : 0,
-            desiredZ = length ? axis.z / length : 0;
+        const scale = length ? Math.min(1, length) / length : 0;
+        const desiredX = axis.x * scale,
+            desiredZ = axis.z * scale;
         const smooth = 1 - Math.exp(-PLAYER.responsiveness * dt);
         this.moveX += (desiredX - this.moveX) * smooth;
         this.moveZ += (desiredZ - this.moveZ) * smooth;
-        if (length && turn) this.face(Math.atan2(desiredX, desiredZ));
+        if (length && turn) this.face(Math.atan2(axis.x, axis.z));
         const speed = this.walkSpeed;
         const pos = this.position;
         return {

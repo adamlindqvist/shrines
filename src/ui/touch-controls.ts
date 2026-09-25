@@ -2,7 +2,9 @@ export const TOUCH = {
     /** Fraction of the stick radius the knob can travel. */
     travel: 0.55,
     /** Fraction of the knob travel ignored as no input. */
-    deadZone: 0.25
+    deadZone: 0.25,
+    /** Walk-speed fraction just past the dead zone; speed rises linearly to full at the rim. */
+    minSpeed: 0.25
 };
 
 export type TouchHandlers = {
@@ -51,7 +53,7 @@ export class TouchControls {
         if (window.matchMedia?.('(pointer: coarse)').matches) this.reveal();
     }
 
-    /** Stick direction on the ground plane with length up to 1; +Z is toward the camera (screen down). */
+    /** Stick direction on the ground plane; its length (up to 1) is the walk-speed fraction. +Z is toward the camera (screen down). */
     axis() {
         return { x: this.x, z: this.z };
     }
@@ -93,9 +95,11 @@ export class TouchControls {
             dy /= length;
         }
         this.knob.style.transform = `translate(${dx * this.reach}px, ${dy * this.reach}px)`;
-        const active = length > TOUCH.deadZone;
-        this.x = active ? dx : 0;
-        this.z = active ? dy : 0;
+        const clamped = Math.min(1, length);
+        const t = (clamped - TOUCH.deadZone) / (1 - TOUCH.deadZone);
+        const speed = t > 0 ? (TOUCH.minSpeed + (1 - TOUCH.minSpeed) * t) / clamped : 0;
+        this.x = dx * speed;
+        this.z = dy * speed;
     }
 
     private onStickDown = (e: PointerEvent) => {
