@@ -346,8 +346,18 @@ function gameFixture(t, overrides = {}) {
     t.mock.method(console, 'info', noop);
     const { config, blocks, plates, portal } = fixture();
     const player = Object.fromEntries(
-        ['entity', 'visual', 'leftBoot', 'rightBoot', 'swordPivot'].map((k) => [k, new Entity()])
+        ['entity', 'visual', 'torso', 'leftBoot', 'rightBoot', 'swordPivot', 'shieldPivot'].map((k) => [
+            k,
+            new Entity()
+        ])
     );
+    player.rest = Object.values(player)
+        .filter((entity) => entity !== player.entity)
+        .map((entity) => ({
+            entity,
+            position: entity.getLocalPosition().clone(),
+            rotation: entity.getLocalRotation().clone()
+        }));
     const slime = { entity: new Entity(), body: new Entity() };
     slime.entity.setPosition(8, 0, 8);
     const canvas = Object.assign(new EventTarget(), { width: 800, height: 600 });
@@ -721,4 +731,26 @@ test('enemy completion and zone completion work independently of boxes and reset
     assert.equal(game.state, 'playing');
     assert.deepEqual(game.diagnostics().visitedZones, []);
     assert.equal(game.diagnostics().complete, false);
+});
+
+test('pause freezes the attack pose and clock; resume completes it and restart restores pivots', (t) => {
+    const { game, player, tap, tick } = gameFixture(t);
+    // Move away from interactable blocks before attacking.
+    player.entity.setPosition(0, 0, 0);
+    tap('Space');
+    tick(5);
+    const rotation = player.swordPivot.getLocalRotation().clone();
+    const cooldown = game.diagnostics().attackCooldown;
+    tap('Escape');
+    tick(20);
+    assert.equal(game.diagnostics().attackCooldown, cooldown);
+    assert.ok(Math.abs(player.swordPivot.getLocalRotation().dot(rotation)) > 0.99999);
+    tap('Escape');
+    tick(30);
+    assert.equal(game.diagnostics().attackCooldown, 0);
+    game.reset();
+    for (const rest of player.rest) {
+        assert.ok(rest.entity.getLocalPosition().distance(rest.position) < 1e-5);
+        assert.ok(Math.abs(rest.entity.getLocalRotation().dot(rest.rotation)) > 0.99999);
+    }
 });

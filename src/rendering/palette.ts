@@ -47,6 +47,10 @@ export function createPalette(resources: SceneResources) {
         terra: mat('terracotta', '#dd8450', 34, 0.09),
         black: mat('warm ink', '#33241f'),
         pink: mat('strawberry slime', '#ff8b90', 52, 0.16),
+        cloth: mat('soft turquoise cloth', '#39bfb2', 8),
+        clothLight: mat('hood piping', '#75d8c7', 8),
+        clothDark: mat('hood lining', '#248e87', 8),
+        cheek: mat('warm rosy cheeks', '#e9a18b', 8),
         skin: mat('peach face', '#f6c084'),
         boot: mat('chocolate boots', '#6b472a'),
         silver: mat('sword silver', '#d5e3e6', 62, 0.25)

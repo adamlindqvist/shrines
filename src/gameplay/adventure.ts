@@ -13,7 +13,7 @@ import { Hud } from '../ui/hud';
 import { TouchControls } from '../ui/touch-controls';
 
 import { Collision } from './collision';
-import { SWORD, Sword } from './combat';
+import { Sword } from './combat';
 import { Effects } from './effects';
 import { Input } from './input';
 import { BridgeController, PortalController, ZoneTracker } from './level-objects';
@@ -169,8 +169,23 @@ export class AdventureGame {
         const player = this.player;
         const stride = player.stride(dt, this.input.axis(), !this.puzzle.grabbed);
         const solved = this.puzzle.constrain(stride, player.position);
+        const dx = solved.x - player.position.x,
+            dz = solved.z - player.position.z;
         player.moveTo(solved.x, solved.z);
-        player.animate(this.time, this.sword.swing, SWORD.swingTime, this.invincible);
+        player.animate({
+            dt,
+            time: this.time,
+            dx,
+            dz,
+            carrying: this.puzzle.grabbed,
+            swing: this.sword.swing,
+            attackHeading: this.sword.attackHeading,
+            invincible: this.invincible
+        });
+        if (this.sword.consumeActiveStart()) {
+            const p = player.position;
+            this.effects.arc(p.x, p.z, this.sword.attackHeading, this.deps.palette.cream);
+        }
 
         // Combat.
         const p = player.position;
@@ -357,13 +372,12 @@ export class AdventureGame {
             }
             this.puzzle.updateIndicator(this.player.position);
             this.sword.reset();
+            this.player.cancelAttackPose();
             return;
         }
         if (!this.sword.ready) return;
         const heading = this.player.heading;
         this.sword.start(heading);
-        const p = this.player.position;
-        this.effects.arc(p.x, p.z, heading, this.deps.palette.cream);
     }
 
     private updateBlockLift(dt: number) {

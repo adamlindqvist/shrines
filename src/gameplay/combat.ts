@@ -1,11 +1,11 @@
 import type { Slime } from './slimes';
 
 export const SWORD = {
-    swingTime: 0.2,
-    cooldown: 0.2,
+    swingTime: 0.3,
+    cooldown: 0.3,
     /** Hits land while the remaining swing time is inside this window. */
-    activeFrom: 0.21,
-    activeUntil: 0.07,
+    activeFrom: 0.25,
+    activeUntil: 0.13,
     reach: 1.85,
     /** Half-angle of the frontal cone, in radians. Targets closer than `pointBlank` are always hit. */
     cone: 1.15,
@@ -20,11 +20,26 @@ export class Sword {
     swing = 0;
     cooldown = 0;
     private heading = 0;
+    private activePending = false;
+
+    /** World-space heading captured at attack start, in radians. */
+    get attackHeading() {
+        return this.heading;
+    }
+
+    /** Consumes the transition into the damaging slash once per attack. */
+    consumeActiveStart() {
+        const pending = this.activePending;
+        this.activePending = false;
+        return pending;
+    }
     private readonly hitThisSwing = new Set<Slime>();
 
     tick(dt: number) {
         this.cooldown = Math.max(0, this.cooldown - dt);
+        const before = this.swing;
         this.swing = Math.max(0, this.swing - dt);
+        if (before > SWORD.activeFrom && this.swing <= SWORD.activeFrom) this.activePending = true;
     }
 
     get ready() {
@@ -35,6 +50,7 @@ export class Sword {
         this.swing = SWORD.swingTime;
         this.cooldown = SWORD.cooldown;
         this.heading = heading;
+        this.activePending = false;
         this.hitThisSwing.clear();
     }
 
@@ -63,5 +79,8 @@ export class Sword {
     reset() {
         this.swing = 0;
         this.cooldown = 0;
+        this.heading = 0;
+        this.activePending = false;
+        this.hitThisSwing.clear();
     }
 }

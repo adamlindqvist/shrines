@@ -66,14 +66,14 @@ The HUD uses rounded cream panels, soft shadows, rounded typography, and short f
 
 ### Current baseline
 
-Animation is procedural and driven by game state: player bob and alternating boots, a sword pivot, slime hops and squash, a portal gate that climbs out of its plinth and blooms a swirl that spins down to a slow turn, and short-lived primitive effects. There are no authored animation clips in the current game.
+Animation is procedural and driven by game state: a distance-driven player stride with foot arcs and gentle body sway, layered cloth and arm pivots, a phased sword slash, slime hops and squash, a portal gate that climbs out of its plinth and blooms a swirl that spins down to a slow turn, and short-lived primitive effects. There are no authored animation clips in the current game.
 
 Useful tuning references (the source constants remain authoritative):
 
 | Action         | Current baseline                                                                                                |
 | -------------- | --------------------------------------------------------------------------------------------------------------- |
 | Movement       | Normalized eight-way input, 7.5 units/s, exponential smoothing rate 14.                                         |
-| Sword          | 0.28 s swing, 0.30 s cooldown; active while remaining swing time is 0.21–0.07 s; one hit per enemy per swing.   |
+| Sword          | 0.30 s swing/cooldown: 0.05 s anticipation, 0.12 s active slash, 0.13 s recovery; one hit per enemy per swing.  |
 | Slime attack   | 0.45 s visible windup, followed by a hit or miss cooldown.                                                      |
 | Slime reaction | Squash, knockback, stagger, and a 0.45 s death animation.                                                       |
 | Player damage  | Health feedback, a short shove and burst, and flashing during 1.2 s of invulnerability.                         |
@@ -82,9 +82,9 @@ Useful tuning references (the source constants remain authoritative):
 ### Guidance for future features
 
 - **Make actions readable.** Give attacks a recognizable anticipation, active moment, and recovery. Respond to input immediately, even when the damaging part has a windup. New enemy attacks need a visible warning and an opportunity to evade.
-- **Share timing between visuals and rules.** Drive hit windows, weapon poses, trails, and reactions from the same action state. The current sword captures heading at swing start; account for turning during the swing so future visuals and hit direction agree. Never use an unrelated timeout to decide a hit.
+- **Share timing between visuals and rules.** Drive hit windows, weapon poses, trails, and reactions from the same action state. The sword captures heading at swing start; its upper-body pose compensates for subsequent player turning during the active slash and blends back during recovery. The slash effect fires once on entry to the active phase. Never use an unrelated timeout to decide a hit.
 - **Animate from a rest pose.** Store base transforms and calculate bounded offsets or normalized action progress. Avoid accumulating bob, squash, or rotation each frame. Keep locomotion on the root and decorative motion on visual children for new animated objects, so animation does not move collision unexpectedly.
-- **Keep motion soft but controlled.** Use modest squash/stretch, rounded arcs, eased settling, and small secondary motion. Let footsteps and bob reflect movement intensity; let idle motion settle quietly. Avoid making every object bounce with the same phase or amplitude.
+- **Keep motion soft but controlled.** Use modest squash/stretch, rounded arcs, eased settling, and small secondary motion. The player stride uses actual post-collision X/Z displacement, excluding damage shoves and teleports, with direction-aware steps while carrying. Let footsteps and bob reflect movement intensity; let idle motion settle quietly. Avoid making every object bounce with the same phase or amplitude.
 - **Define competing states.** Decide which animation owns each transform when moving, attacking, hurt, dying, or celebrating. Damage and death must remain readable; multiple controllers must not overwrite the same pivot unpredictably.
 - **Use layered, brief feedback.** Combine pose change, a small effect, and relevant HUD feedback for meaningful events. Keep bursts near the interaction, use shared materials, and remove effects promptly. Ambient motion should remain less prominent than combat and puzzle cues.
 - **Keep the camera comfortable.** Preserve gentle follow and stable framing. Any added recoil or shake should be brief, small, and optional, and must not hide telegraphs or disorient navigation.
