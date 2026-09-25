@@ -161,32 +161,22 @@ export const level: LevelDefinition = {
     id: 'twin-bridges',
     scene: 'twin-bridges',
     hud: DEFAULT_HUD,
-    text: {
-        ...DEFAULT_TEXT,
-        matched: 'Klick! Något vaknar i närheten.',
-        won: {
-            title: 'Broarnas hjälte',
-            copy: 'Båda broarna står stadigt och portalen glittrar. Så fint gjort!'
-        }
-    },
+    text: DEFAULT_TEXT,
     rules: [
         {
             id: 'raise-south-bridge',
             when: { type: 'plateActive', target: 'south-plate' },
-            actions: [{ type: 'openBridge', target: 'south-bridge' }],
-            message: 'Solen väcker bron! Gå över floden.'
+            actions: [{ type: 'openBridge', target: 'south-bridge' }]
         },
         {
             id: 'raise-north-bridge',
             when: { type: 'plateActive', target: 'north-plate' },
-            actions: [{ type: 'openBridge', target: 'north-bridge' }],
-            message: 'Månen lyfter nästa bro!'
+            actions: [{ type: 'openBridge', target: 'north-bridge' }]
         },
         {
             id: 'reach-north-bank',
             when: { type: 'zoneVisited', target: 'north-bank' },
-            actions: [],
-            message: 'Helgedomen väntar. Den vill ha en sol till!'
+            actions: []
         },
         {
             id: 'open-portal',

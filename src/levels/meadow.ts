@@ -310,14 +310,7 @@ export const level: LevelDefinition = {
     id: 'meadow',
     scene: 'meadow',
     hud: DEFAULT_HUD,
-    text: {
-        ...DEFAULT_TEXT,
-        matched: 'Klick! En fin tr\u00e4ff! Hitta den andra symbolen!',
-        won: {
-            title: 'En ficka full av solsken',
-            copy: 'Du v\u00e4ckte \u00e4ngens portal. V\u00e4rlden k\u00e4nns lite varmare.'
-        }
-    },
+    text: DEFAULT_TEXT,
     rules: [
         {
             id: 'open-portal',

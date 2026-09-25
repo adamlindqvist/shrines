@@ -1,11 +1,11 @@
 import type { CameraDefinition, LevelText } from './types';
 
-export const DEFAULT_HUD = { title: 'Louis äventyr', maxHealth: 3 };
+export const DEFAULT_HUD = { title: '', maxHealth: 3 };
 export const DEFAULT_TEXT: LevelText = {
-    matched: 'Klick! En fin träff! Hitta den andra symbolen!',
+    matched: '',
     paused: 'Paus · tryck på en rörelsetangent eller klicka för att fortsätta',
-    won: { title: 'En ficka full av solsken', copy: 'Du väckte ängens portal. Världen känns lite varmare.' },
-    over: { title: 'Ta en liten paus', copy: 'Även modiga små äventyrare behöver försöka igen.' }
+    won: { title: '', copy: '' },
+    over: { title: '', copy: '' }
 };
 export const DEFAULT_LIGHTING: Omit<CameraDefinition, 'camera' | 'follow'> = {
     ambient: [0.74, 0.78, 0.7],

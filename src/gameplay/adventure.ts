@@ -395,6 +395,7 @@ export class AdventureGame {
     }
 
     private announce(text: string) {
+        if (!text) return;
         console.info(`[${this.deps.level.id}]`, text, this.diagnostics());
         this.hud.announce(text);
     }

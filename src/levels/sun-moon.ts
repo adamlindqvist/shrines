@@ -344,14 +344,7 @@ export const level: LevelDefinition = {
     id: 'sun-moon',
     scene: 'sun-moon',
     hud: DEFAULT_HUD,
-    text: {
-        ...DEFAULT_TEXT,
-        matched: 'Klick! En fin tr\u00e4ff! Hitta den andra symbolen!',
-        won: {
-            title: 'Solsken och m\u00e5nstr\u00e5lar',
-            copy: 'Tv\u00e5 helgedomar, tv\u00e5 portaler. Du har spridit lite ljus i varje vr\u00e5.'
-        }
-    },
+    text: DEFAULT_TEXT,
     rules: [
         {
             id: 'open-portal',

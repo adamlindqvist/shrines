@@ -578,14 +578,7 @@ export const level: LevelDefinition = {
     id: 'two-suns',
     scene: 'two-suns',
     hud: DEFAULT_HUD,
-    text: {
-        ...DEFAULT_TEXT,
-        matched: 'Klick! En sol lyser. H\u00e4mta den andra!',
-        won: {
-            title: 'Tre lysande helgedomar',
-            copy: 'Alla helgedomar str\u00e5lar. Vilket modigt och fint litet \u00e4ventyr!'
-        }
-    },
+    text: DEFAULT_TEXT,
     rules: [
         {
             id: 'open-portal',
