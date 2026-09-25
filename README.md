@@ -4,7 +4,7 @@ A small playable fantasy clearing built with PlayCanvas and TypeScript. The adve
 
 ## Imported nature scenery
 
-All playable areas—Mossy Meadow, Sun & Moon Grove, Two Suns Shrine, Twin Bridges Isle, and the Solbron bridge example—use trees and rocks from the bundled `src/assets/low_poly_nature_free.glb`. Terrain, bushes, props, characters, puzzles, collision circles, and seeded generation order retain their procedural implementation. Imported trees are static because their trunk and crown share a mesh.
+All playable areas—Mossy Meadow, Sun & Moon Grove, Two Suns Shrine, and Twin Bridges Isle—use trees and rocks from the bundled `src/assets/low_poly_nature_free.glb`. Terrain, bushes, props, characters, puzzles, collision circles, and seeded generation order retain their procedural implementation. Imported trees are static because their trunk and crown share a mesh.
 
 `src/rendering/nature-tuning.ts` records exact static vertex bounds, grounding, and uniform scale for six selected models. Instances share meshes and the pack material; each scene unloads its container after destroying its instances. A loading status handles asynchronous preparation, including switching away during a pending load. Trees and rocks always use this palette; the procedural versions and comparison levels have been removed.
 
@@ -58,7 +58,7 @@ Performance targets more than 60 FPS on suitable hardware; actual frame rate dep
 
 ## Building playable levels
 
-Playable scenes and their rules are separate, JSON-compatible TypeScript data. `src/levels/types.ts` defines the contracts; `src/levels/bridge-example.ts` is a complete box → plate → bridge → treasure example. Open `/?scene=bridge-example` in development, or call `shrines.load('bridge-example')`. It is separate from the four-level adventure.
+Playable scenes and their rules are separate, JSON-compatible TypeScript data. `src/levels/types.ts` defines the contracts; `src/levels/twin-bridges.ts` shows a complete box → plate → bridge → treasure setup.
 
 - `SceneDefinition` owns terrain, spawn, bounds, camera, lighting and ordered object lists. `scenery` is constructed before the player; `objects` afterwards. Preserve this order and the seed when keeping existing scenery unchanged.
 - `LevelDefinition` references a scene and owns rules, completion, HUD and text. Multiple levels can reference the same scene with different objectives.
@@ -118,7 +118,7 @@ export const level: LevelDefinition = {
 };
 ```
 
-Import these exports into `src/levels/index.ts` and add them under `'little-shrine'` in `sceneDefinitions` and `levelDefinitions`. This automatically exposes `shrines.load('little-shrine')` and `/?scene=little-shrine` in development. To include it in the adventure, also add its level ID to `adventureJourney.levels`. No changes to `AdventureGame` or object controllers are needed.
+Import these exports into `src/levels/index.ts` and add them under `'little-shrine'` in `sceneDefinitions` and `levelDefinitions`. This automatically exposes `shrines.load('little-shrine')` and, in development, `/?level=N` where `N` is its 1-based position among `levelDefinitions`' keys. To include it in the adventure, also add its level ID to `adventureJourney.levels`. No changes to `AdventureGame` or object controllers are needed.
 
 ### Conditions and actions
 
@@ -156,4 +156,4 @@ A scene factory receives the shared `AppContext` and returns `update(dt)`, `resi
 
 ### Select a scene
 
-Registered levels are exposed automatically in `src/scenes/index.ts`. Set `SCENE` in `src/main.ts` to choose the startup level. In development, use `shrines.load('sun-moon')` or `?scene=sun-moon` to inspect another area, and `shrines.unload()` to check teardown. URL overrides are ignored in production. `window.meadow` and the hidden `#diagnostics` output describe the active adventure area, including stage, remaining hearts, each block's symbol and lock state, activated plates, and camera position.
+Registered levels are exposed automatically in `src/scenes/index.ts`. Set `SCENE` in `src/main.ts` to choose the startup level. In development, use `shrines.load('sun-moon')` or `?level=2` (its 1-based position among `levelDefinitions`' keys) to inspect another area, and `shrines.unload()` to check teardown. URL overrides are ignored in production. `window.meadow` and the hidden `#diagnostics` output describe the active adventure area, including stage, remaining hearts, each block's symbol and lock state, activated plates, and camera position.

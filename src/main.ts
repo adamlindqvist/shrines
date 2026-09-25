@@ -10,8 +10,10 @@ const SCENE: SceneName = 'meadow';
 const canvas = document.getElementById('application-canvas') as HTMLCanvasElement;
 const context = await createApp(canvas);
 const host = new SceneHost(context);
-const requestedScene = import.meta.env.DEV ? new URLSearchParams(location.search).get('scene') : null;
-const initialScene = requestedScene && Object.hasOwn(scenes, requestedScene) ? (requestedScene as SceneName) : SCENE;
+const sceneNames = Object.keys(scenes) as SceneName[];
+const requestedLevel = import.meta.env.DEV ? new URLSearchParams(location.search).get('level') : null;
+const requestedScene = requestedLevel ? sceneNames[Number(requestedLevel) - 1] : undefined;
+const initialScene = requestedScene ?? SCENE;
 host.load(scenes[initialScene]);
 context.app.start();
 
