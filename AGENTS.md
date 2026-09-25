@@ -43,7 +43,7 @@ Keep factories focused on constructing visuals. Put behavior in gameplay control
 
 - Ground movement uses X/Z, with +Y up and +Z toward the meadow camera. The adventurer model faces +Z at zero yaw. Gameplay heading is in radians (`atan2(x, z)`); Engine Euler rotations and placement yaw are in degrees. Convert at the boundary.
 - Give each independently placed object a semantic root. Use children and explicit pivots for visual offsets, scaling, and animation. Return handles instead of searching the hierarchy by name during updates.
-- Use `SceneBuilder` for placement and collision registration. Call `finish()` once after construction; it uploads shared bush and rock meshes and returns obstacles and ambient animation. Batched geometry cannot be treated as individually movable entities.
+- Use `SceneBuilder` for placement and collision registration. Call `finish()` once after construction; it uploads shared bush meshes and returns obstacles and ambient animation. Batched geometry cannot be treated as individually movable entities.
 - Read each placement API's scale contract: rock `scale` is width in world units, while other factories may use a multiplier. Verify visual size and collision footprint together, especially when introducing scaled props.
 - Collision uses static circles and rectangular walk bounds, with separate grabbed-block movement logic. SceneBuilder registers horizontal walk surfaces; the highest surface at X/Z supplies ground height (default 0). Player, carried blocks, slimes, and effects use this height. Steps up to 0.16 units are traversable in both directions; larger height changes are blocked. The shrine has walkable front stairs and solid side/back rims; its chest requires reaching the raised floor. This is a height field, without jumping, falling, or stacked floors. Keep this simple model consistent; test corners, narrow gaps, and puzzle routes when changing layouts.
 - Use the scene's seeded `Random` for procedural generation. Generation order affects every later draw from the sequence; adding an early random draw can change unrelated scenery. Preserve call order during visual refactors, or deliberately introduce separate seeded streams for independent new systems.
@@ -54,7 +54,7 @@ Keep factories focused on constructing visuals. Put behavior in gameplay control
 
 ## Visual direction
 
-All current models and terrain textures are procedural. Extend the existing primitives, geometry helpers, and palette by default; introducing imported art is a deliberate pipeline change that must still match the scene.
+All playable levels use the bundled `src/assets/low_poly_nature_free.glb` for trees and rocks, with calibration in `src/rendering/nature-tuning.ts`, scene-owned container loading, static imported trees, and attribution in `public/asset-credits.txt`. Terrain, bushes, characters, puzzle objects, and other props remain procedural. `woodland` uses the same imported trees and rocks. The procedural tree/rock generators and comparison levels have been removed; every SceneBuilder requires loaded NatureModels. Imported scenery preserves authored placements, collision circles, and procedural random consumption. Extend the existing primitives, geometry helpers, and palette by default; introducing imported art is a deliberate pipeline change that must still match the scene.
 
 Use `src/rendering/palette.ts` as the shared color/material vocabulary: clover greens, warm bark and stone, turquoise, sunshine gold, warm ivory, and strawberry pink. Preserve the relative prominence of the hero, puzzle objects, and enemies. New props should be legible at the actual gameplay camera distance.
 
@@ -66,7 +66,7 @@ The HUD uses rounded cream panels, soft shadows, rounded typography, and short f
 
 ### Current baseline
 
-Animation is procedural and driven by game state: player bob and alternating boots, a sword pivot, slime hops and squash, canopy sway, a chest-lid pivot, and short-lived primitive effects. There are no authored animation clips in the current game.
+Animation is procedural and driven by game state: player bob and alternating boots, a sword pivot, slime hops and squash, a chest-lid pivot, and short-lived primitive effects. There are no authored animation clips in the current game.
 
 Useful tuning references (the source constants remain authoritative):
 

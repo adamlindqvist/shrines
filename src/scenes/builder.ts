@@ -5,7 +5,7 @@ import { createBridgeBlockers } from '../gameplay/level-objects';
 import type { BridgeHandles } from '../gameplay/level-objects';
 import { createAdventurer } from '../objects/adventurer';
 import type { PropContext } from '../objects/context';
-import { appendBoulder, appendBush, boulderRadius, createBushBatch } from '../objects/foliage';
+import { appendBush, createBushBatch } from '../objects/foliage';
 import {
     LOG_HEIGHT,
     LOG_RADIUS,
@@ -19,8 +19,9 @@ import { CHEST_RADIUS, createPushBlock, createSunSwitch, createTreasureChest } f
 import type { PuzzleSymbol } from '../objects/puzzle';
 import { BRIDGE, SHRINE, SHRINE_TOP, createShrineDais, createStoneBridge, shrineFront } from '../objects/shrine';
 import { createSlime } from '../objects/slime';
-import { createTree, treeRadius } from '../objects/tree';
-import { createGeo, meshEntity, rotateAppended, vertexCount } from '../rendering/geometry';
+import { meshEntity } from '../rendering/geometry';
+import type { NatureModels } from '../rendering/nature-pack';
+import { NATURE_COLLISION } from '../rendering/nature-tuning';
 import { node } from '../rendering/primitives';
 import type { Random } from '../rendering/random';
 
@@ -38,8 +39,6 @@ export type ScaledPlacement = {
 export type RockOptions = {
     /** Boulder width in world units. */
     scale: number;
-    /** Icosphere subdivisions; 1 gives the chunky storybook facets. */
-    detail?: number;
     /** Ground height, e.g. a stepping stone sitting in sunken water. */
     y?: number;
 } & Placement;
@@ -56,38 +55,37 @@ export type SceneLayout = {
     /** Static collision circles in registration order. */
     obstacles: readonly Obstacle[];
     surfaces?: readonly WalkSurface[];
-    /** Ambient motion (canopy sway) at scene time `time` seconds. */
+    /** Ambient motion at scene time `time` seconds. */
     animate(time: number): void;
 };
 
 /**
- * Places props into a scene root. Solid props register collision, trees
- * register canopy sway, and bushes and rocks are merged into shared batches
- * that `finish()` uploads once construction is done.
+ * Places imported trees and rocks and procedural props into a scene root.
+ * Solid props register collision; finish() uploads the shared bush batches.
  */
 export class SceneBuilder {
     private readonly obstacles: Obstacle[] = [];
     private readonly surfaces: WalkSurface[] = [];
-    private readonly canopies: Entity[] = [];
     private readonly bushes = createBushBatch();
-    private readonly rocks = createGeo();
     private finished = false;
+    private readonly nature: NatureModels;
 
     readonly props: PropContext;
     readonly rand: Random;
     readonly root: Entity;
 
-    constructor(props: PropContext, rand: Random, root: Entity) {
+    constructor(props: PropContext, rand: Random, root: Entity, nature: NatureModels) {
+        this.nature = nature;
         this.props = props;
         this.rand = rand;
         this.root = root;
     }
 
-    /** Rounded tree with a ring of understory bushes; `scale` 1 is about 3.6 units tall. */
+    /** Imported tree with a ring of understory bushes; `scale` 1 is about 3.6 units tall. */
     addTree({ x, z, scale: s = 1, rotation: spin = 0 }: ScaledPlacement) {
         const rand = this.rand;
-        const handles = createTree(this.props, this.place('rounded woodland tree', { x, z, rotation: spin }), s);
-        this.canopies.push(handles.canopy);
+        const root = this.place('woodland tree', { x, z, rotation: spin });
+        const visual = this.nature.add(root, 'tree', s);
         for (let i = 0; i < 8; i++) {
             // The ring's phase adds the yaw's degree value directly, as the meadow layout was authored.
             const a = i * 2.4 + spin;
@@ -97,8 +95,8 @@ export class SceneBuilder {
                 scale: (0.34 + rand() * 0.3) * s
             });
         }
-        this.obstacles.push({ x, z, r: treeRadius(s) });
-        return handles;
+        this.obstacles.push({ x, z, r: NATURE_COLLISION.treeRadius * s });
+        return { entity: root, visual };
     }
 
     /** A single round bush, batched. Bushes are decoration and do not collide. */
@@ -122,14 +120,13 @@ export class SceneBuilder {
         }
     }
 
-    /** Faceted boulder `scale` units wide, batched, with collision. */
-    addRock({ x, z, scale: w, rotation = 0, detail = 1, y = 0 }: RockOptions) {
+    /** Imported boulder `scale` units wide, with the authored collision footprint. */
+    addRock({ x, z, scale: w, rotation = 0, y = 0 }: RockOptions) {
         this.assertOpen();
-        const start = vertexCount(this.rocks);
-        appendBoulder(this.rocks, this.rand, x, z, w, detail);
-        rotateAppended(this.rocks, start, x, z, rotation);
-        if (y) for (let v = start * 3 + 1; v < this.rocks.p.length; v += 3) this.rocks.p[v] += y;
-        this.obstacles.push({ x, z, r: boulderRadius(w) });
+        // Reserve the former rock-variation draw to preserve all later seeded placements.
+        this.rand();
+        this.nature.add(this.place('woodland rock', { x, z, rotation }, y), 'rock', w);
+        this.obstacles.push({ x, z, r: NATURE_COLLISION.rockRadius * w });
     }
 
     /** Wooden arrow sign; `rotation` 0 faces the camera and points toward +X. */
@@ -267,7 +264,7 @@ export class SceneBuilder {
         this.obstacles.push({ x, z, r });
     }
 
-    /** Uploads the bush and rock batches. Call once, after the last prop is placed. */
+    /** Uploads the bush batches. Call once, after the last prop is placed. */
     finish(): SceneLayout {
         this.assertOpen();
         this.finished = true;
@@ -275,19 +272,13 @@ export class SceneBuilder {
         const batches = [
             [this.bushes.light, palette.leafLight, 'sunlit bushes'],
             [this.bushes.mid, palette.leaf, 'round bushes'],
-            [this.bushes.dark, palette.leafDark, 'shaded bushes'],
-            [this.rocks, palette.stone, 'faceted boulders']
+            [this.bushes.dark, palette.leafDark, 'shaded bushes']
         ] as const;
         for (const [g, material, name] of batches) if (g.i.length) meshEntity(device, this.root, name, g, material);
-        const canopies = this.canopies;
         return {
             obstacles: this.obstacles,
             surfaces: this.surfaces,
-            animate(time) {
-                canopies.forEach((f, i) =>
-                    f.setLocalEulerAngles(Math.sin(time * 0.8 + i) * 1.1, 0, Math.cos(time * 0.7 + i) * 1.2)
-                );
-            }
+            animate: () => undefined
         };
     }
 

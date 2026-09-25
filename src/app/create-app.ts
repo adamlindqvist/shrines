@@ -2,6 +2,7 @@ import {
     AppBase,
     AppOptions,
     CameraComponentSystem,
+    ContainerHandler,
     FILLMODE_FILL_WINDOW,
     LightComponentSystem,
     RESOLUTION_FIXED,
@@ -32,7 +33,7 @@ export async function createApp(canvas: HTMLCanvasElement): Promise<AppContext> 
     const options = new AppOptions();
     options.graphicsDevice = device;
     options.componentSystems = [RenderComponentSystem, CameraComponentSystem, LightComponentSystem];
-    options.resourceHandlers = [TextureHandler];
+    options.resourceHandlers = [TextureHandler, ContainerHandler];
     const app = new AppBase(canvas);
     app.init(options);
     app.setCanvasFillMode(FILLMODE_FILL_WINDOW);

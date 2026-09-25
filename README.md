@@ -1,6 +1,16 @@
 # Shrines — a little adventure
 
-A small playable fantasy clearing built with PlayCanvas and TypeScript. All models are procedural geometry; no external art assets are downloaded.
+A small playable fantasy clearing built with PlayCanvas and TypeScript. The adventure combines procedural geometry with trees and rocks from a bundled low-poly nature GLB.
+
+## Imported nature scenery
+
+All playable areas—Mossy Meadow, Sun & Moon Grove, Two Suns Shrine, and the Solbron bridge example—use trees and rocks from the bundled `src/assets/low_poly_nature_free.glb`. Terrain, bushes, props, characters, puzzles, collision circles, and seeded generation order retain their procedural implementation. Imported trees are static because their trunk and crown share a mesh. `woodland` uses the same imported trees and rocks as a quiet composition example.
+
+`src/rendering/nature-tuning.ts` records exact static vertex bounds, grounding, and uniform scale for six selected models. Instances share meshes and the pack material; each scene unloads its container after destroying its instances. A loading status handles asynchronous preparation, including switching away during a pending load. Trees and rocks always use this palette; the procedural versions and comparison levels have been removed.
+
+The GLB remains an unmodified source asset in `src/assets/`. Vite emits it with a content hash and the PWA precaches it. Keep it in source control with these changes. A later export can trim unused models and batch repeated rocks if profiling calls for it.
+
+Asset: **Low Poly Nature Free ✓** by **\_Alexandr**, from [Sketchfab](https://sketchfab.com/3d-models/low-poly-nature-free-b9b9d627d62b46418ba61de1cc1df557), licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), as recorded in the GLB metadata. Models are repositioned, rotated, and uniformly scaled; source geometry and texture are unchanged. A shipped copy of this credit is in `public/asset-credits.txt`.
 
 ## Play locally
 
@@ -128,7 +138,7 @@ Coordinates are on the X/Z ground plane (+Z points toward the camera) and rotati
 
 ### Place a tree
 
-A `SceneBuilder` places props into a scene root. Solid props register collision automatically, trees register canopy sway, and bushes and rocks are merged into shared batches.
+A `SceneBuilder` places props into a scene root. Solid props register collision automatically, imported trees and rocks share model resources, and bushes are merged into shared batches.
 
 ```ts
 scene.addTree({ x: -8, z: -6.3, scale: 1.5, rotation: 20 });
@@ -163,7 +173,8 @@ addWoodlandGrove(scene, { x: 4.4, z: -2.8, scale: 0.9, rotation: 150 });
 A scene factory receives the shared `AppContext` and returns `update(dt)`, `resize()` and `destroy()` hooks. It owns everything it creates: its root entity, materials and textures (via `SceneResources`), event listeners and HUD. `destroy()` removes them and leaves the application reusable. `src/scenes/woodland.ts` is a complete example:
 
 ```ts
-export function createWoodlandScene(context: AppContext): SceneInstance {
+export function createWoodlandScene(context: AppContext, nature?: NatureModels): SceneInstance {
+    if (!nature) return createNatureScene(context, (models) => createWoodlandScene(context, models));
     const { app, device } = context;
     const resources = new SceneResources();
     const palette = createPalette(resources);
@@ -177,11 +188,11 @@ export function createWoodlandScene(context: AppContext): SceneInstance {
         cornerRadius: 2.6,
         wallHeight: 1.5
     });
-    const scene = new SceneBuilder({ device, palette }, rand, root);
+    const scene = new SceneBuilder({ device, palette }, rand, root, nature);
     addWoodlandGrove(scene, { x: -4.6, z: -2.6 });
     scene.addPot({ x: -3.2, z: 3.6 });
     createBackdrop({ device, resources }, root, island);
-    const layout = scene.finish(); // uploads the bush and rock batches
+    const layout = scene.finish(); // uploads the bush batches
 
     const rig = new CameraRig(app, root, {
         ...MEADOW_LIGHTING,
@@ -210,7 +221,7 @@ export function createWoodlandScene(context: AppContext): SceneInstance {
 }
 ```
 
-Gameplay is opt-in. `src/scenes/meadow.ts` and `src/scenes/sun-moon.ts` configure the two playable areas. `createAdventureArea` constructs them through the same builder, then hands them to `AdventureGame`, which owns input, combat, the puzzle, the HUD and win/loss state. The journey owns progression and queues area changes until the running update has returned; it destroys the previous area before creating the next.
+Gameplay is opt-in. `src/levels/meadow.ts`, `src/levels/sun-moon.ts`, and `src/levels/two-suns.ts` configure the three adventure areas. `createAdventureArea` constructs them through the same builder, then hands them to `AdventureGame`, which owns input, combat, the puzzle, the HUD and win/loss state. The journey owns progression and queues area changes until the running update has returned; it destroys the previous area before creating the next.
 
 ### Select a scene
 

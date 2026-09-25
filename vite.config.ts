@@ -27,7 +27,7 @@ export default defineConfig({
                 ]
             },
             workbox: {
-                globPatterns: ['**/*.{js,css,html,png,webmanifest}'],
+                globPatterns: ['**/*.{js,css,html,png,glb,txt,webmanifest}'],
                 // PlayCanvas is bundled locally so the entire game works offline.
                 maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
                 cleanupOutdatedCaches: true,

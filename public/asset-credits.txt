@@ -1,0 +1,9 @@
+Low Poly Nature Free ✓
+Author: _Alexandr — https://sketchfab.com/a_l_e_x_a_n_d_e_r
+Source: https://sketchfab.com/3d-models/low-poly-nature-free-b9b9d627d62b46418ba61de1cc1df557
+License: Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+
+Used for trees and rocks in the playable adventure areas. Models are selected, repositioned, rotated,
+and uniformly scaled. The original geometry and texture are unchanged.
+Attribution and license information are recorded in the source GLB metadata.

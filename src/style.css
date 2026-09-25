@@ -298,3 +298,16 @@ kbd {
         font-size: 32px;
     }
 }
+
+.nature-loading {
+    position: fixed;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+    padding: 1rem 1.5rem;
+    border-radius: 1.5rem;
+    background: #fff8e7;
+    color: #40543b;
+    box-shadow: 0 0.5rem 2rem #263d3026;
+    text-align: center;
+    z-index: 10;
+}

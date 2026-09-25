@@ -1,6 +1,7 @@
 import { Color, Entity } from 'playcanvas';
 
 import type { AppContext, SceneInstance } from '../app/context';
+import type { NatureModels } from '../rendering/nature-pack';
 import { createPalette } from '../rendering/palette';
 import { createRandom } from '../rendering/random';
 import { SceneResources } from '../rendering/resources';
@@ -8,13 +9,15 @@ import { SceneResources } from '../rendering/resources';
 import { SceneBuilder } from './builder';
 import { CameraRig, MEADOW_LIGHTING } from './camera-rig';
 import { addWoodlandGrove } from './groups';
+import { createNatureScene } from './nature-scene';
 import { createBackdrop, createIsland } from './terrain';
 
 /**
  * Quiet Woodland: a smaller island composed from the same props and
- * reusable groves. No combat, puzzle or HUD — just the view and canopy sway.
+ * reusable groves. No combat, puzzle or HUD — just the view.
  */
-export function createWoodlandScene(context: AppContext): SceneInstance {
+export function createWoodlandScene(context: AppContext, nature?: NatureModels): SceneInstance {
+    if (!nature) return createNatureScene(context, (models) => createWoodlandScene(context, models));
     const { app, device } = context;
     const resources = new SceneResources();
     const palette = createPalette(resources);
@@ -28,7 +31,7 @@ export function createWoodlandScene(context: AppContext): SceneInstance {
         cornerRadius: 2.6,
         wallHeight: 1.5
     });
-    const scene = new SceneBuilder({ device, palette }, rand, root);
+    const scene = new SceneBuilder({ device, palette }, rand, root, nature);
 
     addWoodlandGrove(scene, { x: -4.6, z: -2.6 });
     addWoodlandGrove(scene, { x: 4.4, z: -2.8, scale: 0.9, rotation: 150 });

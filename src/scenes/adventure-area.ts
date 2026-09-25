@@ -6,6 +6,7 @@ import type { AdventureDeps, AdventureDiagnostics } from '../gameplay/adventure'
 import type { LevelDefinition, SceneDefinition } from '../levels/types';
 import { validateLevel } from '../levels/validate';
 import { BRIDGE } from '../objects/shrine';
+import type { NatureModels } from '../rendering/nature-pack';
 import { createPalette } from '../rendering/palette';
 import { createRandom } from '../rendering/random';
 import { SceneResources } from '../rendering/resources';
@@ -13,6 +14,7 @@ import { SceneResources } from '../rendering/resources';
 import { buildDefinition } from './build-definition';
 import { SceneBuilder } from './builder';
 import { CameraRig } from './camera-rig';
+import { createNatureScene } from './nature-scene';
 import { createRiverIsland } from './river-island';
 import { createBackdrop, createIsland } from './terrain';
 
@@ -30,9 +32,12 @@ export function createAdventureArea(
     context: AppContext,
     scene: SceneDefinition,
     level: LevelDefinition,
-    hooks: JourneyHooks = {}
+    hooks: JourneyHooks = {},
+    nature?: NatureModels
 ): SceneInstance {
     validateLevel(level, scene);
+    if (!nature)
+        return createNatureScene(context, (models) => createAdventureArea(context, scene, level, hooks, models));
     const { app, device } = context;
     const resources = new SceneResources();
     const palette = createPalette(resources);
@@ -50,7 +55,7 @@ export function createAdventureArea(
         }));
     const river = 'kind' in scene.terrain ? createRiverIsland(terrain, root, { ...scene.terrain, openings }) : null;
     const island = 'kind' in scene.terrain ? river! : createIsland(terrain, root, scene.terrain);
-    const builder = new SceneBuilder({ device, palette }, rand, root);
+    const builder = new SceneBuilder({ device, palette }, rand, root, nature);
     for (const o of river?.obstacles ?? []) builder.addObstacle(o.x, o.z, o.r);
     const cast = buildDefinition(builder, scene);
     createBackdrop({ device, resources }, root, island, scene.backdrop);

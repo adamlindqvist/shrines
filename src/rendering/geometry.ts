@@ -6,9 +6,6 @@ export type Geo = { p: number[]; n: number[]; u: number[]; i: number[] };
 
 export const createGeo = (): Geo => ({ p: [], n: [], u: [], i: [] });
 
-/** Number of vertices currently in `g`, used to mark where an appended shape starts. */
-export const vertexCount = (g: Geo) => g.p.length / 3;
-
 /** Uploads `g` as a mesh and attaches it to a new child entity of `parent`. */
 export function meshEntity(
     device: GraphicsDevice,
@@ -33,24 +30,6 @@ export function meshEntity(
         receiveShadows: receive
     });
     return e;
-}
-
-/** Rotates vertices appended since `start` about the vertical axis through (cx, cz). */
-export function rotateAppended(g: Geo, start: number, cx: number, cz: number, degrees: number) {
-    if (!degrees) return;
-    const a = (degrees * Math.PI) / 180,
-        c = Math.cos(a),
-        s = Math.sin(a);
-    for (let v = start * 3; v < g.p.length; v += 3) {
-        const x = g.p[v] - cx,
-            z = g.p[v + 2] - cz;
-        g.p[v] = cx + x * c + z * s;
-        g.p[v + 2] = cz - x * s + z * c;
-        const nx = g.n[v],
-            nz = g.n[v + 2];
-        g.n[v] = nx * c + nz * s;
-        g.n[v + 2] = -nx * s + nz * c;
-    }
 }
 
 export function appendSphere(
@@ -123,109 +102,6 @@ export function appendLathe(
             const a = base + j * (seg + 1) + i;
             g.i.push(a, a + seg + 1, a + 1, a + 1, a + seg + 1, a + seg + 2);
         }
-}
-
-const ICO_T = (1 + Math.sqrt(5)) / 2;
-const ICO_V = [
-    [-1, ICO_T, 0],
-    [1, ICO_T, 0],
-    [-1, -ICO_T, 0],
-    [1, -ICO_T, 0],
-    [0, -1, ICO_T],
-    [0, 1, ICO_T],
-    [0, -1, -ICO_T],
-    [0, 1, -ICO_T],
-    [ICO_T, 0, -1],
-    [ICO_T, 0, 1],
-    [-ICO_T, 0, -1],
-    [-ICO_T, 0, 1]
-];
-const ICO_F = [
-    [0, 11, 5],
-    [0, 5, 1],
-    [0, 1, 7],
-    [0, 7, 10],
-    [0, 10, 11],
-    [1, 5, 9],
-    [5, 11, 4],
-    [11, 10, 2],
-    [10, 7, 6],
-    [7, 1, 8],
-    [3, 9, 4],
-    [3, 4, 2],
-    [3, 2, 6],
-    [3, 6, 8],
-    [3, 8, 9],
-    [4, 9, 5],
-    [2, 4, 11],
-    [6, 2, 10],
-    [8, 6, 7],
-    [9, 8, 1]
-];
-
-/** Chunky flat-faceted boulder built from a jittered icosphere. */
-export function appendRock(
-    g: Geo,
-    cx: number,
-    cy: number,
-    cz: number,
-    rx: number,
-    ry: number,
-    rz: number,
-    sd: number,
-    detail = 1
-) {
-    const verts = ICO_V.map((v) => new Vec3(v[0], v[1], v[2]).normalize());
-    let faces = ICO_F.map((f) => f.slice());
-    for (let d = 0; d < detail; d++) {
-        const nf: number[][] = [];
-        const cache = new Map<string, number>();
-        const mid = (a: number, b: number) => {
-            const k = a < b ? `${a}_${b}` : `${b}_${a}`;
-            let idx = cache.get(k);
-            if (idx === undefined) {
-                verts.push(new Vec3().add2(verts[a], verts[b]).normalize());
-                idx = verts.length - 1;
-                cache.set(k, idx);
-            }
-            return idx;
-        };
-        for (const f of faces) {
-            const [a, b, c] = f,
-                ab = mid(a, b),
-                bc = mid(b, c),
-                ca = mid(c, a);
-            nf.push([a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]);
-        }
-        faces = nf;
-    }
-    const disp = verts.map((v) => {
-        const k =
-            1 +
-            0.105 * Math.sin(v.x * 2.4 + sd) +
-            0.09 * Math.cos(v.y * 1.9 + sd * 1.7) +
-            0.08 * Math.sin(v.z * 2.8 + sd * 2.6);
-        return new Vec3(v.x * rx * k, Math.max(v.y * ry * k, -ry * 0.82), v.z * rz * k);
-    });
-    let n = g.p.length / 3;
-    const e1 = new Vec3(),
-        e2 = new Vec3(),
-        nr = new Vec3();
-    for (const f of faces) {
-        const pa = disp[f[0]],
-            pb = disp[f[1]],
-            pc = disp[f[2]];
-        nr.cross(e1.sub2(pb, pa), e2.sub2(pc, pa));
-        if (nr.length() < 1e-6) continue;
-        nr.normalize();
-        for (const p of [pa, pb, pc]) {
-            g.p.push(cx + p.x, cy + p.y, cz + p.z);
-            g.n.push(nr.x, nr.y, nr.z);
-            g.u.push(0, 0);
-        }
-        g.i.push(n, n + 1, n + 2);
-        n += 3;
-    }
 }
 
 /** Extrudes a star-shaped 2D polygon (listed around the origin) along Y. */
