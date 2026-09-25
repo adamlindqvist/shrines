@@ -505,10 +505,10 @@ test('completion reports surviving hearts once, without a victory state', (t) =>
 });
 
 test('final shrine wins and restart delegates to the journey', (t) => {
-    let restarts = 0;
+    const restarts = [];
     const { game, blocks, player, tick, tap } = gameFixture(t, {
-        onRestart: () => {
-            restarts++;
+        onRestart: (after) => {
+            restarts.push(after);
         }
     });
     blocks[0].entity.setPosition(-3, 0, -3);
@@ -517,7 +517,24 @@ test('final shrine wins and restart delegates to the journey', (t) => {
     tick(Math.ceil(PORTAL.rise * 60) + 2);
     assert.equal(game.state, 'won');
     tap('KeyR');
-    assert.equal(restarts, 1);
+    assert.deepEqual(restarts, ['won']);
+});
+
+test('restarting after defeat asks the journey to retry the current area', (t) => {
+    const restarts = [];
+    const { game, player, key, tick, tap } = waterFixture(t, raft(), {
+        initialHealth: 1,
+        onRestart: (after) => restarts.push(after)
+    });
+    player.entity.setPosition(7, 0, 2.1);
+    tick();
+    key('keydown', 'KeyW');
+    for (let i = 0; i < 30 && !game.diagnostics().splashing; i++) tick();
+    key('keyup', 'KeyW');
+    tick(Math.ceil(WATER.sinkTime * 60) + 1);
+    assert.equal(game.state, 'over');
+    tap('KeyR');
+    assert.deepEqual(restarts, ['over']);
 });
 
 test('a lethal strike wins over reaching the portal in the same frame', (t) => {
@@ -912,7 +929,7 @@ test('a splash on the last heart plays the fall, then ends the run; restart mid-
     assert.equal(game.state, 'playing');
 });
 
-test('a held box rides with the player; a box carried over open water returns to its start', (t) => {
+test('a held box rides with the player; a box carried straight into open water resurfaces clear of the player', (t) => {
     const { game, blocks, player, platform, key, tap, tick } = waterFixture(t);
     tap('Space');
     assert.equal(game.diagnostics().grabbed, true);
@@ -937,7 +954,7 @@ test('a held box rides with the player; a box carried over open water returns to
     tick(20);
     assert.ok(Math.abs(box().x - platform.position.x - rest) < 1e-6);
 
-    // Carrying the other box into the river sinks it back to its start.
+    // Pushed straight in, no recent footing is clear of the player, so the box returns to its start.
     game.reset();
     player.entity.setPosition(3, 0, 4.3);
     tap('Space');
@@ -945,9 +962,76 @@ test('a held box rides with the player; a box carried over open water returns to
     for (let i = 0; i < 60 && game.diagnostics().grabbed; i++) tick();
     key('keyup', 'KeyW');
     assert.equal(game.diagnostics().grabbed, false);
+    tick(Math.ceil(PUZZLE.sinkTime * 60) + 1);
     const home = blocks[1].entity.getPosition();
     assert.ok(Math.abs(home.x - 3) < 1e-6 && Math.abs(home.z - 3) < 1e-6);
     assert.equal(game.diagnostics().splashes, 0, 'the player stays on the bank');
+});
+
+test('a sunk box drops under, then resurfaces on its newest clear dry spot, off platforms, flickering', () => {
+    const { config, blocks, plates, materials } = fixture();
+    const collision = new Collision([], { minX: -9, maxX: 9, minZ: -9, maxZ: 9 }, [], river);
+    const puzzle = new BlockPuzzle(config, blocks, plates, collision, materials);
+    const box = blocks[1].entity;
+    const player = { x: -6, z: 7 };
+    const raftArea = (x, z) => x > 6.5 && z > 2;
+    const dt = 1 / 60;
+    /** Steps the water until the box resurfaces, returning the splash and resurfacing points. */
+    const sink = (at = player, unsafe = raftArea) => {
+        const result = { splashed: [], surfaced: [], depths: [] };
+        for (let i = 0; i < Math.ceil(PUZZLE.sinkTime * 60) + 2 && !result.surfaced.length; i++) {
+            const { splashed, surfaced } = puzzle.updateWater(dt, at, -0.1, unsafe);
+            result.splashed.push(...splashed);
+            result.surfaced.push(...surfaced);
+            result.depths.push(blocks[1].visual.getLocalPosition().y);
+        }
+        return result;
+    };
+    // Carried east along the bank and onto a raft, then into the river.
+    for (let x = 3; x <= 7.5; x += 0.1) {
+        box.setPosition(x, 0, 3);
+        puzzle.updateWater(dt, player, -0.1, raftArea);
+    }
+    box.setPosition(7.5, 0, 1);
+    puzzle.updateWater(dt, player, -0.1, raftArea);
+    assert.equal(puzzle.diagnostics()[1].sinking, true);
+    assert.equal(puzzle.interact({ x: 7.5, z: 2.2 }), false, 'a sinking box cannot be grabbed');
+    const sunk = sink();
+    assert.deepEqual(sunk.splashed, [{ x: 7.5, z: 1 }]);
+    assert.ok(sunk.depths.at(-2) < -2, 'drops well below the surface before resurfacing');
+    const [to] = sunk.surfaced;
+    assert.ok(to.x > 6 && to.x <= 6.5 && to.z === 3, 'newest dry spot that was not on the raft');
+    assert.equal(box.getPosition().x, to.x);
+    assert.equal(blocks[1].visual.getLocalPosition().y, 0);
+    assert.equal(puzzle.diagnostics()[1].sinking, false);
+
+    const shown = [];
+    for (let i = 0; i < Math.ceil(PUZZLE.respawnFlicker * 60) + 2; i++) {
+        puzzle.updateLift(dt);
+        shown.push(blocks[1].visual._enabled);
+    }
+    assert.ok(shown.includes(false) && shown.includes(true), 'flickers while resurfacing');
+    assert.equal(shown.at(-1), true, 'visible once the flicker ends');
+
+    // Spots under the player or beside another box are skipped.
+    box.setPosition(6, 0, 1);
+    const [blocked] = sink({ x: to.x, z: 3 }).surfaced;
+    assert.ok(blocked.x < to.x - PUZZLE.blockHalf);
+    blocks[0].entity.setPosition(blocked.x, 0, 4.5);
+    box.setPosition(3, 0, 0);
+    const [beside] = sink().surfaced;
+    assert.ok(Math.abs(blocked.x - beside.x) >= PUZZLE.blockRadius * 2 - 1e-6);
+
+    // Reset mid-sink forgets the trail and restores the rest pose.
+    box.setPosition(3, 0, 0);
+    puzzle.updateWater(dt, player);
+    puzzle.updateWater(dt * 10, player);
+    puzzle.reset();
+    assert.equal(blocks[1].visual._enabled, true);
+    assert.equal(blocks[1].visual.getLocalPosition().y, 0);
+    assert.equal(puzzle.diagnostics()[1].sinking, false);
+    box.setPosition(3, 0, 0);
+    assert.deepEqual(sink({ x: -6, z: 7 }, () => false).surfaced, [{ x: 3, z: 3 }]);
 });
 
 test('shoves refuse open water and slimes never hop or get knocked into it', () => {

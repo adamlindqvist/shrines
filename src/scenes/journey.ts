@@ -34,8 +34,10 @@ export function createJourneyScene(
                           pending = { id: journey.levels[index + 1], health: remaining };
                       }
                     : undefined,
-            onRestart: () => {
-                pending = { id: journey.restart, health: maxHealth };
+            // Defeat retries the current area with full hearts; after victory the journey starts over.
+            onRestart: (after) => {
+                pending =
+                    after === 'over' ? { id, health: level.hud.maxHealth } : { id: journey.restart, health: maxHealth };
             }
         });
     };

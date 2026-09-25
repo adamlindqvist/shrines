@@ -24,6 +24,15 @@ type BlockState = {
     lift: number;
     hoverTime: number;
     dropSpeed: number;
+    /** Recent dry, off-platform centres, oldest first; a sunk block respawns on the newest clear one. */
+    trail: Point[];
+    /** Remaining flicker time after resurfacing from the water; 0 otherwise. */
+    flicker: number;
+    /** Remaining sink time while the block goes under; it is out of play until it resurfaces. */
+    sink: number;
+    /** Visual height the sink started from. */
+    sinkFrom: number;
+    splashed: boolean;
 };
 
 export const PUZZLE = {
@@ -47,7 +56,17 @@ export const PUZZLE = {
     /** Downward acceleration gives landing a definite contact frame. */
     dropGravity: 18,
     hoverAmplitude: 0.025,
-    hoverRate: 3
+    hoverRate: 3,
+    /** A block's safe trail gains a point once it has moved this far from the newest one. */
+    trailSpacing: 0.3,
+    /** Points kept per block; with the spacing this covers a few units of recent travel. */
+    trailLength: 40,
+    /** A block over open water sinks `sinkDepth` below its rest height over `sinkTime` seconds, like the player. */
+    sinkTime: 0.7,
+    sinkDepth: 2.6,
+    /** A block resurfacing from the water flickers like the hurt player for this many seconds. */
+    respawnFlicker: 1.2,
+    flickerRate: 18
 };
 
 /** One held block and independently matched plates; rewards belong to level rules. */
@@ -74,7 +93,12 @@ export class BlockPuzzle {
             plate: -1,
             lift: 0,
             hoverTime: 0,
-            dropSpeed: 0
+            dropSpeed: 0,
+            trail: [{ x: config.blocks[i].x, z: config.blocks[i].z }],
+            flicker: 0,
+            sink: 0,
+            sinkFrom: 0,
+            splashed: false
         }));
         this.plates = plates;
         this.collision = collision;
@@ -98,7 +122,15 @@ export class BlockPuzzle {
     diagnostics() {
         return this.blocks.map((b) => {
             const p = b.handles.entity.getPosition();
-            return { symbol: b.symbol, x: p.x, y: p.y, z: p.z, locked: b.locked, grabbed: b === this.held };
+            return {
+                symbol: b.symbol,
+                x: p.x,
+                y: p.y,
+                z: p.z,
+                locked: b.locked,
+                grabbed: b === this.held,
+                sinking: b.sink > 0
+            };
         });
     }
 
@@ -111,7 +143,7 @@ export class BlockPuzzle {
         let nearest: BlockState | null = null;
         let distance = Infinity;
         for (const b of this.blocks) {
-            if (b.locked) continue;
+            if (b.locked || b.sink > 0) continue;
             const p = b.handles.entity.getPosition();
             const dx = Math.max(0, Math.abs(player.x - p.x) - PUZZLE.blockHalf);
             const dz = Math.max(0, Math.abs(player.z - p.z) - PUZZLE.blockHalf);
@@ -146,6 +178,8 @@ export class BlockPuzzle {
     updateLift(dt: number): Point[] {
         const landed: Point[] = [];
         for (const b of this.blocks) {
+            // Sinking owns the visual height until the block resurfaces.
+            if (b.sink > 0) continue;
             const wasRaised = b.lift > 0;
             let height: number;
             if (b === this.held) {
@@ -163,6 +197,8 @@ export class BlockPuzzle {
                 b.hoverTime = 0;
             }
             b.handles.visual.setLocalPosition(0, height, 0);
+            b.flicker = Math.max(0, b.flicker - dt);
+            b.handles.visual.enabled = !(b.flicker > 0 && Math.floor(b.flicker * PUZZLE.flickerRate) % 2 === 0);
             if (wasRaised && b.lift === 0) {
                 const p = b.handles.entity.getPosition();
                 landed.push({ x: p.x, z: p.z });
@@ -173,7 +209,7 @@ export class BlockPuzzle {
 
     private overlapsBlocks(x: number, z: number, half: number, except: BlockState | null = null) {
         return this.blocks.some((b) => {
-            if (b === except) return false;
+            if (b === except || b.sink > 0) return false;
             const p = b.handles.entity.getPosition();
             return Math.abs(x - p.x) < half && Math.abs(z - p.z) < half;
         });
@@ -189,6 +225,7 @@ export class BlockPuzzle {
             this.collision.canTravel(start, to) &&
             !(dry && this.collision.isWater(to.x, to.z)) &&
             this.blocks.every((block) => {
+                if (block.sink > 0) return true;
                 const p = block.handles.entity.getPosition();
                 const dx = Math.abs(to.x - p.x);
                 const dz = Math.abs(to.z - p.z);
@@ -269,7 +306,7 @@ export class BlockPuzzle {
     update(player: Point) {
         const clicked: PuzzlePiece[] = [];
         for (const b of this.blocks) {
-            if (b.locked) continue;
+            if (b.locked || b.sink > 0) continue;
             const p = b.handles.entity.getPosition();
             const i = this.config.plates.findIndex(
                 (plate, index) =>
@@ -299,7 +336,7 @@ export class BlockPuzzle {
         const indices: number[] = [];
         this.blocks.forEach((b, i) => {
             const p = b.handles.entity.getPosition();
-            if (!b.locked && b !== this.held && inside(p.x, p.z)) indices.push(i);
+            if (!b.locked && b.sink === 0 && b !== this.held && inside(p.x, p.z)) indices.push(i);
         });
         return indices;
     }
@@ -317,30 +354,91 @@ export class BlockPuzzle {
     }
 
     /**
-     * Blocks whose centre ends up over open water sink: they are released and return to their start.
-     * Returns where each one went under and where it reappeared.
+     * Records safe footing for dry blocks and sinks those whose centre ends up over open water:
+     * they are released and drop under like the player, splashing as they pass `waterLevel`.
+     * Once under, each reappears on its most recent safe spot that is clear of the player, other
+     * blocks and obstacles, or at its start if none is. `unsafe` marks moving ground such as
+     * platforms, which is never recorded. Returns where blocks splashed and where they resurfaced.
      */
-    sinkIntoWater() {
-        const sunk: { from: Point; to: Point }[] = [];
-        this.blocks.forEach((b, i) => {
-            if (b.locked) return;
+    updateWater(dt: number, player: Point, waterLevel = 0, unsafe: (x: number, z: number) => boolean = () => false) {
+        const splashed: Point[] = [];
+        const surfaced: Point[] = [];
+        for (const b of this.blocks) {
+            if (b.locked) continue;
             const p = b.handles.entity.getPosition();
-            if (!this.collision.isWater(p.x, p.z)) return;
-            sunk.push({ from: { x: p.x, z: p.z }, to: this.config.blocks[i] });
-            if (b === this.held) this.release();
-            this.returnToStart(i);
-        });
-        return sunk;
+            if (b.sink === 0) {
+                if (!this.collision.isWater(p.x, p.z)) {
+                    if (!unsafe(p.x, p.z)) this.recordSafe(b, p);
+                    continue;
+                }
+                if (b === this.held) this.release();
+                b.sink = PUZZLE.sinkTime;
+                b.sinkFrom = b.handles.visual.getLocalPosition().y;
+                b.splashed = false;
+                b.flicker = 0;
+                b.handles.visual.enabled = true;
+                b.handles.available.enabled = b.handles.selected.enabled = false;
+            }
+            b.sink = Math.max(0, b.sink - dt);
+            const t = 1 - b.sink / PUZZLE.sinkTime;
+            const y = b.sinkFrom - PUZZLE.sinkDepth * t * t;
+            b.handles.visual.setLocalPosition(0, y, 0);
+            if (!b.splashed && p.y + y <= waterLevel) {
+                b.splashed = true;
+                splashed.push({ x: p.x, z: p.z });
+            }
+            if (b.sink > 0) continue;
+            const to = this.respawnPoint(b, player, unsafe);
+            this.placeAt(b, to);
+            b.flicker = PUZZLE.respawnFlicker;
+            surfaced.push(to);
+        }
+        return { splashed, surfaced };
     }
 
-    /** Puts one block back at its authored start, resting and unhighlighted. */
+    private recordSafe(b: BlockState, p: Point) {
+        const last = b.trail[b.trail.length - 1];
+        if (last && Math.hypot(p.x - last.x, p.z - last.z) < PUZZLE.trailSpacing) return;
+        b.trail.push({ x: p.x, z: p.z });
+        if (b.trail.length > PUZZLE.trailLength) b.trail.shift();
+    }
+
+    /** Newest trail point that is still dry, steady and unobstructed; trims the trail to it. */
+    private respawnPoint(b: BlockState, player: Point, unsafe: (x: number, z: number) => boolean): Point {
+        for (let i = b.trail.length - 1; i >= 0; i--) {
+            const q = b.trail[i];
+            if (
+                this.collision.isWater(q.x, q.z) ||
+                unsafe(q.x, q.z) ||
+                this.collision.overlaps(q.x, q.z, PUZZLE.blockRadius) ||
+                this.overlapsBlocks(q.x, q.z, PUZZLE.blockRadius * 2, b) ||
+                (Math.abs(player.x - q.x) < PUZZLE.blockHalf && Math.abs(player.z - q.z) < PUZZLE.blockHalf)
+            )
+                continue;
+            b.trail.length = i + 1;
+            return { ...q };
+        }
+        const start = this.config.blocks[this.blocks.indexOf(b)];
+        b.trail = [{ x: start.x, z: start.z }];
+        return { x: start.x, z: start.z };
+    }
+
+    /** Sets one block down at (x, z), resting and unhighlighted. */
+    private placeAt(b: BlockState, to: Point) {
+        b.lift = b.hoverTime = b.dropSpeed = b.flicker = b.sink = 0;
+        b.splashed = false;
+        b.handles.visual.setLocalPosition(0, 0, 0);
+        b.handles.visual.enabled = true;
+        b.handles.available.enabled = b.handles.selected.enabled = false;
+        b.handles.entity.setPosition(to.x, this.collision.heightAt(to.x, to.z), to.z);
+    }
+
+    /** Puts one block back at its authored start, resting and unhighlighted, forgetting its trail. */
     returnToStart(index: number) {
         const b = this.blocks[index];
-        b.lift = b.hoverTime = b.dropSpeed = 0;
-        b.handles.visual.setLocalPosition(0, 0, 0);
-        b.handles.available.enabled = b.handles.selected.enabled = false;
         const start = this.config.blocks[index];
-        b.handles.entity.setPosition(start.x, this.collision.heightAt(start.x, start.z), start.z);
+        b.trail = [{ x: start.x, z: start.z }];
+        this.placeAt(b, start);
     }
 
     reset() {

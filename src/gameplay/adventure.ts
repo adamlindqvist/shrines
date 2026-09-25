@@ -61,7 +61,8 @@ export type AdventureDeps = {
     stage?: number;
     initialHealth?: number;
     onComplete?: (health: number) => void;
-    onRestart?: () => void;
+    /** Called from the end card; `over` restarts the current area, `won` the whole journey. */
+    onRestart?: (after: 'won' | 'over') => void;
 };
 
 export type AdventureDiagnostics = ReturnType<AdventureGame['diagnostics']>;
@@ -207,6 +208,7 @@ export class AdventureGame {
             player.moveTo(solved.x, solved.z);
             this.checkWater();
         }
+        this.updateBlockWater(dt);
         player.animate({
             dt,
             time: this.time,
@@ -510,13 +512,22 @@ export class AdventureGame {
         }
     }
 
-    /** Sinks blocks left over open water and splashes the player if they stepped off. */
-    private checkWater() {
+    private onPlatform(x: number, z: number) {
+        return this.platforms.some((platform) => platform.contains(x, z));
+    }
+
+    /** Sinks blocks left over open water and brings them back up on safe footing. */
+    private updateBlockWater(dt: number) {
         const { palette } = this.deps;
-        for (const { from, to } of this.puzzle.sinkIntoWater()) {
-            this.effects.splash(from.x, this.waterLevel, from.z, palette.foam, 18);
-            this.effects.sand(to.x, to.z, palette.cream);
-        }
+        const { splashed, surfaced } = this.puzzle.updateWater(dt, this.player.position, this.waterLevel, (x, z) =>
+            this.onPlatform(x, z)
+        );
+        for (const at of splashed) this.effects.splash(at.x, this.waterLevel, at.z, palette.foam, 18);
+        for (const at of surfaced) this.effects.sand(at.x, at.z, palette.cream);
+    }
+
+    /** Splashes the player if they stepped off into open water. */
+    private checkWater() {
         const p = this.player.position;
         if (this.collision.isWater(p.x, p.z)) {
             this.splash = WATER.sinkTime;
@@ -527,8 +538,7 @@ export class AdventureGame {
             this.puzzle.release();
             this.player.moveX = this.player.moveZ = 0;
             this.input.clear();
-        } else if (!this.platforms.some((platform) => platform.contains(p.x, p.z)))
-            this.lastSafe = { x: p.x, z: p.z };
+        } else if (!this.onPlatform(p.x, p.z)) this.lastSafe = { x: p.x, z: p.z };
     }
 
     /** Drops the player into the river, then respawns them, or ends the run on the last heart. */
@@ -554,7 +564,7 @@ export class AdventureGame {
     }
 
     private restart() {
-        if (this.deps.onRestart) this.deps.onRestart();
+        if (this.deps.onRestart) this.deps.onRestart(this.state === 'won' ? 'won' : 'over');
         else this.reset();
     }
 

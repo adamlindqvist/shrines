@@ -12,7 +12,7 @@ Shrines opens **Mossy Meadow**, a small clearing with a hooded adventurer, two s
 4. **Drifting Stones** — a moon plate wakes two floating stones that drift sideways out of step across a wide river between piers and a mid-river pad. The sun block must ride both to reach the shrine plate and open its portal.
 5. **Lantern Lake** (final) — the shrine stands on a lake islet and wants a moon block. A sun block on the west lantern wakes a ferry stone in the east bay; a second sun block, hidden in the north-west grove, must ride it to the east lantern. Both lanterns together raise the lake bridge, and the moon block from the far shore rides back across to the shrine plate to open the last portal.
 
-Defeating slimes is optional. Remaining hearts carry over between areas. Restarting after defeat or victory returns to the first area with three hearts.
+Defeating slimes is optional. Remaining hearts carry over between areas. Restarting after a defeat retries the current area with full hearts; restarting after victory returns to the first area with three hearts.
 
 ## Tuning baseline
 
@@ -73,7 +73,7 @@ Bridges are Z-aligned and permanently open once activated. Closed bridges rise f
 - Piers are static walk surfaces that overlap a docked platform by 0.15 units and open the shore.
 - `water` regions combine with the river's own field in `Collision.isWater`. Water keeps height 0, so the step rule allows walking off an edge, and the player then splashes.
 - A splash costs a heart even during invulnerability, blocks input and attacks while the player falls for `WATER.sinkTime`, and respawns them with the normal invulnerability at the last dry position that was not on a platform. A lethal splash ends the run after the fall.
-- Unlocked boxes over water return to their starts, slimes treat water as blocked, and damage shoves refuse it.
+- An unlocked box whose centre ends up over water is released and, like the player, drops `PUZZLE.sinkDepth` over `PUZZLE.sinkTime` with a splash as it passes the surface; it cannot be grabbed, pushed against or matched meanwhile. It then resurfaces, flickering for `PUZZLE.respawnFlicker` seconds, on the newest point of its recent trail of dry, off-platform positions that is still dry and clear of the player, other boxes and obstacles; with none, it returns to its start. Reset clears the trail and any flicker. Slimes treat water as blocked, and damage shoves refuse it.
 
 ## States, pause and reset
 
