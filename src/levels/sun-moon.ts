@@ -75,7 +75,7 @@ export const scene: SceneDefinition = {
             target: [0, 0, 10.74],
             orthoHeight: 10,
             minVisibleHalfWidth: 12,
-            clearColor: [0.78, 0.89, 0.81]
+            clearColor: [0.75, 0.89, 0.9]
         },
         follow: {
             x: 1,

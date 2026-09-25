@@ -16,7 +16,8 @@ import { SceneBuilder } from './builder';
 import { CameraRig } from './camera-rig';
 import { createNatureScene } from './nature-scene';
 import { createRiverIsland } from './river-island';
-import { createBackdrop, createIsland } from './terrain';
+import { createSky } from './sky';
+import { BACKDROP_SIZE, createBackdrop, createIsland } from './terrain';
 
 declare global {
     // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -75,19 +76,26 @@ export function createAdventureArea(
     for (const o of river?.obstacles ?? []) builder.addObstacle(o.x, o.z, o.r);
     const cast = buildDefinition(builder, scene);
     createBackdrop({ device, resources }, root, island, scene.backdrop);
+    // The sky draws from its own stream so it never shifts scenery generation.
+    const sky = createSky({ device, resources }, root, island, {
+        size: scene.backdrop.size ?? BACKDROP_SIZE,
+        seed: scene.seed * 7919 + 17,
+        islets: scene.backdrop.islets
+    });
     const built = builder.finish();
-    const layout = river
-        ? {
-              ...built,
-              water: (x: number, z: number) =>
-                  river.isWater(x, z) &&
-                  waterRegions.some((w) => x >= w.minX && x <= w.maxX && z >= w.minZ && z <= w.maxZ),
-              animate(time: number) {
-                  built.animate(time);
-                  river.animate(time);
-              }
-          }
-        : built;
+    const layout = {
+        ...built,
+        ...(river && {
+            water: (x: number, z: number) =>
+                river.isWater(x, z) &&
+                waterRegions.some((w) => x >= w.minX && x <= w.maxX && z >= w.minZ && z <= w.maxZ)
+        }),
+        animate(time: number) {
+            built.animate(time);
+            river?.animate(time);
+            sky.animate(time);
+        }
+    };
     const c = scene.camera;
     const rig = new CameraRig(app, root, {
         ...c,

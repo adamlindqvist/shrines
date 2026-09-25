@@ -135,8 +135,8 @@ export const scene: SceneDefinition = {
     },
     backdrop: {
         size: 60,
-        gradient: ['#b8e5d2', '#bee9d7', '#c6eedf'],
-        shadowColor: '#72a88f',
+        gradient: ['#b9e3e4', '#c1e8e6', '#cdeee4'],
+        shadowColor: '#79a9a8',
         shadowOffset: [-1.8, 1.6]
     },
     spawn: {
@@ -162,7 +162,7 @@ export const scene: SceneDefinition = {
             target: [0, 0, 9.040000000000001],
             orthoHeight: 10,
             minVisibleHalfWidth: 12,
-            clearColor: [0.73, 0.9, 0.83]
+            clearColor: [0.73, 0.89, 0.89]
         },
         follow: {
             x: 1,

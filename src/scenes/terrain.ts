@@ -304,7 +304,12 @@ export type BackdropOptions = {
     shadowColor?: string;
     /** World-space offset of the island's painted drop shadow. */
     shadowOffset?: [number, number];
+    /** Floating islets drifting in the sky around the island; see `createSky`. */
+    islets?: number;
 };
+
+/** Default half-size of the backdrop plane. */
+export const BACKDROP_SIZE = 34;
 
 /** Unlit plane below the island carrying a soft painted drop shadow of its outline. */
 export function createBackdrop(
@@ -312,9 +317,9 @@ export function createBackdrop(
     root: Entity,
     island: Island,
     {
-        size: S = 34,
-        gradient = ['#c7e2c9', '#c9e6cf', '#cdedd4'],
-        shadowColor = '#6e9c7c',
+        size: S = BACKDROP_SIZE,
+        gradient = ['#bfe2e6', '#c8e8e8', '#d3eee6'],
+        shadowColor = '#7fa9ad',
         shadowOffset = [-1.5, 1.35]
     }: BackdropOptions = {}
 ) {
