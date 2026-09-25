@@ -4,7 +4,7 @@ A small playable fantasy clearing built with PlayCanvas and TypeScript. The adve
 
 ## Imported nature scenery
 
-All playable areas—Mossy Meadow, Sun & Moon Grove, Two Suns Shrine, and the Solbron bridge example—use trees and rocks from the bundled `src/assets/low_poly_nature_free.glb`. Terrain, bushes, props, characters, puzzles, collision circles, and seeded generation order retain their procedural implementation. Imported trees are static because their trunk and crown share a mesh. `woodland` uses the same imported trees and rocks as a quiet composition example.
+All playable areas—Mossy Meadow, Sun & Moon Grove, Two Suns Shrine, and the Solbron bridge example—use trees and rocks from the bundled `src/assets/low_poly_nature_free.glb`. Terrain, bushes, props, characters, puzzles, collision circles, and seeded generation order retain their procedural implementation. Imported trees are static because their trunk and crown share a mesh.
 
 `src/rendering/nature-tuning.ts` records exact static vertex bounds, grounding, and uniform scale for six selected models. Instances share meshes and the pack material; each scene unloads its container after destroying its instances. A loading status handles asynchronous preparation, including switching away during a pending load. Trees and rocks always use this palette; the procedural versions and comparison levels have been removed.
 
@@ -132,7 +132,7 @@ Definitions are validated before creating scene resources. Errors identify the l
 
 ## Low-level scene composition
 
-The following builder API is for reusable factories and the independent `woodland` composition example. Playable levels use the data definitions above.
+The following builder API is used by playable levels through their data definitions above.
 
 Coordinates are on the X/Z ground plane (+Z points toward the camera) and rotations are yaws in degrees.
 
@@ -148,98 +148,12 @@ scene.addPot({ x: -8.3, z: 4.9 });
 scene.addLog({ x: -9.5, z: 6.6, rotation: -32 });
 ```
 
-### Compose a reusable group
+### Scene lifecycle
 
-A group is an ordinary function that takes a builder and a placement. See `addWoodlandGrove` in `src/scenes/groups.ts`:
+A scene factory receives the shared `AppContext` and returns `update(dt)`, `resize()` and `destroy()` hooks. It owns everything it creates: its root entity, materials and textures (via `SceneResources`), event listeners and HUD. `destroy()` removes them and leaves the application reusable.
 
-```ts
-export function addWoodlandGrove(scene: SceneBuilder, { x, z, scale = 1, rotation = 0 }: ScaledPlacement) {
-    const a = (rotation * Math.PI) / 180,
-        c = Math.cos(a),
-        s = Math.sin(a);
-    const at = (dx: number, dz: number) => ({ x: x + (dx * c + dz * s) * scale, z: z + (-dx * s + dz * c) * scale });
-
-    scene.addTree({ ...at(0, 0), scale: 1.3 * scale, rotation: rotation + 15 });
-    scene.addTree({ ...at(2.1, 1.3), scale: 1.0 * scale, rotation: rotation - 40 });
-    scene.addRock({ ...at(-1.8, 1.0), scale: 1.2 * scale, rotation });
-    scene.addBushCluster({ ...at(0.9, 2.0), count: 4, spread: 0.9, scale: 0.4 * scale, rotation });
-}
-
-addWoodlandGrove(scene, { x: 4.4, z: -2.8, scale: 0.9, rotation: 150 });
-```
-
-### Create a scene
-
-A scene factory receives the shared `AppContext` and returns `update(dt)`, `resize()` and `destroy()` hooks. It owns everything it creates: its root entity, materials and textures (via `SceneResources`), event listeners and HUD. `destroy()` removes them and leaves the application reusable. `src/scenes/woodland.ts` is a complete example:
-
-```ts
-export function createWoodlandScene(context: AppContext, nature?: NatureModels): SceneInstance {
-    if (!nature) return createNatureScene(context, (models) => createWoodlandScene(context, models));
-    const { app, device } = context;
-    const resources = new SceneResources();
-    const palette = createPalette(resources);
-    const rand = createRandom(11); // generation draws from this sequence in call order
-    const root = new Entity('Quiet Woodland');
-    app.root.addChild(root);
-
-    const island = createIsland({ device, resources, rand }, root, {
-        halfWidth: 8.6,
-        halfDepth: 6.6,
-        cornerRadius: 2.6,
-        wallHeight: 1.5
-    });
-    const scene = new SceneBuilder({ device, palette }, rand, root, nature);
-    addWoodlandGrove(scene, { x: -4.6, z: -2.6 });
-    scene.addPot({ x: -3.2, z: 3.6 });
-    createBackdrop({ device, resources }, root, island);
-    const layout = scene.finish(); // uploads the bush batches
-
-    const rig = new CameraRig(app, root, {
-        ...MEADOW_LIGHTING,
-        camera: {
-            position: [0, 22, 19.2],
-            target: [0, 0, 0.74],
-            orthoHeight: 6.2,
-            minVisibleHalfWidth: 9.5,
-            clearColor: new Color(0.78, 0.89, 0.81)
-        }
-    });
-
-    let time = 0;
-    return {
-        update(dt) {
-            time += Math.min(dt, 0.035);
-            layout.animate(time);
-        },
-        resize: () => rig.resize(),
-        destroy() {
-            rig.destroy();
-            root.destroy();
-            resources.destroy();
-        }
-    };
-}
-```
-
-Gameplay is opt-in. `src/levels/meadow.ts`, `src/levels/sun-moon.ts`, and `src/levels/two-suns.ts` configure the three adventure areas. `createAdventureArea` constructs them through the same builder, then hands them to `AdventureGame`, which owns input, combat, the puzzle, the HUD and win/loss state. The journey owns progression and queues area changes until the running update has returned; it destroys the previous area before creating the next.
+`src/levels/meadow.ts`, `src/levels/sun-moon.ts`, and `src/levels/two-suns.ts` configure the three adventure areas. `createAdventureArea` constructs them through `SceneBuilder`, then hands them to `AdventureGame`, which owns input, combat, the puzzle, the HUD and win/loss state. The journey owns progression and queues area changes until the running update has returned; it destroys the previous area before creating the next.
 
 ### Select a scene
 
-Register the factory in `src/scenes/index.ts`:
-
-```ts
-export const scenes = {
-    meadow: createJourneyScene,
-    woodland: createWoodlandScene
-} satisfies Record<string, SceneFactory>;
-```
-
-Then pick it in `src/main.ts`:
-
-```ts
-const SCENE: SceneName = 'woodland';
-```
-
-In development builds, the console also exposes `shrines.load('woodland')` and `shrines.unload()` for checking teardown.
-
-Development also supports `shrines.load('sun-moon')` or `?scene=sun-moon` to inspect the second area directly; `?scene=woodland` opens the composition example. These URL overrides are ignored in production. `window.meadow` and the hidden `#diagnostics` output describe the active adventure area, including stage, remaining hearts, each block's symbol and lock state, activated plates, and camera position.
+Registered levels are exposed automatically in `src/scenes/index.ts`. Set `SCENE` in `src/main.ts` to choose the startup level. In development, use `shrines.load('sun-moon')` or `?scene=sun-moon` to inspect another area, and `shrines.unload()` to check teardown. URL overrides are ignored in production. `window.meadow` and the hidden `#diagnostics` output describe the active adventure area, including stage, remaining hearts, each block's symbol and lock state, activated plates, and camera position.

@@ -84,7 +84,7 @@ export class SceneBuilder {
     /** Imported tree with a ring of understory bushes; `scale` 1 is about 3.6 units tall. */
     addTree({ x, z, scale: s = 1, rotation: spin = 0 }: ScaledPlacement) {
         const rand = this.rand;
-        const root = this.place('woodland tree', { x, z, rotation: spin });
+        const root = this.place('tree', { x, z, rotation: spin });
         const visual = this.nature.add(root, 'tree', s);
         for (let i = 0; i < 8; i++) {
             // The ring's phase adds the yaw's degree value directly, as the meadow layout was authored.
@@ -125,7 +125,7 @@ export class SceneBuilder {
         this.assertOpen();
         // Reserve the former rock-variation draw to preserve all later seeded placements.
         this.rand();
-        this.nature.add(this.place('woodland rock', { x, z, rotation }, y), 'rock', w);
+        this.nature.add(this.place('rock', { x, z, rotation }, y), 'rock', w);
         this.obstacles.push({ x, z, r: NATURE_COLLISION.rockRadius * w });
     }
 

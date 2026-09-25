@@ -4,7 +4,7 @@ This file applies to the whole repository. Preserve the project's identity when 
 
 ## What we are building
 
-Shrines currently opens **Mossy Meadow**, a small playable fantasy clearing: a hooded adventurer, two strawberry slimes, a grabbable turquoise block, a sun switch, and a treasure chest. Reaching the unlocked chest transports the player to **Sun & Moon Grove**, a 40 × 30 world with four slimes and two symbol-marked blocks and plates. Both matches unlock its treasure, which transports the player to **Two Suns Shrine**: a river island where two sun blocks must be carried over a stone bridge onto two sun plates beside a raised shrine. Defeating slimes is optional. Remaining hearts carry over. Restarting after defeat or victory returns to the first area with three hearts. `woodland` is a separate scene-composition example. Gameplay is optional for other scenes.
+Shrines currently opens **Mossy Meadow**, a small playable fantasy clearing: a hooded adventurer, two strawberry slimes, a grabbable turquoise block, a sun switch, and a treasure chest. Reaching the unlocked chest transports the player to **Sun & Moon Grove**, a 40 × 30 world with four slimes and two symbol-marked blocks and plates. Both matches unlock its treasure, which transports the player to **Two Suns Shrine**: a river island where two sun blocks must be carried over a stone bridge onto two sun plates beside a raised shrine. Defeating slimes is optional. Remaining hearts carry over. Restarting after defeat or victory returns to the first area with three hearts.
 
 The intended feel is warm, playful, tactile, and welcoming. Movement should respond promptly, enemies should communicate their intentions, and solving a small puzzle should feel rewarding. Keep the gentle tone of the existing toast and end-card text, including encouraging language after defeat.
 
@@ -37,7 +37,7 @@ Preserve these design priorities:
 | `src/gameplay/`                  | Input, movement, collision, combat, enemies, puzzle rules, effects, and game coordination. |
 | `src/ui/hud.ts`, `src/style.css` | State-driven DOM HUD and its presentation.                                                 |
 
-Keep factories focused on constructing visuals. Put behavior in gameplay controllers and wire dependencies explicitly. Prefer extending a builder method or a reusable group in `src/scenes/groups.ts` over copying scene construction. Register playable scene and level data in `src/levels/index.ts`; `src/scenes/index.ts` derives their factories automatically. Choose the startup level in `src/main.ts`. Keep `woodland` as a separate composition example.
+Keep factories focused on constructing visuals. Put behavior in gameplay controllers and wire dependencies explicitly. Prefer extending a builder method or creating a reusable placement helper over copying scene construction. Register playable scene and level data in `src/levels/index.ts`; `src/scenes/index.ts` derives their factories automatically. Choose the startup level in `src/main.ts`.
 
 ## Scene construction, coordinates, and ownership
 
@@ -54,7 +54,7 @@ Keep factories focused on constructing visuals. Put behavior in gameplay control
 
 ## Visual direction
 
-All playable levels use the bundled `src/assets/low_poly_nature_free.glb` for trees and rocks, with calibration in `src/rendering/nature-tuning.ts`, scene-owned container loading, static imported trees, and attribution in `public/asset-credits.txt`. Terrain, bushes, characters, puzzle objects, and other props remain procedural. `woodland` uses the same imported trees and rocks. The procedural tree/rock generators and comparison levels have been removed; every SceneBuilder requires loaded NatureModels. Imported scenery preserves authored placements, collision circles, and procedural random consumption. Extend the existing primitives, geometry helpers, and palette by default; introducing imported art is a deliberate pipeline change that must still match the scene.
+All playable levels use the bundled `src/assets/low_poly_nature_free.glb` for trees and rocks, with calibration in `src/rendering/nature-tuning.ts`, scene-owned container loading, static imported trees, and attribution in `public/asset-credits.txt`. Terrain, bushes, characters, puzzle objects, and other props remain procedural. The procedural tree/rock generators and comparison levels have been removed; every SceneBuilder requires loaded NatureModels. Imported scenery preserves authored placements, collision circles, and procedural random consumption. Extend the existing primitives, geometry helpers, and palette by default; introducing imported art is a deliberate pipeline change that must still match the scene.
 
 Use `src/rendering/palette.ts` as the shared color/material vocabulary: clover greens, warm bark and stone, turquoise, sunshine gold, warm ivory, and strawberry pink. Preserve the relative prominence of the hero, puzzle objects, and enemies. New props should be legible at the actual gameplay camera distance.
 
@@ -128,7 +128,7 @@ For gameplay or rendering changes, run `npm run dev` and verify the relevant beh
 - Complete the block/switch/chest path after layout or puzzle changes. Check damage, defeat, victory, and restart after state changes.
 - Check pause/resume, focus loss, and repeat actions for stuck input, stale poses, or accumulating effects.
 - Inspect the scene at gameplay distance and at wide/narrow viewport sizes for framing, occlusion, HUD overlap, and consistent visual style.
-- Use development hooks `shrines.load('woodland')`, `shrines.load('meadow')`, `shrines.load('sun-moon')`, `shrines.load('two-suns')`, `shrines.load('bridge-example')`, and `shrines.unload()` to verify scene cleanup when ownership changes. `window.meadow` exposes live gameplay diagnostics; the hidden `#diagnostics` output is also available.
+- Use development hooks `shrines.load('meadow')`, `shrines.load('sun-moon')`, `shrines.load('two-suns')`, `shrines.load('bridge-example')`, and `shrines.unload()` to verify scene cleanup when ownership changes. `window.meadow` exposes live gameplay diagnostics; the hidden `#diagnostics` output is also available.
 - Watch draw calls, effects, and frame rate on representative hardware. The project targets more than 60 FPS on suitable hardware; retain static batching, shared materials, restrained effects, and the `RENDER` pixel-ratio range in `src/app/create-app.ts` (1.5× supersampling on standard screens, capped at 2×) unless a measured change justifies adjustment.
 
 For visual refactors, compare the same seeded scene, camera, viewport, and gameplay state before and after. `.dream-loop/` contains ignored local reference/iteration artifacts when available; do not make development depend on files missing from a fresh checkout. Report which checks actually ran and any remaining limitations.

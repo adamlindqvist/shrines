@@ -4,7 +4,7 @@ import { SceneHost } from './app/scene-host';
 import { scenes } from './scenes';
 import type { SceneName } from './scenes';
 
-/** The scene to start. Change this to `'woodland'` to see the composition example. */
+/** The level to start. */
 const SCENE: SceneName = 'meadow';
 
 const canvas = document.getElementById('application-canvas') as HTMLCanvasElement;
@@ -16,7 +16,7 @@ host.load(scenes[initialScene]);
 context.app.start();
 
 if (import.meta.env.DEV) {
-    // Console hook for checking teardown: `shrines.load('woodland')`, `shrines.load('meadow')`.
+    // Console hook for checking teardown: `shrines.load('sun-moon')`, `shrines.load('meadow')`.
     Object.assign(window, {
         shrines: {
             load: (name: SceneName) => {
