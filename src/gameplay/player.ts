@@ -4,7 +4,7 @@ import type { AdventurerHandles } from '../objects/adventurer';
 import type { Collision } from './collision';
 
 export const PLAYER = {
-    walkSpeed: 6,
+    walkSpeed: 7.5,
     /** Exponential rate at which movement eases toward the input direction. */
     responsiveness: 14,
     /** Collision radius. */

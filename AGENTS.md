@@ -72,7 +72,7 @@ Useful tuning references (the source constants remain authoritative):
 
 | Action         | Current baseline                                                                                                |
 | -------------- | --------------------------------------------------------------------------------------------------------------- |
-| Movement       | Normalized eight-way input, 4.5 units/s, exponential smoothing rate 14.                                         |
+| Movement       | Normalized eight-way input, 7.5 units/s, exponential smoothing rate 14.                                         |
 | Sword          | 0.28 s swing, 0.30 s cooldown; active while remaining swing time is 0.21–0.07 s; one hit per enemy per swing.   |
 | Slime attack   | 0.45 s visible windup, followed by a hit or miss cooldown.                                                      |
 | Slime reaction | Squash, knockback, stagger, and a 0.45 s death animation.                                                       |
