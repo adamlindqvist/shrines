@@ -38,18 +38,18 @@ export class PlayerController {
         return this.handles.entity.getPosition();
     }
 
-    /** Eases toward the input direction and proposes the next position; the caller constrains and applies it. */
-    stride(dt: number, axis: { x: number; z: number }): Stride {
+    /**
+     * Eases toward the input direction and proposes the next position; the caller constrains and applies it.
+     * With `turn` false (holding a block) facing stays locked and movement strafes.
+     */
+    stride(dt: number, axis: { x: number; z: number }, turn = true): Stride {
         const length = Math.hypot(axis.x, axis.z);
         const desiredX = length ? axis.x / length : 0,
             desiredZ = length ? axis.z / length : 0;
         const smooth = 1 - Math.exp(-PLAYER.responsiveness * dt);
         this.moveX += (desiredX - this.moveX) * smooth;
         this.moveZ += (desiredZ - this.moveZ) * smooth;
-        if (length) {
-            this.heading = Math.atan2(desiredX, desiredZ);
-            this.handles.entity.setEulerAngles(0, (this.heading * 180) / Math.PI, 0);
-        }
+        if (length && turn) this.face(Math.atan2(desiredX, desiredZ));
         const speed = PLAYER.walkSpeed;
         const pos = this.position;
         return {
@@ -58,6 +58,12 @@ export class PlayerController {
             input: length,
             speed
         };
+    }
+
+    /** Sets gameplay heading (radians, `atan2(x, z)`) and the matching entity yaw. */
+    face(heading: number) {
+        this.heading = heading;
+        this.handles.entity.setEulerAngles(0, (heading * 180) / Math.PI, 0);
     }
 
     moveTo(x: number, z: number) {

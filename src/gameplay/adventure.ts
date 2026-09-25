@@ -165,10 +165,10 @@ export class AdventureGame {
         this.sword.tick(dt);
         this.hud.tick(dt);
 
-        // Movement: carry toward facing; swivel around the block when it is stuck.
+        // Movement: facing locks while holding a block, and the pair translates rigidly.
         const player = this.player;
-        const stride = player.stride(dt, this.input.axis());
-        const solved = this.puzzle.constrain(stride, player.position, player.heading, dt);
+        const stride = player.stride(dt, this.input.axis(), !this.puzzle.grabbed);
+        const solved = this.puzzle.constrain(stride, player.position);
         player.moveTo(solved.x, solved.z);
         player.animate(this.time, this.sword.swing, SWORD.swingTime, this.invincible);
 
@@ -337,6 +337,8 @@ export class AdventureGame {
         if (this.puzzle.interact(this.player.position)) {
             if (this.puzzle.grabbed) {
                 const block = this.puzzle.heldPosition!;
+                const p = this.player.position;
+                this.player.face(Math.atan2(block.x - p.x, block.z - p.z));
                 this.effects.sand(block.x, block.z, this.deps.palette.cream);
             }
             this.puzzle.updateIndicator(this.player.position);

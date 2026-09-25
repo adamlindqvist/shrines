@@ -131,15 +131,20 @@ test('walls constrain the held pair and snap cannot overlap another block', () =
     assert.equal(puzzle.update({ x: 0, z: 0 }).clicked.length, 0);
 });
 
-// Isolate the existing translation/swivel rules from the new timed facing alignment.
 function translate(puzzle, stride, player) {
-    return puzzle.constrain(stride, player, 0, 0);
+    return puzzle.constrain(stride, player);
 }
 
 function assertGrabDistance(puzzle, player, distance) {
     const block = puzzle.heldPosition;
     assert.ok(block, 'grip remains active');
     assert.ok(Math.abs(Math.hypot(player.x - block.x, player.z - block.z) - distance) < 0.00001);
+}
+
+function assertOffset(puzzle, player, offset) {
+    const block = puzzle.heldPosition;
+    assert.ok(Math.abs(block.x - player.x - offset.x) < 1e-6);
+    assert.ok(Math.abs(block.z - player.z - offset.z) < 1e-6);
 }
 
 test('radial input pushes and pulls at the held speed without changing distance', () => {
@@ -154,88 +159,91 @@ test('radial input pushes and pulls at the held speed without changing distance'
     assertGrabDistance(puzzle, player, 1.3);
 });
 
-for (const direction of [-1, 1]) {
-    test(`blocked push still allows orbit in direction ${direction}, then pulling away`, () => {
-        const { puzzle, blocks, collision } = fixture();
-        const block = blocks[0].entity;
-        block.setPosition(0, 0, 0);
-        collision.obstacles.push({ x: 0, z: -1.76, r: 1 });
-        let player = { x: 0, z: 1.3 };
+for (const angle of [0, Math.PI / 2, Math.PI, -Math.PI / 2, Math.PI / 4, (-Math.PI * 3) / 4]) {
+    test(`held pair translates rigidly in direction ${angle}, including strafing`, () => {
+        const { puzzle, blocks } = fixture();
+        // The block sits to the player's right (+X); every direction keeps that offset.
+        blocks[0].entity.setPosition(1.3, 0, 0);
+        blocks[1].entity.setPosition(7, 0, 7);
+        let player = { x: 0, z: 0 };
         puzzle.interact(player);
-        // A long direct push must not tunnel through the rock.
-        player = translate(puzzle, { x: 0, z: -6 }, player);
-        assert.ok(Math.abs(player.z - 1.3) < 0.00001);
-        assert.ok(Math.abs(block.getPosition().z) < 0.00001);
-        // Add inward pressure to every tangent step: the blocked component cannot kill orbiting.
-        for (let i = 0; i < 40; i++) {
-            const p = block.getPosition();
-            const nx = (player.x - p.x) / 1.3;
-            const nz = (player.z - p.z) / 1.3;
+        for (let i = 0; i < 30; i++) {
             player = translate(
                 puzzle,
-                { x: player.x + direction * nz * 0.04 - nx * 0.02, z: player.z - direction * nx * 0.04 - nz * 0.02 },
+                { x: player.x + Math.sin(angle) * 0.04, z: player.z + Math.cos(angle) * 0.04 },
                 player
             );
-            assertGrabDistance(puzzle, player, 1.3);
-            assert.equal(collision.overlaps(player.x, player.z, 0.33), false);
-            assert.equal(collision.overlaps(p.x, p.z, PUZZLE.blockRadius), false);
+            assertOffset(puzzle, player, { x: 1.3, z: 0 });
         }
-        assert.ok(direction * (player.x - block.getPosition().x) > 0.8);
-        const before = block.getPosition().clone();
-        const nx = (player.x - before.x) / 1.3;
-        const nz = (player.z - before.z) / 1.3;
-        player = translate(puzzle, { x: player.x + nx * 0.3, z: player.z + nz * 0.3 }, player);
-        assert.ok(Math.hypot(block.getPosition().x - before.x, block.getPosition().z - before.z) > 0.2);
-        assertGrabDistance(puzzle, player, 1.3);
-        const moved = block.getPosition().clone();
-        const offset = { x: player.x - moved.x, z: player.z - moved.z };
-        player = translate(puzzle, { x: player.x + direction * 0.1, z: player.z + 0.1 }, player);
-        assert.ok(Math.abs(player.x - block.getPosition().x - offset.x) < 0.00001);
-        assert.ok(Math.abs(player.z - block.getPosition().z - offset.z) < 0.00001);
+        const travelled = 30 * 0.04 * PUZZLE.moveRatio;
+        assert.ok(Math.abs(player.x - Math.sin(angle) * travelled) < 1e-6);
+        assert.ok(Math.abs(player.z - Math.cos(angle) * travelled) < 1e-6);
     });
 }
 
-/** Pin only the block with its bounds; the player remains free to circle it. */
-function pinnedFixture() {
-    const f = fixture();
-    f.blocks[0].entity.setPosition(0, 0, 0);
-    Object.assign(f.config.blockBounds, { minX: 0, maxX: 0, minZ: 0, maxZ: 0 });
-    return f;
-}
+test('a stationary grab leaves the block where it is', () => {
+    const { puzzle, blocks } = fixture();
+    blocks[0].entity.setPosition(1.3, 0, 0);
+    const player = { x: 0, z: 0 };
+    puzzle.interact(player);
+    for (let i = 0; i < 10; i++) assert.deepEqual(translate(puzzle, player, player), player);
+    assertOffset(puzzle, player, { x: 1.3, z: 0 });
+});
 
-test('a full orbit around a stuck block does not catch on the held square corners', () => {
-    const { puzzle, blocks } = pinnedFixture();
+test('a blocked push stops the pair without orbiting, and pulling away still works', () => {
+    const { puzzle, blocks, collision } = fixture();
+    const block = blocks[0].entity;
+    block.setPosition(0, 0, 0);
+    collision.obstacles.push({ x: 0, z: -1.76, r: 1 });
     let player = { x: 0, z: 1.3 };
     puzzle.interact(player);
-    for (let i = 0; i < 240; i++) {
-        player = translate(puzzle, { x: player.x + player.z * 0.03, z: player.z - player.x * 0.03 }, player);
-        assertGrabDistance(puzzle, player, 1.3);
+    // A long direct push must not tunnel through the rock.
+    player = translate(puzzle, { x: 0, z: -6 }, player);
+    assert.ok(Math.abs(player.z - 1.3) < 0.00001);
+    assert.ok(Math.abs(block.getPosition().z) < 0.00001);
+    // Sideways pressure strafes the pair along the rock instead of circling the block.
+    for (let i = 0; i < 20; i++) {
+        player = translate(puzzle, { x: player.x + 0.04, z: player.z - 0.02 }, player);
+        assertOffset(puzzle, player, { x: 0, z: -1.3 });
+        assert.equal(collision.overlaps(block.getPosition().x, block.getPosition().z, PUZZLE.blockRadius), false);
     }
-    assert.ok(player.z > 1.2);
+    assert.ok(player.x > 0.5);
+    const before = block.getPosition().z;
+    player = translate(puzzle, { x: player.x, z: player.z + 0.3 }, player);
+    assert.ok(block.getPosition().z - before > 0.2);
+    assertOffset(puzzle, player, { x: 0, z: -1.3 });
+});
+
+test('a diagonal push into a wall slides along it', () => {
+    const { puzzle, blocks, config } = fixture();
+    blocks[0].entity.setPosition(0, 0, 0);
+    config.blockBounds.minZ = 0;
+    let player = { x: 0, z: 1.3 };
+    puzzle.interact(player);
+    for (let i = 0; i < 20; i++) player = translate(puzzle, { x: player.x + 0.05, z: player.z - 0.05 }, player);
+    assert.ok(Math.abs(blocks[0].entity.getPosition().z) < 1e-6);
+    assert.ok(blocks[0].entity.getPosition().x > 0.8);
+    assertOffset(puzzle, player, { x: 0, z: -1.3 });
+});
+
+test('a pinned block stops the pair in every direction', () => {
+    const { puzzle, blocks, config } = fixture();
+    blocks[0].entity.setPosition(0, 0, 0);
+    Object.assign(config.blockBounds, { minX: 0, maxX: 0, minZ: 0, maxZ: 0 });
+    const start = { x: 0, z: 1.3 };
+    puzzle.interact(start);
+    for (const [x, z] of [
+        [0.1, 0],
+        [-0.1, 0],
+        [0, 0.1],
+        [0, -0.1]
+    ]) {
+        assert.deepEqual(translate(puzzle, { x: start.x + x, z: start.z + z }, start), start);
+    }
     assert.equal(blocks[0].entity.getPosition().length(), 0);
 });
 
-test('a stuck-block orbit stops at the player collider, other blocks and walk bounds', () => {
-    for (const obstacle of ['rock', 'block', 'bounds']) {
-        const { puzzle, blocks, collision } = pinnedFixture();
-        if (obstacle === 'rock') collision.obstacles.push({ x: 1.3, z: 0, r: 0.2 });
-        else if (obstacle === 'block') blocks[1].entity.setPosition(2, 0, 0);
-        else collision.bounds.maxX = 0.6;
-        let player = { x: 0, z: 1.3 };
-        puzzle.interact(player);
-        for (let i = 0; i < 100; i++) {
-            player = translate(puzzle, { x: player.x + player.z * 0.03, z: player.z - player.x * 0.03 }, player);
-            assertGrabDistance(puzzle, player, 1.3);
-            assert.equal(collision.overlaps(player.x, player.z, 0.33), false);
-            if (obstacle === 'block') assert.ok(player.x <= 0.9 || player.z >= 1.1);
-            if (obstacle === 'bounds') assert.ok(player.x <= 0.6);
-        }
-        assert.ok(player.z > 0.4);
-        if (obstacle === 'bounds') assert.ok(player.x > 0.59);
-    }
-});
-
-test('a player-only collision stops translation without swiveling', () => {
+test('a player-only collision stops the pair', () => {
     const { puzzle, blocks, collision } = fixture();
     blocks[0].entity.setPosition(0, 0, 0);
     collision.obstacles.push({ x: 0.8, z: 1.3, r: 0.2 });
@@ -561,107 +569,41 @@ test('an elevated chest requires standing on its floor after unlocking', () => {
     assert.equal(chest.lid.getLocalEulerAngles().x, 0);
 });
 
-for (const heading of [0, Math.PI / 2, Math.PI, -Math.PI / 2, Math.PI / 4, (-Math.PI * 3) / 4]) {
-    test(`carried box follows facing ${heading} during movement and keeps pickup distance`, () => {
-        const { puzzle, blocks } = fixture();
-        blocks[0].entity.setPosition(1.3, 0, 0);
-        blocks[1].entity.setPosition(7, 0, 7);
-        let player = { x: 0, z: 0 };
-        puzzle.interact(player);
-        for (let i = 0; i < 30; i++) {
-            player = puzzle.constrain(
-                { x: player.x + Math.sin(heading) * 0.04, z: player.z + Math.cos(heading) * 0.04 },
-                player,
-                heading,
-                1 / 60
-            );
-            assertGrabDistance(puzzle, player, 1.3);
-        }
-        assert.ok(Math.abs(puzzle.heldPosition.x - player.x - Math.sin(heading) * 1.3) < 1e-6);
-        assert.ok(Math.abs(puzzle.heldPosition.z - player.z - Math.cos(heading) * 1.3) < 1e-6);
-    });
-}
+// The adventurer faces +Z at zero yaw, opposite the Engine forward vector.
+const yawOf = (player) => Math.atan2(-player.entity.forward.x, -player.entity.forward.z);
 
-test('stationary off-center pickup aligns in 0.15 seconds independently of timestep', () => {
-    for (const frames of [5, 9, 18]) {
-        const { puzzle, blocks } = fixture();
-        blocks[0].entity.setPosition(1.3, 0, 0);
-        const player = { x: 0, z: 0 };
-        puzzle.interact(player);
-        for (let i = 0; i < frames; i++) {
-            assert.deepEqual(puzzle.constrain(player, player, 0, 0.15 / frames), player);
-            assertGrabDistance(puzzle, player, 1.3);
-        }
-        assert.ok(Math.abs(puzzle.heldPosition.x) < 1e-6);
-        assert.ok(Math.abs(puzzle.heldPosition.z - 1.3) < 1e-6);
-    }
-});
-
-test('reversals sweep clockwise without crossing the player; seam turns use the short arc', () => {
-    const { puzzle, blocks } = fixture();
-    blocks[0].entity.setPosition(0, 0, 1.3);
-    const player = { x: 0, z: 0 };
-    puzzle.interact(player);
-    puzzle.constrain(player, player, Math.PI, 0.025);
-    assert.ok(puzzle.heldPosition.x < 0);
-    assert.ok(
-        Math.abs(Math.atan2(puzzle.heldPosition.x, puzzle.heldPosition.z) + PUZZLE.carryTurnSpeed * 0.025) < 1e-6
-    );
-    for (let i = 0; i < 11; i++) {
-        puzzle.constrain(player, player, Math.PI, 0.025);
-        assertGrabDistance(puzzle, player, 1.3);
-    }
-    puzzle.constrain(player, player, -Math.PI + 0.1, 0.025);
-    assert.ok(Math.abs(puzzle.heldPosition.x - Math.sin(-Math.PI + 0.1) * 1.3) < 1e-6);
-});
-
-for (const obstruction of ['rock', 'block', 'bounds', 'cliff']) {
-    test(`facing sweep stops at ${obstruction} and catches up when cleared`, () => {
-        const { puzzle, blocks, collision, config } = fixture();
-        blocks[0].entity.setPosition(0, 0, 1.3);
-        blocks[1].entity.setPosition(7, 0, 7);
-        const player = { x: 0, z: 0 };
-        if (obstruction === 'rock') collision.obstacles.push({ x: 1.3, z: 0, r: 0.1 });
-        if (obstruction === 'block') blocks[1].entity.setPosition(2, 0, 0);
-        if (obstruction === 'bounds') config.blockBounds.maxX = 0.7;
-        if (obstruction === 'cliff') collision.surfaces.push({ minX: 0.7, maxX: 3, minZ: -3, maxZ: 3, height: 1 });
-        puzzle.interact(player);
-        for (let i = 0; i < 60; i++) {
-            puzzle.constrain(player, player, Math.PI / 2, 1 / 60);
-            const b = puzzle.heldPosition;
-            assertGrabDistance(puzzle, player, 1.3);
-            assert.equal(collision.overlaps(b.x, b.z, PUZZLE.blockRadius), false);
-            if (obstruction === 'block') assert.ok(b.x <= 2 - PUZZLE.blockRadius * 2 + 1e-6);
-            if (obstruction === 'bounds' || obstruction === 'cliff') assert.ok(b.x <= 0.7);
-            assert.equal(b.y, 0);
-        }
-        assert.ok(puzzle.heldPosition.z > 0.1);
-        collision.obstacles.length = 0;
-        collision.surfaces.length = 0;
-        config.blockBounds.maxX = 8;
-        blocks[1].entity.setPosition(7, 0, 7);
-        for (let i = 0; i < 20; i++) puzzle.constrain(player, player, Math.PI / 2, 1 / 60);
-        assert.ok(Math.abs(puzzle.heldPosition.x - 1.3) < 1e-6);
-        assert.ok(Math.abs(puzzle.heldPosition.z) < 1e-6);
-    });
-}
-
-test('keyboard turning drives held alignment and pause freezes an unfinished sweep', (t) => {
-    const { key, tap, tick, blocks, player } = gameFixture(t);
+test('grabbing faces the block, held movement strafes, and release restores turning', (t) => {
+    const { tap, key, tick, blocks, player } = gameFixture(t);
+    // Spawn is south of block 1 (+Z); start by facing east, away from it.
+    key('keydown', 'KeyD');
+    tick();
+    key('keyup', 'KeyD');
+    tick(30);
+    assert.ok(Math.abs(yawOf(player) - Math.PI / 2) < 1e-3);
+    tap('Space');
+    const offset = () => {
+        const p = player.entity.getPosition();
+        const b = blocks[0].entity.getPosition();
+        return { x: b.x - p.x, z: b.z - p.z };
+    };
+    const held = offset();
+    const facing = Math.atan2(held.x, held.z);
+    const yaw = () => yawOf(player);
+    const yawDiff = () => Math.abs(Math.atan2(Math.sin(yaw() - facing), Math.cos(yaw() - facing)));
+    assert.ok(yawDiff() < 1e-3);
+    // Strafing left keeps facing and offset.
+    const startX = player.entity.getPosition().x;
+    key('keydown', 'KeyA');
+    tick(20);
+    key('keyup', 'KeyA');
+    assert.ok(player.entity.getPosition().x < startX - 0.5);
+    assert.ok(yawDiff() < 1e-3);
+    assert.ok(Math.abs(offset().x - held.x) < 1e-6 && Math.abs(offset().z - held.z) < 1e-6);
     tap('Space');
     key('keydown', 'KeyD');
-    tick(2);
+    tick();
     key('keyup', 'KeyD');
-    tap('Escape');
-    const before = blocks[0].entity.getPosition().clone();
-    tick(30);
-    assert.deepEqual(blocks[0].entity.getPosition(), before);
-    tap('Escape');
-    tick(30);
-    const p = player.entity.getPosition();
-    const b = blocks[0].entity.getPosition();
-    assert.ok(Math.abs(b.z - p.z) < 1e-6);
-    assert.ok(Math.abs(b.x - p.x - 1.3) < 1e-6);
+    assert.ok(Math.abs(yawOf(player) - Math.PI / 2) < 1e-3);
 });
 
 test('rules wait for the next snapshot, pause freezes bridge progress, reset clears everything', (t) => {
