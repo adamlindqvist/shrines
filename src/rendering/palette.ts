@@ -53,7 +53,8 @@ export function createPalette(resources: SceneResources) {
         cheek: mat('warm rosy cheeks', '#e9a18b', 8),
         skin: mat('peach face', '#f6c084'),
         boot: mat('chocolate boots', '#6b472a'),
-        silver: mat('sword silver', '#d5e3e6', 62, 0.25)
+        silver: mat('sword silver', '#d5e3e6', 62, 0.25),
+        foam: mat('river foam', '#c9f1fb', 60, 0.2)
     };
 }
 

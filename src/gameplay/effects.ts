@@ -60,6 +60,29 @@ export class Effects {
         }
     }
 
+    /** Droplets thrown up and outward from a water surface at height `y`. */
+    splash(x: number, y: number, z: number, material: Material, count = 16) {
+        const rand = this.rand;
+        for (let i = 0; i < count; i++) {
+            const angle = ((i + rand() * 0.6) * Math.PI * 2) / count;
+            const speed = 0.8 + rand() * 1.2;
+            const size = 0.08 + rand() * 0.07;
+            const e = sphere(this.parent, 'water droplet', material, x, y + 0.05, z, size);
+            e.render!.castShadows = false;
+            const life = 0.4 + rand() * 0.25;
+            this.particles.push({
+                entity: e,
+                vx: Math.cos(angle) * speed,
+                vy: 2.2 + rand() * 1.6,
+                vz: Math.sin(angle) * speed,
+                life,
+                max: life,
+                scale: e.getLocalScale().clone(),
+                gravity: true
+            });
+        }
+    }
+
     /** A small ring of sandy grains kicked outward from a square footprint of half-width `radius`. */
     sand(x: number, z: number, material: Material, radius = 0.77) {
         for (let i = 0; i < 14; i++) {

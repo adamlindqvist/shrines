@@ -345,7 +345,7 @@ function gameFixture(t, overrides = {}) {
         },
         body: { appendChild: noop }
     };
-    for (const name of ['burst', 'sand', 'arc']) t.mock.method(Effects.prototype, name, noop);
+    for (const name of ['burst', 'sand', 'arc', 'splash']) t.mock.method(Effects.prototype, name, noop);
     stubSmokeRenderer(t, MovementTrail);
     t.mock.method(console, 'info', noop);
     const { config, blocks, plates, portal } = fixture();
@@ -760,4 +760,208 @@ test('pause freezes the attack pose and clock; resume completes it and restart r
         assert.ok(rest.entity.getLocalPosition().distance(rest.position) < 1e-5);
         assert.ok(Math.abs(rest.entity.getLocalRotation().dot(rest.rotation)) > 0.99999);
     }
+});
+
+const { PlatformController, PLATFORM } = await import('../src/gameplay/platforms.ts');
+const { WATER } = await import('../src/gameplay/adventure.ts');
+const { SlimePack } = await import('../src/gameplay/slimes.ts');
+
+/** A river strip |z| < 2 across the fixture meadow; the bank starts at z = 2. */
+const river = (x, z) => Math.abs(z) < 2;
+const raft = (overrides = {}) => ({
+    type: 'platform',
+    id: 'raft',
+    x: -3,
+    z: 0,
+    width: 3.6,
+    depth: 4,
+    travel: { x: 6, z: 0 },
+    duration: 1,
+    dwell: 3,
+    phase: 0,
+    state: 'active',
+    ...overrides
+});
+const platformHandles = () => ({
+    entity: new Entity(),
+    visual: new Entity(),
+    surface: { minX: 0, maxX: 0, minZ: 0, maxZ: 0, height: 0 }
+});
+
+/** Game fixture with the river strip and one floating stone added to the meadow fixture. */
+function waterFixture(t, definition = raft(), overrides = {}) {
+    const handles = platformHandles();
+    const base = gameFixture(t, {
+        layout: { obstacles: [], surfaces: [handles.surface], water: river, animate: () => undefined },
+        ...overrides
+    });
+    base.game.platforms.push(new PlatformController(definition, handles));
+    return { ...base, handles, platform: base.game.platforms[0] };
+}
+
+test('disabled surfaces are ignored and open water is only where no enabled surface covers it', () => {
+    const surface = { minX: -1, maxX: 1, minZ: -1, maxZ: 1, height: 0.1, enabled: false };
+    const collision = new Collision([], { minX: -9, maxX: 9, minZ: -9, maxZ: 9 }, [surface], river);
+    assert.equal(collision.heightAt(0, 0), 0);
+    assert.equal(collision.isWater(0, 0), true);
+    assert.equal(collision.isWater(0, 3), false);
+    surface.enabled = true;
+    assert.equal(collision.heightAt(0, 0), 0.1);
+    assert.equal(collision.isWater(0, 0), false);
+    assert.equal(collision.isWater(1.5, 0), true);
+    // Water keeps meadow height, so stepping off an edge is allowed and then splashes.
+    surface.height = 0;
+    assert.equal(collision.canTravel({ x: 0, z: 0 }, { x: 1.5, z: 0 }), true);
+});
+
+test('platforms rise before carrying, dwell at both ends, glide smoothly and reset with their phase', () => {
+    const definition = raft({ state: 'dormant', dwell: 0.5, phase: 0.25 });
+    const handles = platformHandles();
+    const platform = new PlatformController(definition, handles);
+    assert.equal(handles.surface.enabled, false);
+    assert.equal(handles.visual.getLocalPosition().y, -PLATFORM.depth);
+    assert.equal(platform.contains(-3, 0), false);
+    assert.deepEqual(platform.update(1), { dx: 0, dz: 0 });
+    platform.activate();
+    platform.update(PLATFORM.riseTime / 2);
+    assert.equal(platform.state, 'rising');
+    assert.equal(handles.surface.enabled, false);
+    platform.update(PLATFORM.riseTime / 2);
+    assert.equal(platform.state, 'active');
+    assert.equal(handles.surface.enabled, true);
+    assert.equal(handles.visual.getLocalPosition().y, 0);
+    assert.equal(platform.contains(-3, 0), true);
+    // Phase 0.25 of a 0.5 s dwell: still resting at the start end.
+    assert.deepEqual(platform.update(0.2), { dx: 0, dz: 0 });
+    const half = platform.update(0.05 + 0.5);
+    assert.ok(Math.abs(platform.position.x - 0) < 1e-9, 'halfway along a smoothstep glide');
+    assert.ok(half.dx > 0);
+    platform.update(0.5);
+    assert.ok(Math.abs(platform.position.x - 3) < 1e-9);
+    assert.deepEqual(platform.update(0.4), { dx: 0, dz: 0 });
+    platform.update(0.1 + 1);
+    assert.ok(Math.abs(platform.position.x + 3) < 1e-9, 'glides back to the start end');
+    assert.equal(handles.entity.getPosition().x, platform.position.x);
+    platform.reset();
+    assert.equal(platform.state, 'dormant');
+    assert.equal(handles.surface.enabled, false);
+    assert.equal(handles.visual.getLocalPosition().y, -PLATFORM.depth);
+});
+
+test('riders are carried; pause freezes the stone; open water splashes, costs a heart and respawns', (t) => {
+    const { game, player, platform, key, tap, tick } = waterFixture(t, raft({ dwell: 0.2 }));
+    player.entity.setPosition(-3, 0, 1);
+    tick(Math.round(0.7 * 60));
+    const moved = platform.position.x + 3;
+    assert.ok(moved > 1 && moved < 6);
+    assert.ok(Math.abs(player.entity.getPosition().x - (-3 + moved)) < 1e-6);
+    assert.equal(game.diagnostics().splashes, 0);
+    tap('Escape');
+    tick(30);
+    assert.equal(platform.position.x + 3, moved);
+    tap('Escape');
+
+    // Walk from the bank into the river, well clear of the stone.
+    player.entity.setPosition(7, 0, 3);
+    tick();
+    const health = game.health;
+    key('keydown', 'KeyW');
+    for (let i = 0; i < 60 && !game.diagnostics().splashing; i++) tick();
+    key('keyup', 'KeyW');
+    assert.equal(game.diagnostics().splashing, true);
+    assert.equal(game.health, health - 1);
+    assert.equal(game.diagnostics().splashes, 1);
+    tick(10);
+    assert.ok(player.entity.getPosition().y < 0, 'falls toward the water');
+    tap('Space');
+    assert.equal(game.diagnostics().grabbed, false, 'no actions while under');
+    tick(Math.ceil(WATER.sinkTime * 60));
+    const p = player.entity.getPosition();
+    assert.equal(game.diagnostics().splashing, false);
+    assert.equal(game.state, 'playing');
+    assert.equal(p.y, 0);
+    assert.ok(Math.abs(p.x - 7) < 1e-6 && p.z >= 2 && p.z < 2.4, 'respawns on the last dry footing');
+});
+
+test('a splash on the last heart plays the fall, then ends the run; restart mid-splash is clean', (t) => {
+    const { game, player, key, tick } = waterFixture(t, raft(), { initialHealth: 1 });
+    player.entity.setPosition(7, 0, 2.1);
+    tick();
+    key('keydown', 'KeyW');
+    for (let i = 0; i < 30 && !game.diagnostics().splashing; i++) tick();
+    key('keyup', 'KeyW');
+    assert.equal(game.health, 0);
+    assert.equal(game.state, 'playing');
+    tick(Math.ceil(WATER.sinkTime * 60) + 1);
+    assert.equal(game.state, 'over');
+
+    game.reset();
+    player.entity.setPosition(7, 0, 2.1);
+    tick();
+    key('keydown', 'KeyW');
+    for (let i = 0; i < 30 && !game.diagnostics().splashing; i++) tick();
+    key('keyup', 'KeyW');
+    tick(5);
+    game.reset();
+    const p = player.entity.getPosition();
+    assert.equal(game.diagnostics().splashing, false);
+    const atSpawn = (q) => Math.abs(q.x + 3) < 1e-6 && q.y === 0 && Math.abs(q.z - 4.3) < 1e-6;
+    assert.ok(atSpawn(p));
+    tick(Math.ceil(WATER.sinkTime * 60) + 1);
+    assert.ok(atSpawn(player.entity.getPosition()), 'no stale respawn after restart');
+    assert.equal(game.state, 'playing');
+});
+
+test('a held box rides with the player; a box carried over open water returns to its start', (t) => {
+    const { game, blocks, player, platform, key, tap, tick } = waterFixture(t);
+    tap('Space');
+    assert.equal(game.diagnostics().grabbed, true);
+    key('keydown', 'KeyW');
+    for (let i = 0; i < 120 && player.entity.getPosition().z > 1.2; i++) tick();
+    key('keyup', 'KeyW');
+    tick(10);
+    const box = () => blocks[0].entity.getPosition();
+    assert.equal(game.diagnostics().splashes, 0);
+    assert.ok(box().z < 0 && platform.contains(box().x, box().z));
+    const offset = { x: box().x - player.entity.getPosition().x, z: box().z - player.entity.getPosition().z };
+    const startX = platform.position.x;
+    tick(Math.round(3.3 * 60));
+    assert.ok(platform.position.x > startX + 1);
+    assert.ok(Math.abs(box().x - player.entity.getPosition().x - offset.x) < 1e-6);
+    assert.ok(Math.abs(box().z - player.entity.getPosition().z - offset.z) < 1e-6);
+    assert.equal(game.diagnostics().grabbed, true);
+
+    // Released on the stone, the box keeps riding it.
+    tap('Space');
+    const rest = box().x - platform.position.x;
+    tick(20);
+    assert.ok(Math.abs(box().x - platform.position.x - rest) < 1e-6);
+
+    // Carrying the other box into the river sinks it back to its start.
+    game.reset();
+    player.entity.setPosition(3, 0, 4.3);
+    tap('Space');
+    key('keydown', 'KeyW');
+    for (let i = 0; i < 60 && game.diagnostics().grabbed; i++) tick();
+    key('keyup', 'KeyW');
+    assert.equal(game.diagnostics().grabbed, false);
+    const home = blocks[1].entity.getPosition();
+    assert.ok(Math.abs(home.x - 3) < 1e-6 && Math.abs(home.z - 3) < 1e-6);
+    assert.equal(game.diagnostics().splashes, 0, 'the player stays on the bank');
+});
+
+test('shoves refuse open water and slimes never hop or get knocked into it', () => {
+    const { config, blocks, plates, materials } = fixture();
+    const collision = new Collision([], { minX: -9, maxX: 9, minZ: -9, maxZ: 9 }, [], river);
+    const puzzle = new BlockPuzzle(config, blocks, plates, collision, materials);
+    assert.deepEqual(puzzle.resolvePlayer({ x: 6, z: 1.8 }, { x: 6, z: 2.3 }, true), { x: 6, z: 2.3 });
+    assert.equal(puzzle.resolvePlayer({ x: 6, z: 1.8 }, { x: 6, z: 2.3 }).z, 1.8);
+    const slime = { entity: new Entity(), body: new Entity() };
+    slime.entity.setPosition(6, 0, 2.3);
+    const pack = new SlimePack([slime], collision);
+    const target = { entity: new Entity(), canBeHit: () => false, hit: () => undefined };
+    target.entity.setPosition(6, 0, -5);
+    pack.slimes[0].vz = -12;
+    for (let i = 0; i < 30; i++) pack.update(1 / 60, i / 60, target);
+    assert.ok(pack.slimes[0].z >= 2);
 });

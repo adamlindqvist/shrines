@@ -21,6 +21,26 @@ export type PortalDefinition = Placement & { type: 'portal'; id: string; y?: num
 export type EnemyDefinition = Point & { type: 'slime'; id: string };
 export type BridgeDefinition = Point & { type: 'bridge'; id: string; length: number; state: 'closed' | 'open' };
 export type ZoneDefinition = Bounds & { type: 'zone'; id: string; minY: number; maxY: number };
+/**
+ * A floating stone `width` (X) by `depth` (Z) that drifts between its (x, z) and (x, z) + `travel`.
+ * Each one-way trip takes `duration` seconds, it rests `dwell` seconds at each end, and its clock
+ * starts `phase` seconds into that cycle. Dormant platforms rest sunk until activated.
+ */
+export type PlatformDefinition = Point & {
+    type: 'platform';
+    id: string;
+    width: number;
+    depth: number;
+    travel: Point;
+    duration: number;
+    dwell: number;
+    phase: number;
+    state: 'dormant' | 'active';
+};
+/** Static wooden walk surface over water; its footprint also opens the river shore. */
+export type PierDefinition = Point & { type: 'pier'; width: number; depth: number };
+/** Region where the river's open water splashes walkers who are not on a pier or platform. */
+export type WaterDefinition = Bounds & { type: 'water' };
 export type SceneObject =
     | (ScaledPlacement & { type: 'tree' | 'bush' | 'log' | 'pot' })
     | (RockOptions & { type: 'rock' })
@@ -31,7 +51,10 @@ export type SceneObject =
     | PortalDefinition
     | EnemyDefinition
     | BridgeDefinition
-    | ZoneDefinition;
+    | ZoneDefinition
+    | PlatformDefinition
+    | PierDefinition
+    | WaterDefinition;
 
 /** Serializable authoring data; array order is also procedural generation order. */
 export type SceneDefinition = {
@@ -50,7 +73,7 @@ export type SceneDefinition = {
 export type Condition =
     | { type: 'plateActive' | 'enemyDefeated' | 'portalReached' | 'zoneVisited'; target: string }
     | { type: 'all' | 'any'; conditions: Condition[] };
-export type Action = { type: 'openBridge' | 'openPortal'; target: string };
+export type Action = { type: 'openBridge' | 'openPortal' | 'activatePlatform'; target: string };
 export type RuleDefinition = { id: string; when: Condition; actions: Action[]; message?: string };
 export type LevelText = {
     matched: string;

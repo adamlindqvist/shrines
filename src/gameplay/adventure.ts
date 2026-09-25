@@ -19,14 +19,22 @@ import { Input } from './input';
 import { BridgeController, PortalController, ZoneTracker } from './level-objects';
 import type { BridgeHandles } from './level-objects';
 import { MovementTrail } from './movement-trail';
+import { PlatformController } from './platforms';
+import type { PlatformHandles } from './platforms';
 import { PlayerController } from './player';
 import { BlockPuzzle } from './puzzle';
-import type { PuzzleConfig } from './puzzle';
+import type { Point, PuzzleConfig } from './puzzle';
 import { LevelRules } from './rules';
 import { SLIME, SlimePack } from './slimes';
 import type { Slime, SlimeTarget } from './slimes';
 
 export type GameState = 'playing' | 'paused' | 'won' | 'over' | 'complete';
+
+/**
+ * Stepping into open water: the player drops `fallDepth` below the deck over `sinkTime`
+ * gameplay seconds, loses a heart and respawns on the last safe footing.
+ */
+export const WATER = { sinkTime: 0.7, fallDepth: 2.6, invulnerable: 1.2 };
 
 /** Entities the adventure animates, as returned by the scene builder. */
 export type AdventureCast = {
@@ -36,6 +44,7 @@ export type AdventureCast = {
     plates: SunSwitchHandles[];
     portals: PortalHandles[];
     bridges: BridgeHandles[];
+    platforms: PlatformHandles[];
 };
 
 export type AdventureDeps = {
@@ -66,7 +75,12 @@ export class AdventureGame {
     health: number;
     time = 0;
     kills = 0;
+    splashes = 0;
     private invincible = 0;
+    /** Remaining sink time while the player is under after a splash; 0 when on land. */
+    private splash = 0;
+    private splashedWater = false;
+    private lastSafe: Point = { x: 0, z: 0 };
     private fps = 60;
     private frameTime = 0;
     private frameCount = 0;
@@ -84,6 +98,7 @@ export class AdventureGame {
     private readonly rules: LevelRules;
     private readonly portals: PortalController[];
     private readonly bridges: BridgeController[];
+    private readonly platforms: PlatformController[];
     private readonly zones: ZoneTracker;
     private readonly puzzleConfig: PuzzleConfig;
     private readonly objects: SceneObject[];
@@ -95,7 +110,7 @@ export class AdventureGame {
         this.objects = [...deps.scene.scenery, ...deps.scene.objects];
         const { context, root, rand, palette, layout, cast, scene, level } = deps;
         this.health = deps.initialHealth ?? level.hud.maxHealth;
-        this.collision = new Collision(layout.obstacles, scene.walkBounds, layout.surfaces);
+        this.collision = new Collision(layout.obstacles, scene.walkBounds, layout.surfaces, layout.water);
         this.effects = new Effects(root, rand, (x, z) => this.collision.heightAt(x, z));
         this.movementTrail = new MovementTrail(context.device, root, (x, z) => this.collision.heightAt(x, z));
         this.player = new PlayerController(cast.player, this.collision);
@@ -117,10 +132,13 @@ export class AdventureGame {
         this.bridges = this.objects
             .filter((o) => o.type === 'bridge')
             .map((o, i) => new BridgeController(o, cast.bridges[i]));
+        this.platforms = this.objects
+            .filter((o) => o.type === 'platform')
+            .map((o, i) => new PlatformController(o, cast.platforms[i]));
         this.zones = new ZoneTracker(this.objects.filter((o) => o.type === 'zone'));
         this.slimeTarget = {
             entity: cast.player.entity,
-            canBeHit: () => this.state === 'playing' && this.invincible === 0,
+            canBeHit: () => this.state === 'playing' && this.invincible === 0 && this.splash === 0,
             hit: (ex, ez, d) => this.onPlayerHit(ex, ez, d)
         };
         this.hud = new Hud(level.hud, () => this.restart());
@@ -171,14 +189,23 @@ export class AdventureGame {
         this.sword.tick(dt);
         this.hud.tick(dt);
 
+        // Platforms move first so input resolves against where they are this frame.
+        this.ridePlatforms(dt);
+
         // Movement: facing locks while holding a block, and the pair translates rigidly.
         const player = this.player;
-        const stride = player.stride(dt, this.input.axis(), !this.puzzle.grabbed);
-        const solved = this.puzzle.constrain(stride, player.position);
-        const dx = solved.x - player.position.x,
+        let dx = 0,
+            dz = 0;
+        if (this.splash > 0) this.updateSplash(dt);
+        else {
+            const stride = player.stride(dt, this.input.axis(), !this.puzzle.grabbed);
+            const solved = this.puzzle.constrain(stride, player.position);
+            dx = solved.x - player.position.x;
             dz = solved.z - player.position.z;
-        this.movementTrail.sample(player.position.x, player.position.z, dx, dz);
-        player.moveTo(solved.x, solved.z);
+            this.movementTrail.sample(player.position.x, player.position.z, dx, dz);
+            player.moveTo(solved.x, solved.z);
+            this.checkWater();
+        }
         player.animate({
             dt,
             time: this.time,
@@ -199,7 +226,7 @@ export class AdventureGame {
         this.sword.applyHits(p.x, p.z, this.slimes.slimes, (slime) => this.onSlimeHit(slime));
         this.slimes.update(dt, this.time, this.slimeTarget);
 
-        // A lethal slime strike takes precedence over puzzle completion this frame.
+        // A lethal slime strike or splash takes precedence over puzzle completion this frame.
         if (this.state !== 'playing') return;
 
         const { clicked } = this.puzzle.update(player.position);
@@ -229,13 +256,29 @@ export class AdventureGame {
         };
         for (const rule of this.rules.update(snapshot)) {
             for (const action of rule.actions) {
-                if (action.type === 'openPortal') {
-                    const portal = this.portals.find((p) => p.definition.id === action.target)!;
-                    // Sand kicks off the plinth as the buried gate starts to push through.
-                    if (!portal.unlocked)
-                        this.effects.sand(portal.definition.x, portal.definition.z, this.deps.palette.cream, 1.15);
-                    portal.open();
-                } else this.bridges.find((b) => b.definition.id === action.target)!.open();
+                switch (action.type) {
+                    case 'openPortal': {
+                        const portal = this.portals.find((p) => p.definition.id === action.target)!;
+                        // Sand kicks off the plinth as the buried gate starts to push through.
+                        if (!portal.unlocked)
+                            this.effects.sand(portal.definition.x, portal.definition.z, this.deps.palette.cream, 1.15);
+                        portal.open();
+                        break;
+                    }
+                    case 'openBridge':
+                        this.bridges.find((b) => b.definition.id === action.target)!.open();
+                        break;
+                    case 'activatePlatform': {
+                        const platform = this.platforms.find((p) => p.definition.id === action.target)!;
+                        // Foam marks each stone surfacing from the river.
+                        if (platform.state === 'dormant') {
+                            const at = platform.position;
+                            this.effects.splash(at.x, this.waterLevel, at.z, this.deps.palette.foam, 20);
+                        }
+                        platform.activate();
+                        break;
+                    }
+                }
             }
             if (rule.message) this.announce(rule.message);
         }
@@ -300,6 +343,14 @@ export class AdventureGame {
                 progress: +p.progress.toFixed(2)
             })),
             bridges: this.bridges.map((b) => ({ id: b.definition.id, state: b.state })),
+            platforms: this.platforms.map((p) => ({
+                id: p.definition.id,
+                state: p.state,
+                x: +p.position.x.toFixed(2),
+                z: +p.position.z.toFixed(2)
+            })),
+            splashing: this.splash > 0,
+            splashes: this.splashes,
             visitedZones: [...this.zones.visited],
             ...this.rules.diagnostics(),
             attackCooldown: this.sword.cooldown,
@@ -333,6 +384,10 @@ export class AdventureGame {
         this.time = 0;
         this.invincible = 0;
         this.kills = 0;
+        this.splashes = 0;
+        this.splash = 0;
+        this.splashedWater = false;
+        this.lastSafe = { x: scene.spawn.x, z: scene.spawn.z };
         this.sword.reset();
         this.player.reset(scene.spawn.x, scene.spawn.z);
         rig.reset();
@@ -340,6 +395,7 @@ export class AdventureGame {
         this.rules.reset();
         this.portals.forEach((p) => p.reset());
         this.bridges.forEach((b) => b.reset());
+        this.platforms.forEach((p) => p.reset());
         this.zones.reset();
         this.slimes.reset();
         this.effects.clear();
@@ -372,7 +428,7 @@ export class AdventureGame {
     }
 
     private attack() {
-        if (this.state !== 'playing') return;
+        if (this.state !== 'playing' || this.splash > 0) return;
         if (this.puzzle.interact(this.player.position)) {
             if (this.puzzle.grabbed) {
                 const block = this.puzzle.heldPosition!;
@@ -412,10 +468,88 @@ export class AdventureGame {
         this.hud.setHealth(this.health);
         const p = this.player.position;
         this.effects.burst(p.x, p.z, this.deps.palette.gold, 7);
-        const shove = this.puzzle.resolvePlayer({ x: p.x + (ex / (d || 1)) * 0.5, z: p.z + (ez / (d || 1)) * 0.5 }, p);
+        // Shoves never knock the player into open water.
+        const shove = this.puzzle.resolvePlayer(
+            { x: p.x + (ex / (d || 1)) * 0.5, z: p.z + (ez / (d || 1)) * 0.5 },
+            p,
+            true
+        );
         // Suppress shoves while holding to preserve the grab distance.
         if (!this.puzzle.grabbed) this.player.moveTo(shove.x, shove.z);
         if (this.health <= 0) this.showEnd('over');
+    }
+
+    /** Water surface height for splash effects; plain islands have no water. */
+    private get waterLevel() {
+        const terrain = this.deps.scene.terrain;
+        return 'kind' in terrain ? terrain.waterLevel : 0;
+    }
+
+    /**
+     * Moves each platform and carries what rested on it beforehand: the player (with any held
+     * block, which always follows the player), resting blocks and living slimes.
+     */
+    private ridePlatforms(dt: number) {
+        for (const platform of this.platforms) {
+            const on = (x: number, z: number) => platform.contains(x, z);
+            const p = this.player.position;
+            const px = p.x,
+                pz = p.z;
+            const riding = this.splash === 0 && on(px, pz);
+            const blocks = this.puzzle.restingWhere(on);
+            const slimes = this.slimes.slimes.filter((e) => e.hp > 0 && on(e.x, e.z));
+            const { dx, dz } = platform.update(dt);
+            if (!dx && !dz) continue;
+            if (riding) this.player.moveTo(px + dx, pz + dz);
+            this.puzzle.shift(blocks, dx, dz, riding);
+            for (const e of slimes) {
+                e.x += dx;
+                e.z += dz;
+            }
+        }
+    }
+
+    /** Sinks blocks left over open water and splashes the player if they stepped off. */
+    private checkWater() {
+        const { palette } = this.deps;
+        for (const { from, to } of this.puzzle.sinkIntoWater()) {
+            this.effects.splash(from.x, this.waterLevel, from.z, palette.foam, 18);
+            this.effects.sand(to.x, to.z, palette.cream);
+        }
+        const p = this.player.position;
+        if (this.collision.isWater(p.x, p.z)) {
+            this.splash = WATER.sinkTime;
+            this.splashedWater = false;
+            this.splashes++;
+            this.health--;
+            this.hud.setHealth(this.health);
+            this.puzzle.release();
+            this.player.moveX = this.player.moveZ = 0;
+            this.input.clear();
+        } else if (!this.platforms.some((platform) => platform.contains(p.x, p.z)))
+            this.lastSafe = { x: p.x, z: p.z };
+    }
+
+    /** Drops the player into the river, then respawns them, or ends the run on the last heart. */
+    private updateSplash(dt: number) {
+        const { palette } = this.deps;
+        this.splash = Math.max(0, this.splash - dt);
+        const p = this.player.position;
+        const t = 1 - this.splash / WATER.sinkTime;
+        const y = -WATER.fallDepth * t * t;
+        this.player.handles.entity.setPosition(p.x, y, p.z);
+        if (!this.splashedWater && y <= this.waterLevel) {
+            this.splashedWater = true;
+            this.effects.splash(p.x, this.waterLevel, p.z, palette.foam);
+        }
+        if (this.splash > 0) return;
+        if (this.health <= 0) {
+            this.showEnd('over');
+            return;
+        }
+        this.player.moveTo(this.lastSafe.x, this.lastSafe.z);
+        this.invincible = WATER.invulnerable;
+        this.effects.sand(this.lastSafe.x, this.lastSafe.z, palette.cream, 0.5);
     }
 
     private restart() {

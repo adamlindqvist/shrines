@@ -25,6 +25,9 @@ declare global {
     }
 }
 
+/** Extra shore gap on each side of a pier along X, in world units. */
+const PIER_SHORE_MARGIN = 0.6;
+
 type JourneyHooks = Pick<AdventureDeps, 'initialHealth' | 'onComplete' | 'onRestart' | 'stage'>;
 
 /** Builds a data-authored scene; the level supplies rules, never construction callbacks. */
@@ -45,14 +48,27 @@ export function createAdventureArea(
     const root = new Entity(scene.name);
     app.root.addChild(root);
     const terrain = { device, resources, rand };
-    const openings = [...scene.scenery, ...scene.objects]
-        .filter((o) => o.type === 'bridge')
-        .map((o) => ({
-            minX: o.x - BRIDGE.width / 2,
-            maxX: o.x + BRIDGE.width / 2,
-            minZ: o.z - o.length / 2,
-            maxZ: o.z + o.length / 2
-        }));
+    const all = [...scene.scenery, ...scene.objects];
+    const openings = [
+        ...all
+            .filter((o) => o.type === 'bridge')
+            .map((o) => ({
+                minX: o.x - BRIDGE.width / 2,
+                maxX: o.x + BRIDGE.width / 2,
+                minZ: o.z - o.length / 2,
+                maxZ: o.z + o.length / 2
+            })),
+        // Piers widen their gap so neighbouring shore circles do not crowd the planks.
+        ...all
+            .filter((o) => o.type === 'pier')
+            .map((o) => ({
+                minX: o.x - o.width / 2 - PIER_SHORE_MARGIN,
+                maxX: o.x + o.width / 2 + PIER_SHORE_MARGIN,
+                minZ: o.z - o.depth / 2,
+                maxZ: o.z + o.depth / 2
+            }))
+    ];
+    const waterRegions = all.filter((o) => o.type === 'water');
     const river = 'kind' in scene.terrain ? createRiverIsland(terrain, root, { ...scene.terrain, openings }) : null;
     const island = 'kind' in scene.terrain ? river! : createIsland(terrain, root, scene.terrain);
     const builder = new SceneBuilder({ device, palette }, rand, root, nature);
@@ -63,6 +79,9 @@ export function createAdventureArea(
     const layout = river
         ? {
               ...built,
+              water: (x: number, z: number) =>
+                  river.isWater(x, z) &&
+                  waterRegions.some((w) => x >= w.minX && x <= w.maxX && z >= w.minZ && z <= w.maxZ),
               animate(time: number) {
                   built.animate(time);
                   river.animate(time);

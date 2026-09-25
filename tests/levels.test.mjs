@@ -13,7 +13,8 @@ const { evaluateCondition, LevelRules } = await import('../src/gameplay/rules.ts
 const { BridgeController, PortalController, ZoneTracker } = await import('../src/gameplay/level-objects.ts');
 const { Collision } = await import('../src/gameplay/collision.ts');
 const { validateLevel } = await import('../src/levels/validate.ts');
-const { levelDefinitions, sceneDefinitions } = await import('../src/levels/index.ts');
+const journeyModule = await import('../src/levels/index.ts');
+const { levelDefinitions, sceneDefinitions } = journeyModule;
 const { buildDefinition } = await import('../src/scenes/build-definition.ts');
 const { DEFAULT_HUD, DEFAULT_LIGHTING, DEFAULT_TEXT } = await import('../src/levels/defaults.ts');
 const empty = () => ({
@@ -170,6 +171,31 @@ test('same scene can use a different completion definition without boxes', () =>
     assert.equal(b.complete, false);
 });
 
+const platform = {
+    type: 'platform',
+    id: 'raft',
+    x: 0,
+    z: 0,
+    width: 4,
+    depth: 4,
+    travel: { x: 4, z: 0 },
+    duration: 2,
+    dwell: 1,
+    phase: 0,
+    state: 'dormant'
+};
+
+test('the journey ends at Drifting Stones, whose platforms wake from the moon plate', () => {
+    const { adventureJourney } = journeyModule;
+    assert.equal(adventureJourney.levels.at(-1), 'drifting-stones');
+    const level = levelDefinitions['drifting-stones'];
+    const wake = level.rules.find((rule) => rule.actions.some((a) => a.type === 'activatePlatform'));
+    assert.deepEqual(wake.when, { type: 'plateActive', target: 'moon-plate' });
+    const platforms = sceneDefinitions['drifting-stones'].objects.filter((o) => o.type === 'platform');
+    assert.equal(platforms.length, 2);
+    assert.ok(platforms.every((p) => p.state === 'dormant'));
+});
+
 for (const [label, change, pattern] of [
     ['duplicate objects', ({ scene }) => scene.objects.push({ ...scene.objects[0] }), /id.*unique/],
     ['duplicate rules', ({ level }) => level.rules.push({ ...level.rules[0] }), /rules\[1\].id/],
@@ -180,6 +206,24 @@ for (const [label, change, pattern] of [
     ['invalid bounds', ({ scene }) => (scene.walkBounds.maxX = scene.walkBounds.minX), /walkBounds/],
     ['invalid bridge', ({ scene }) => (scene.objects.find((o) => o.type === 'bridge').length = -1), /length/],
     ['nonfinite value', ({ scene }) => (scene.spawn.x = NaN), /spawn.x/],
+    [
+        'platform too small to carry a box',
+        ({ scene }) => scene.objects.push({ ...platform, width: 2 }),
+        /width: must be at least .* carry a box/
+    ],
+    [
+        'water without a river',
+        ({ scene }) => {
+            scene.terrain = { halfWidth: 12, halfDepth: 11, cornerRadius: 2, wallHeight: 2.4, clearings: [] };
+            scene.scenery.push({ type: 'water', minX: -5, maxX: 5, minZ: -2, maxZ: 2 });
+        },
+        /water requires river terrain/
+    ],
+    [
+        'platform action aimed at a bridge',
+        ({ level }) => (level.rules[0].actions[0].type = 'activatePlatform'),
+        /actions.*platform/
+    ],
     ['executable data', ({ scene }) => (scene.callback = () => undefined), /JSON data/]
 ])
     test(`validation reports level and field for ${label}`, () => {

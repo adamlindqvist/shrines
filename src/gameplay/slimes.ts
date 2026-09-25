@@ -110,7 +110,8 @@ export class SlimePack {
                 }
             }
             const safe = this.collision.resolve(e.x + (vx + e.vx) * dt, e.z + (vz + e.vz) * dt, SLIME.radius);
-            if (this.collision.canTravel(e, safe)) {
+            // Slimes never hop or get knocked into open water.
+            if (this.collision.canTravel(e, safe) && !this.collision.isWater(safe.x, safe.z)) {
                 e.x = safe.x;
                 e.z = safe.z;
             }

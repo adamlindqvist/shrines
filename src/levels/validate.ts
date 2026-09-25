@@ -1,4 +1,5 @@
 import type { Bounds } from '../gameplay/collision';
+import { PLATFORM } from '../gameplay/platforms';
 import { BRIDGE } from '../objects/shrine';
 
 import type { Condition, LevelDefinition, SceneDefinition, SceneObject } from './types';
@@ -86,6 +87,27 @@ export function validateLevel(level: LevelDefinition, scene: SceneDefinition) {
                 fail(path, 'invalid count');
             if (object.spread !== undefined) positive(object.spread, `${path}.spread`);
         }
+        if (object.type === 'platform') {
+            for (const key of ['width', 'depth'] as const) {
+                positive(object[key], `${path}.${key}`);
+                if (object[key] < PLATFORM.minSize)
+                    fail(`${path}.${key}`, `must be at least ${PLATFORM.minSize} to carry a box`);
+            }
+            finite(object.travel.x, `${path}.travel.x`);
+            finite(object.travel.z, `${path}.travel.z`);
+            positive(object.duration, `${path}.duration`);
+            finite(object.dwell, `${path}.dwell`);
+            if (object.dwell < 0) fail(`${path}.dwell`, 'must not be negative');
+            finite(object.phase, `${path}.phase`);
+        }
+        if (object.type === 'pier') {
+            positive(object.width, `${path}.width`);
+            positive(object.depth, `${path}.depth`);
+        }
+        if (object.type === 'water') {
+            bounds(object, path);
+            if (!('kind' in terrain)) fail(path, 'water requires river terrain');
+        }
         if (object.type === 'zone') {
             bounds(object, path);
             finite(object.minY, `${path}.minY`);
@@ -126,8 +148,9 @@ export function validateLevel(level: LevelDefinition, scene: SceneDefinition) {
         ids.add(rule.id);
         condition(rule.when, `${path}.when`);
         for (const [j, action] of rule.actions.entries()) {
-            if (action.type !== 'openBridge' && action.type !== 'openPortal') fail(path, 'unknown action');
-            reference(action.target, action.type === 'openBridge' ? 'bridge' : 'portal', `${path}.actions[${j}]`);
+            const targets = { openBridge: 'bridge', openPortal: 'portal', activatePlatform: 'platform' } as const;
+            if (!Object.hasOwn(targets, action.type)) fail(path, 'unknown action');
+            reference(action.target, targets[action.type], `${path}.actions[${j}]`);
         }
     }
     condition(level.completion, 'completion');

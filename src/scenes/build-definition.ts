@@ -5,7 +5,7 @@ import type { SceneBuilder } from './builder';
 
 /** Shared data interpreter. Preserve list order: factories consume the seeded random stream. */
 export function buildDefinition(builder: SceneBuilder, definition: SceneDefinition): AdventureCast {
-    const cast: AdventureCast = { player: null!, blocks: [], plates: [], portals: [], slimes: [], bridges: [] };
+    const cast: AdventureCast = { player: null!, blocks: [], plates: [], portals: [], slimes: [], bridges: [], platforms: [] };
     const add = (object: SceneObject) => {
         switch (object.type) {
             case 'tree':
@@ -47,7 +47,14 @@ export function buildDefinition(builder: SceneBuilder, definition: SceneDefiniti
             case 'slime':
                 cast.slimes.push(builder.addSlime(object));
                 break;
+            case 'pier':
+                builder.addPier(object);
+                break;
+            case 'platform':
+                cast.platforms.push(builder.addPlatform(object));
+                break;
             case 'zone':
+            case 'water':
                 break;
         }
     };

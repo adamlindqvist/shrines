@@ -3,9 +3,12 @@ import type { Entity } from 'playcanvas';
 import type { Obstacle, WalkSurface } from '../gameplay/collision';
 import { createBridgeBlockers } from '../gameplay/level-objects';
 import type { BridgeHandles } from '../gameplay/level-objects';
+import type { PlatformHandles } from '../gameplay/platforms';
+import type { PlatformDefinition, PierDefinition } from '../levels/types';
 import { createAdventurer } from '../objects/adventurer';
 import type { PropContext } from '../objects/context';
 import { appendBush, createBushBatch } from '../objects/foliage';
+import { createFloatingStone, createPier } from '../objects/platform';
 import {
     LOG_HEIGHT,
     LOG_RADIUS,
@@ -24,6 +27,9 @@ import type { NatureModels } from '../rendering/nature-pack';
 import { NATURE_COLLISION } from '../rendering/nature-tuning';
 import { node } from '../rendering/primitives';
 import type { Random } from '../rendering/random';
+
+/** How far a pier's floor reaches beyond its planks, in world units. */
+export const PIER_OVERLAP = 0.15;
 
 /** Where to put something on the X/Z ground plane. `rotation` is a yaw in degrees. */
 export type Placement = {
@@ -55,6 +61,8 @@ export type SceneLayout = {
     /** Static collision circles in registration order. */
     obstacles: readonly Obstacle[];
     surfaces?: readonly WalkSurface[];
+    /** Open water that splashes anything not standing on a walk surface. */
+    water?: (x: number, z: number) => boolean;
     /** Ambient motion at scene time `time` seconds. */
     animate(time: number): void;
 };
@@ -170,6 +178,38 @@ export class SceneBuilder {
                 });
         }
         return { visual, blockers };
+    }
+
+    /**
+     * Static wooden jetty at meadow height. Its floor reaches `PIER_OVERLAP` past the planks so a
+     * docked platform meets it without a gap.
+     */
+    addPier({ x, z, width, depth }: Pick<PierDefinition, 'x' | 'z' | 'width' | 'depth'>) {
+        createPier(this.props, this.place('wooden pier', { x, z }), width, depth);
+        this.addWalkSurface({
+            minX: x - width / 2 - PIER_OVERLAP,
+            maxX: x + width / 2 + PIER_OVERLAP,
+            minZ: z - depth / 2 - PIER_OVERLAP,
+            maxZ: z + depth / 2 + PIER_OVERLAP,
+            height: 0
+        });
+    }
+
+    /** Floating stone with its own moving floor; `PlatformController` drives both. */
+    addPlatform({ x, z, width, depth }: Pick<PlatformDefinition, 'x' | 'z' | 'width' | 'depth'>): PlatformHandles {
+        const entity = this.place('floating stone', { x, z });
+        const visual = node(entity, 'floating stone body');
+        createFloatingStone(this.props, visual, width, depth);
+        const surface = {
+            minX: x - width / 2,
+            maxX: x + width / 2,
+            minZ: z - depth / 2,
+            maxZ: z + depth / 2,
+            height: 0,
+            enabled: false
+        };
+        this.addWalkSurface(surface);
+        return { entity, visual, surface };
     }
 
     /** Registers a horizontal floor; adjacent small height changes form walkable stairs. */

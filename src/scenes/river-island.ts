@@ -41,6 +41,8 @@ export type RiverIsland = Island & {
     obstacles: Obstacle[];
     /** Maps a world point to texels of the painted meadow. */
     texel(x: number, z: number): [number, number];
+    /** True over the river's water surface, following the same field as the shoreline. */
+    isWater(x: number, z: number): boolean;
     /** Ambient water shimmer at scene time `time` seconds. */
     animate(time: number): void;
 };
@@ -384,6 +386,7 @@ export function createRiverIsland(ctx: TerrainContext, root: Entity, options: Ri
         wallHeight: WALL,
         obstacles,
         texel: (x, z) => [texU(x) * 1024, texV(z) * 1024],
+        isWater: (x, z) => landAt(x, z) > 0 && outerAt(x, z) < 0,
         animate(time) {
             // A barely-there swell; the painted rims stay put against the banks.
             water.setLocalPosition(0, Math.sin(time * 0.9) * 0.012, 0);

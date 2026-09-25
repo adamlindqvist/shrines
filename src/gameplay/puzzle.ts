@@ -179,14 +179,15 @@ export class BlockPuzzle {
         });
     }
 
-    /** Resolves movement and damage shoves without pushing into another block. */
-    resolvePlayer(next: Point, from: Point) {
+    /** Resolves movement and damage shoves without pushing into another block; `dry` also refuses open water. */
+    resolvePlayer(next: Point, from: Point, dry = false) {
         const safe = this.collision.resolve(next.x, next.z, PLAYER.radius);
         const result = { ...from };
         // A player can end up inside a square corner margin (e.g. a grab from a diagonal).
         // Allow leaving that margin, never moving deeper or crossing through the block.
         const canStep = (to: Point, start: Point) =>
             this.collision.canTravel(start, to) &&
+            !(dry && this.collision.isWater(to.x, to.z)) &&
             this.blocks.every((block) => {
                 const p = block.handles.entity.getPosition();
                 const dx = Math.abs(to.x - p.x);
@@ -293,16 +294,61 @@ export class BlockPuzzle {
         return { clicked };
     }
 
+    /** Indices of unlocked blocks resting (not held) where `inside` holds, such as on a platform. */
+    restingWhere(inside: (x: number, z: number) => boolean) {
+        const indices: number[] = [];
+        this.blocks.forEach((b, i) => {
+            const p = b.handles.entity.getPosition();
+            if (!b.locked && b !== this.held && inside(p.x, p.z)) indices.push(i);
+        });
+        return indices;
+    }
+
+    /** Carries the given blocks, plus the held block when `held` is true, by (dx, dz) at ground height. */
+    shift(indices: number[], dx: number, dz: number, held = false) {
+        const moved = indices.map((i) => this.blocks[i]);
+        if (held && this.held) moved.push(this.held);
+        for (const b of moved) {
+            const p = b.handles.entity.getPosition();
+            const x = p.x + dx,
+                z = p.z + dz;
+            b.handles.entity.setPosition(x, this.collision.heightAt(x, z), z);
+        }
+    }
+
+    /**
+     * Blocks whose centre ends up over open water sink: they are released and return to their start.
+     * Returns where each one went under and where it reappeared.
+     */
+    sinkIntoWater() {
+        const sunk: { from: Point; to: Point }[] = [];
+        this.blocks.forEach((b, i) => {
+            if (b.locked) return;
+            const p = b.handles.entity.getPosition();
+            if (!this.collision.isWater(p.x, p.z)) return;
+            sunk.push({ from: { x: p.x, z: p.z }, to: this.config.blocks[i] });
+            if (b === this.held) this.release();
+            this.returnToStart(i);
+        });
+        return sunk;
+    }
+
+    /** Puts one block back at its authored start, resting and unhighlighted. */
+    returnToStart(index: number) {
+        const b = this.blocks[index];
+        b.lift = b.hoverTime = b.dropSpeed = 0;
+        b.handles.visual.setLocalPosition(0, 0, 0);
+        b.handles.available.enabled = b.handles.selected.enabled = false;
+        const start = this.config.blocks[index];
+        b.handles.entity.setPosition(start.x, this.collision.heightAt(start.x, start.z), start.z);
+    }
+
     reset() {
         this.release();
         this.blocks.forEach((b, i) => {
             b.locked = false;
             b.plate = -1;
-            b.lift = b.hoverTime = b.dropSpeed = 0;
-            b.handles.visual.setLocalPosition(0, 0, 0);
-            b.handles.available.enabled = b.handles.selected.enabled = false;
-            const start = this.config.blocks[i];
-            b.handles.entity.setPosition(start.x, this.collision.heightAt(start.x, start.z), start.z);
+            this.returnToStart(i);
         });
         for (const plate of this.plates) {
             plate.sunDisk.render!.meshInstances[0].material = this.materials.idle;

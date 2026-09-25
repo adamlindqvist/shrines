@@ -15,29 +15,48 @@ export type Bounds = {
 };
 
 /** A horizontal walkable surface. Overlaps use the highest surface; uncovered ground is Y=0. */
-export type WalkSurface = Bounds & { height: number };
+export type WalkSurface = Bounds & {
+    height: number;
+    /** Dynamic floors such as sunken platforms; omitted means enabled. */
+    enabled?: boolean;
+};
 
 export const GROUND = { maxStep: 0.16, sampleStep: 0.05 };
+
+const covers = (surface: WalkSurface, x: number, z: number) =>
+    surface.enabled !== false && x >= surface.minX && x <= surface.maxX && z >= surface.minZ && z <= surface.maxZ;
 
 /** Circle-vs-circle collision against the scene's static obstacles, inside a walkable rectangle. */
 export class Collision {
     readonly obstacles: readonly Obstacle[];
     readonly bounds: Bounds;
     readonly surfaces: readonly WalkSurface[];
+    private readonly water?: (x: number, z: number) => boolean;
 
-    constructor(obstacles: readonly Obstacle[], bounds: Bounds, surfaces: readonly WalkSurface[] = []) {
+    /** `water` marks open water; it keeps ground height 0 but splashes anything not over a surface. */
+    constructor(
+        obstacles: readonly Obstacle[],
+        bounds: Bounds,
+        surfaces: readonly WalkSurface[] = [],
+        water?: (x: number, z: number) => boolean
+    ) {
         this.obstacles = obstacles;
         this.bounds = bounds;
         this.surfaces = surfaces;
+        this.water = water;
     }
 
     heightAt(x: number, z: number) {
         let height = 0;
         for (const surface of this.surfaces) {
-            if (x >= surface.minX && x <= surface.maxX && z >= surface.minZ && z <= surface.maxZ)
-                height = Math.max(height, surface.height);
+            if (covers(surface, x, z)) height = Math.max(height, surface.height);
         }
         return height;
+    }
+
+    /** True over open water that no enabled walk surface covers. */
+    isWater(x: number, z: number) {
+        return !!this.water?.(x, z) && !this.surfaces.some((surface) => covers(surface, x, z));
     }
 
     /** Small stairs are traversable both ways; cliffs cannot be climbed or dropped from. */

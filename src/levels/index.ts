@@ -1,3 +1,4 @@
+import { level as driftingStonesLevel, scene as driftingStonesScene } from './drifting-stones';
 import { level as meadowLevel, scene as meadowScene } from './meadow';
 import { level as sunMoonLevel, scene as sunMoonScene } from './sun-moon';
 import { level as twinBridgesLevel, scene as twinBridgesScene } from './twin-bridges';
@@ -8,15 +9,17 @@ export const sceneDefinitions: Record<string, SceneDefinition> = {
     meadow: meadowScene,
     'sun-moon': sunMoonScene,
     'two-suns': twoSunsScene,
-    'twin-bridges': twinBridgesScene
+    'twin-bridges': twinBridgesScene,
+    'drifting-stones': driftingStonesScene
 };
 export const levelDefinitions: Record<string, LevelDefinition> = {
     meadow: meadowLevel,
     'sun-moon': sunMoonLevel,
     'two-suns': twoSunsLevel,
-    'twin-bridges': twinBridgesLevel
+    'twin-bridges': twinBridgesLevel,
+    'drifting-stones': driftingStonesLevel
 };
 export const adventureJourney: JourneyDefinition = {
-    levels: ['meadow', 'sun-moon', 'two-suns', 'twin-bridges'],
+    levels: ['meadow', 'sun-moon', 'two-suns', 'twin-bridges', 'drifting-stones'],
     restart: 'meadow'
 };
