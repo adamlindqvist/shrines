@@ -25,6 +25,14 @@ Defeating slimes is optional. Remaining hearts carry over between areas. Restart
 | Player damage  | Health feedback, a short shove and burst, and flashing during 1.2 s of invulnerability.                         |
 | Puzzle         | Block snaps within 0.55 units; switch changes material, portal rises, and toast/effect feedback marks progress. |
 
+## Shield
+
+Hold either Shift key, the right mouse button, or the touch 🛡️ button to guard. The shield protects a 160° cone centred on the hero's facing at the moment the slime strike lands. Side/rear strikes still hurt; overlapping attackers with no direction are not blocked. There is no stamina or perfect-timing requirement.
+
+Guard locks facing and halves walking speed, allowing backward and sideways steps. Release to turn normally. A sword swing completes before a held shield rises. Guard prevents sword attacks and grabbing; carrying prevents guard, but the interaction button still releases a held block. Water cannot be blocked.
+
+A blocked strike costs no heart and grants no damage invulnerability. It uses the slime's normal hit recovery (1.5 s), a collision-constrained 0.12-unit shove that refuses water, a 0.18 s shield recoil, fourteen short-lived ivory/gold particles flying outward from the raised shield surface and “Bra blockerat!” feedback. A translucent warm-gold curved barrier outlines the protected cone in front of the hero while guarding; its rim briefly expands on impact. It adds two draw calls only while guarding and uses shared scene-owned materials. The game remains silent. The shield pose, barrier and recoil use gameplay time, freeze on pause and reset with the scene. Pause/focus loss, reset, end states, pointer release/cancellation and lost capture clear held guard input; resuming requires a fresh shield press.
+
 ## Animation
 
 Animation is procedural and driven by game state; there are no authored clips.
@@ -85,4 +93,4 @@ Bridges are Z-aligned and permanently open once activated. Closed bridges rise f
 
 ## Input
 
-Controls are WASD/arrows, Space/canvas click to attack (or grab a nearby block / release the held block), and Escape to toggle pause. Touch devices get an on-screen joystick (bottom-left) and attack button (bottom-right) from `src/ui/touch-controls.ts`; only the button triggers touch interactions, and canvas touch is ignored. The game surface disables text selection and touch callouts. The stick is analog: inside its dead zone (25% of knob travel) nothing moves, and past it walk speed rises linearly from 25% to full speed at the rim (`TOUCH` in that file), while facing follows the stick direction immediately. Keyboard input always walks at full speed, diagonals included. `Input` merges the stick with the keyboard and releases it whenever held input is cleared. Blur clears held keys and pauses. Resume and restart behavior is centralized in `AdventureGame`.
+Controls are WASD/arrows, Space/left canvas click to attack (or grab a nearby block / release the held block), and Escape to toggle pause. Touch devices get an on-screen joystick (bottom-left) and attack and held shield buttons (bottom-right) from `src/ui/touch-controls.ts`; only the button triggers touch interactions, and canvas touch is ignored. The game surface disables text selection and touch callouts. The stick is analog: inside its dead zone (25% of knob travel) nothing moves, and past it walk speed rises linearly from 25% to full speed at the rim (`TOUCH` in that file), while facing follows the stick direction immediately. Keyboard input always walks at full speed, diagonals included. `Input` merges the stick with the keyboard and releases it whenever held input is cleared. Hold Shift or right-click to guard; touch uses the 🛡️ button. Right-click suppresses the canvas context menu. Blur clears held keys and guard and pauses. Resume and restart behavior is centralized in `AdventureGame`.

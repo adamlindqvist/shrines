@@ -329,7 +329,7 @@ function gameFixture(t, overrides = {}) {
             textContent: '',
             hidden: false,
             style: {},
-            classList: { add: noop, remove: noop, contains: () => false },
+            classList: { add: noop, remove: noop, toggle: noop, contains: () => false },
             querySelector: () => element(),
             remove: noop,
             appendChild: noop,
@@ -346,15 +346,14 @@ function gameFixture(t, overrides = {}) {
         },
         body: { appendChild: noop }
     };
-    for (const name of ['burst', 'sand', 'arc', 'splash']) t.mock.method(Effects.prototype, name, noop);
+    for (const name of ['burst', 'sand', 'arc', 'splash', 'block']) t.mock.method(Effects.prototype, name, noop);
     stubSmokeRenderer(t, MovementTrail);
     t.mock.method(console, 'info', noop);
     const { config, blocks, plates, portal } = fixture();
     const player = Object.fromEntries(
-        ['entity', 'visual', 'torso', 'leftBoot', 'rightBoot', 'swordPivot', 'shieldPivot'].map((k) => [
-            k,
-            new Entity()
-        ])
+        ['entity', 'visual', 'torso', 'leftBoot', 'rightBoot', 'swordPivot', 'shieldPivot', 'shield', 'guard'].map(
+            (k) => [k, new Entity()]
+        )
     );
     player.rest = Object.values(player)
         .filter((entity) => entity !== player.entity)
@@ -420,7 +419,7 @@ function gameFixture(t, overrides = {}) {
         created
             .find((el) => el.className === className)
             .dispatchEvent(Object.assign(new Event(type), { pointerId: 1, clientX, clientY }));
-    return { game, key, tap, tick, touch, blocks, player, canvas };
+    return { game, key, tap, tick, touch, blocks, player, canvas, slime };
 }
 
 test('held input moves the pair; pause and blur freeze it, release settles it', (t) => {
@@ -461,7 +460,7 @@ test('title splash holds the area frozen until a key starts play', (t) => {
     const title = { eyebrow: '', title: 'Shrines', copy: '', start: 'Start', hint: '', touchHint: '' };
     const { game, tap, key, tick, canvas } = gameFixture(t, { title });
     assert.equal(game.state, 'title');
-    canvas.dispatchEvent(new Event('pointerdown'));
+    canvas.dispatchEvent(Object.assign(new Event('pointerdown'), { button: 0 }));
     tap('Escape');
     tick(30);
     assert.equal(game.state, 'title');
@@ -480,7 +479,7 @@ test('title splash holds the area frozen until a key starts play', (t) => {
 test('canvas touch does not interact or resume; mouse clicks and the touch button still interact', (t) => {
     const { game, canvas, touch } = gameFixture(t);
     const pressCanvas = (pointerType) => {
-        const event = Object.assign(new Event('pointerdown', { cancelable: true }), { pointerType });
+        const event = Object.assign(new Event('pointerdown', { cancelable: true }), { pointerType, button: 0 });
         canvas.dispatchEvent(event);
         assert.equal(event.defaultPrevented, true);
     };
@@ -1091,4 +1090,140 @@ test('shoves refuse open water and slimes never hop or get knocked into it', () 
     pack.slimes[0].vz = -12;
     for (let i = 0; i < 30; i++) pack.update(1 / 60, i / 60, target);
     assert.ok(pack.slimes[0].z >= 2);
+});
+
+function readyShieldFight(t) {
+    const f = gameFixture(t);
+    f.game.player.moveTo(0, 0);
+    f.game.player.face(0);
+    const enemy = f.game.slimes.slimes[0];
+    enemy.x = 0;
+    enemy.z = 1;
+    enemy.windup = 0.01;
+    enemy.cool = 0;
+    return { ...f, enemy };
+}
+
+test('held shield blocks the frontal strike, preserves hearts and uses slime recovery; rear strikes hurt', (t) => {
+    const { game, key, tick, enemy } = readyShieldFight(t);
+    key('keydown', 'ShiftLeft');
+    tick();
+    assert.equal(game.health, 3);
+    assert.equal(game.diagnostics().blockedAttacks, 1);
+    assert.equal(enemy.cool, 1.5);
+    assert.ok(game.player.position.z < 0);
+    enemy.x = 0;
+    enemy.z = -1;
+    enemy.windup = 0.01;
+    tick();
+    assert.equal(game.health, 2);
+    assert.equal(game.diagnostics().blockedAttacks, 1);
+});
+
+test('guard locks facing and halves movement, prevents attacks and grabbing, then releases', (t) => {
+    const { game, key, tap, tick } = gameFixture(t);
+    key('keydown', 'ShiftLeft');
+    tap('Space');
+    assert.equal(game.diagnostics().grabbed, false);
+    assert.equal(game.diagnostics().attackCooldown, 0);
+    key('keydown', 'KeyD');
+    tick(20);
+    assert.equal(game.player.heading, 0);
+    assert.ok(game.player.position.x > -3);
+    const guarded = game.player.stride(1 / 60, { x: 1, z: 0 }, false, 0.5);
+    assert.equal(guarded.speed, 3.75);
+    key('keyup', 'ShiftLeft');
+    tick();
+    assert.equal(game.player.heading, Math.PI / 2);
+    assert.equal(game.diagnostics().guarding, false);
+});
+
+test('sword completes before guard rises; carrying prevents guard and release still works', (t) => {
+    const { game, key, tap, tick } = gameFixture(t);
+    tap('Space');
+    key('keydown', 'ShiftLeft');
+    tick();
+    assert.equal(game.diagnostics().guarding, false);
+    tap('Space'); // Release the box even with shield input held.
+    tick();
+    assert.equal(game.diagnostics().grabbed, false);
+    assert.equal(game.diagnostics().guarding, true);
+    key('keyup', 'ShiftLeft');
+    game.player.moveTo(0, 0);
+    tap('Space');
+    key('keydown', 'ShiftLeft');
+    tick();
+    assert.ok(game.sword.swing > 0);
+    assert.equal(game.diagnostics().guarding, false);
+    tick(20);
+    assert.equal(game.diagnostics().guarding, true);
+});
+
+test('right click guards without attacking and window release, cancellation, blur and reset clear it', (t) => {
+    const { game, canvas, tick, tap } = gameFixture(t);
+    const pointer = (target, type, extra = {}) =>
+        target.dispatchEvent(
+            Object.assign(new Event(type, { cancelable: true }), {
+                pointerType: 'mouse',
+                pointerId: 7,
+                button: 2,
+                ...extra
+            })
+        );
+    pointer(canvas, 'pointerdown');
+    tick();
+    assert.equal(game.diagnostics().guarding, true);
+    assert.equal(game.diagnostics().grabbed, false);
+    assert.equal(game.diagnostics().attackCooldown, 0);
+    pointer(globalThis.window, 'pointerup');
+    tick();
+    assert.equal(game.diagnostics().guarding, false);
+    pointer(canvas, 'pointerdown');
+    pointer(canvas, 'mousedown');
+    pointer(canvas, 'lostpointercapture');
+    tick();
+    assert.equal(game.diagnostics().guarding, false);
+    pointer(canvas, 'pointerdown');
+    globalThis.window.dispatchEvent(new Event('blur'));
+    tap('Escape');
+    tick();
+    assert.equal(game.diagnostics().guarding, false);
+    pointer(canvas, 'pointerdown');
+    game.reset();
+    tick();
+    assert.equal(game.diagnostics().guarding, false);
+    assert.equal(game.diagnostics().blockedAttacks, 0);
+    assert.equal(canvas.dispatchEvent(new Event('contextmenu', { cancelable: true })), false);
+});
+
+test('touch shield holds independently of the stick, releases on cancellation and pause', (t) => {
+    const { game, touch, tick, tap } = gameFixture(t);
+    touch('touch-shield', 'pointerdown');
+    touch('touch-stick', 'pointerdown', 90, 50);
+    tick(10);
+    assert.equal(game.diagnostics().guarding, true);
+    assert.equal(game.player.heading, 0);
+    touch('touch-attack', 'pointerdown');
+    assert.equal(game.diagnostics().attackCooldown, 0);
+    touch('touch-shield', 'pointercancel');
+    tick();
+    assert.equal(game.diagnostics().guarding, false);
+    touch('touch-shield', 'pointerdown');
+    tap('Escape');
+    tap('Escape');
+    tick();
+    assert.equal(game.diagnostics().guarding, false);
+});
+
+test('mouse button chords raise and release guard even while left mouse remains held', (t) => {
+    const { game, canvas, tick } = gameFixture(t);
+    const mouse = (target, type, button) => target.dispatchEvent(Object.assign(new Event(type), { button }));
+    mouse(canvas, 'mousedown', 0);
+    mouse(canvas, 'mousedown', 2);
+    tick();
+    assert.equal(game.diagnostics().guarding, true);
+    mouse(globalThis.window, 'mouseup', 2);
+    tick();
+    assert.equal(game.diagnostics().guarding, false);
+    assert.equal(game.diagnostics().attackCooldown, 0);
 });

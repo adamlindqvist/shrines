@@ -1,3 +1,5 @@
+import { BLEND_NORMAL, CULLFACE_NONE } from 'playcanvas';
+
 import type { SceneResources } from './resources';
 
 /** The shared storybook material set used by props and characters. */
@@ -20,7 +22,21 @@ export function createPalette(resources: SceneResources) {
     portalLight.emissive.copy(portalLight.diffuse);
     portalLight.emissiveIntensity = 1.8;
     portalLight.update();
+    const guardMaterial = (name: string, opacity: number) => {
+        const m = mat(name, '#fff0b9');
+        m.useLighting = false;
+        m.emissive.copy(m.diffuse);
+        m.diffuse.set(0, 0, 0);
+        m.opacity = opacity;
+        m.blendType = BLEND_NORMAL;
+        m.cull = CULLFACE_NONE;
+        m.depthWrite = false;
+        m.update();
+        return m;
+    };
     return {
+        shieldVeil: guardMaterial('ivory shield veil', 0.25),
+        shieldRim: guardMaterial('golden shield outline', 1),
         blockStone: [
             mat('turquoise stone', '#27bcb7', 25, 0.08),
             mat('turquoise stone light facets', '#2bc1bb', 25, 0.08),

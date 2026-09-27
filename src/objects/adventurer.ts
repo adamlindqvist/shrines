@@ -4,6 +4,7 @@ import { appendLathe, createGeo, meshEntity } from '../rendering/geometry';
 import { box, cylinder, node, roundedBox, sphere } from '../rendering/primitives';
 
 import type { PropContext } from './context';
+import { createShieldGuard } from './shield-guard';
 
 /** Local rest transforms shared by animation and reset. */
 export type RestTransform = { entity: Entity; position: Vec3; rotation: Quat };
@@ -17,6 +18,8 @@ export type AdventurerHandles = {
     rightBoot: Entity;
     swordPivot: Entity;
     shieldPivot: Entity;
+    guard: Entity;
+    shield: Entity;
     rest: RestTransform[];
 };
 
@@ -25,7 +28,11 @@ export const BOOT_X = 0.16,
     BOOT_Z = 0.025;
 
 /** Hooded little adventurer with sword and shield, facing +Z from the origin of `root`. */
-export function createAdventurer({ palette: c, device }: PropContext, root: Entity): AdventurerHandles {
+export function createAdventurer(
+    { palette: c, device }: PropContext,
+    root: Entity,
+    guardCone: number
+): AdventurerHandles {
     const visual = node(root, 'adventurer visual');
     visual.setLocalScale(1.35, 1.35, 1.35);
     const leftBoot = node(visual, 'left boot pivot', -BOOT_X, BOOT_Y, BOOT_Z);
@@ -107,10 +114,11 @@ export function createAdventurer({ palette: c, device }: PropContext, root: Enti
     cylinder(shield, 'wooden shield inset', c.barkLight, 0, 0, 0.047, 0.36, 0.025, 0.36).setLocalEulerAngles(90, 0, 0);
     box(shield, 'wooden shield seam', c.brown, 0, 0, 0.062, 0.018, 0.33, 0.009);
     sphere(shield, 'gold shield boss', c.gold, 0, 0, 0.078, 0.13, 0.13, 0.07);
+    const guard = createShieldGuard({ palette: c, device }, root, guardCone);
     const rest = [visual, torso, leftBoot, rightBoot, swordPivot, shieldPivot].map((entity) => ({
         entity,
         position: entity.getLocalPosition().clone(),
         rotation: entity.getLocalRotation().clone()
     }));
-    return { entity: root, visual, torso, leftBoot, rightBoot, swordPivot, shieldPivot, rest };
+    return { entity: root, visual, torso, leftBoot, rightBoot, swordPivot, shieldPivot, shield, guard, rest };
 }

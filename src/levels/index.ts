@@ -30,7 +30,7 @@ export const adventureJourney: JourneyDefinition = {
         title: 'Shrines',
         copy: 'Knuffa lådorna rätt så öppnas vägen vidare.',
         start: 'Börja äventyret',
-        hint: 'WASD eller pilar för att gå · Mellanslag för att lyfta eller svinga',
-        touchHint: 'Styrspaken för att gå · ⚔️ för att lyfta eller svinga'
+        hint: 'WASD eller pilar för att gå · Mellanslag för att lyfta eller svinga · Håll Shift eller högerklick för sköld',
+        touchHint: 'Styrspaken för att gå · ⚔️ för att lyfta eller svinga · Håll 🛡️ för sköld'
     }
 };

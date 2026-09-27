@@ -146,6 +146,40 @@ export class Effects {
         }
     }
 
+    /** Brief ivory/gold chips flying out from the raised shield's world-space surface. */
+    block(x: number, y: number, z: number, heading: number, ivory: Material, gold: Material) {
+        for (let i = 0; i < 14; i++) {
+            const angle = heading + (this.rand() - 0.5) * 1.8;
+            const size = 0.13 + this.rand() * 0.1;
+            const speed = 3 + this.rand() * 2.5;
+            const life = 0.38 + this.rand() * 0.18;
+            const e = box(
+                this.parent,
+                'shield impact spark',
+                i % 2 ? ivory : gold,
+                x,
+                y,
+                z,
+                size,
+                size * 0.6,
+                size * 1.9
+            );
+            e.setEulerAngles(-25, (angle * 180) / Math.PI, i * 47);
+            e.render!.castShadows = false;
+            e.render!.receiveShadows = false;
+            this.particles.push({
+                entity: e,
+                vx: Math.sin(angle) * speed,
+                vy: 0.7 + this.rand() * 1.2,
+                vz: Math.cos(angle) * speed,
+                life,
+                max: life,
+                scale: e.getLocalScale().clone(),
+                gravity: true
+            });
+        }
+    }
+
     update(dt: number) {
         const particles = this.particles;
         for (let i = particles.length - 1; i >= 0; i--) {

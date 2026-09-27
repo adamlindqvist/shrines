@@ -1,6 +1,7 @@
 import type { Entity } from 'playcanvas';
 
 import type { Obstacle, WalkSurface } from '../gameplay/collision';
+import { SHIELD } from '../gameplay/combat';
 import { createBridgeBlockers } from '../gameplay/level-objects';
 import type { BridgeHandles } from '../gameplay/level-objects';
 import type { PlatformHandles } from '../gameplay/platforms';
@@ -277,7 +278,7 @@ export class SceneBuilder {
     }
 
     addAdventurer(at: Placement) {
-        return createAdventurer(this.props, this.place('little adventurer', at));
+        return createAdventurer(this.props, this.place('little adventurer', at), SHIELD.cone);
     }
 
     addSlime(at: Placement) {

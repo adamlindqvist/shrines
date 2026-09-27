@@ -17,7 +17,7 @@ const { createPalette } = await import('../src/rendering/palette.ts');
 const { SceneResources } = await import('../src/rendering/resources.ts');
 const playerModule = await import('../src/gameplay/player.ts');
 const { PlayerController } = playerModule;
-const { Sword, SWORD } = await import('../src/gameplay/combat.ts');
+const { Sword, SWORD, Shield, SHIELD } = await import('../src/gameplay/combat.ts');
 
 function fixture(t) {
     const canvas = { id: 'hero-test', width: 64, height: 64 };
@@ -30,7 +30,8 @@ function fixture(t) {
     const resources = new SceneResources();
     const root = new Entity();
     app.root.addChild(root);
-    const handles = createAdventurer({ device, palette: createPalette(resources) }, root);
+    const palette = createPalette(resources);
+    const handles = createAdventurer({ device, palette }, root, SHIELD.cone);
     const player = new PlayerController(handles);
     player.reset(0, 0);
     t.after(() => {
@@ -50,7 +51,7 @@ function fixture(t) {
             invincible: 0,
             ...overrides
         });
-    return { root, handles, player, pose };
+    return { root, handles, player, pose, palette };
 }
 
 const near = (a, b, tolerance = 1e-5) => assert.ok(Math.abs(a - b) < tolerance, `${a} != ${b}`);
@@ -216,4 +217,64 @@ test('partial analog input walks proportionally slower and diagonals are capped 
     const full = settle({ x: 1, z: 0 });
     near(settle({ x: 0.5, z: 0 }), full / 2);
     near(settle({ x: 1, z: 1 }), full);
+});
+
+test('shield cone rotates with facing, rejects side/rear and disabled guard, and uses gameplay time', () => {
+    const shield = new Shield();
+    shield.update(0, true, true);
+    for (const heading of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+        for (const offset of [-SHIELD.cone + 0.001, 0, SHIELD.cone - 0.001]) {
+            assert.equal(shield.block(Math.sin(heading + offset), Math.cos(heading + offset), heading), true);
+        }
+        for (const offset of [SHIELD.cone + 0.001, Math.PI / 2, Math.PI]) {
+            assert.equal(shield.block(Math.sin(heading + offset), Math.cos(heading + offset), heading), false);
+        }
+    }
+    shield.update(0, true, true);
+    near(shield.recoil, SHIELD.recoilTime);
+    shield.update(SHIELD.recoilTime, true, true);
+    near(shield.recoil, 0);
+    shield.update(0, true, false);
+    assert.equal(shield.block(0, 1, 0), false);
+    shield.reset();
+    assert.equal(shield.blocks, 0);
+    assert.equal(shield.raised, false);
+});
+
+test('guard pose moves shield in front of chest, recoils without moving root and reset restores it', (t) => {
+    const { player, handles, pose } = fixture(t);
+    const rest = handles.rest.find((r) => r.entity === handles.shieldPivot);
+    pose({ guarding: true });
+    assert.ok(handles.shieldPivot.getLocalPosition().z > rest.position.z);
+    const raisedZ = handles.shieldPivot.getLocalPosition().z;
+    pose({ guarding: true, guardRecoil: SHIELD.recoilTime });
+    assert.ok(handles.shieldPivot.getLocalPosition().z < raisedZ);
+    near(player.position.length(), 0);
+    pose();
+    near(handles.shieldPivot.getLocalPosition().distance(rest.position), 0);
+    player.reset(0, 0);
+    near(handles.shieldPivot.getLocalPosition().distance(rest.position), 0);
+});
+
+const { Effects } = await import('../src/gameplay/effects.ts');
+
+test('blocked-hit particles start at the shield surface, travel outward and expire or clear', (t) => {
+    const { root, handles, pose, palette } = fixture(t);
+    pose({ guarding: true });
+    const impact = handles.shield.getPosition().clone();
+    const effects = new Effects(root, () => 0.5);
+    effects.block(impact.x, impact.y, impact.z, 0, palette.shieldRim, palette.grabSelected);
+    assert.equal(effects.count, 14);
+    const spark = root.findByName('shield impact spark');
+    near(spark.getPosition().distance(impact), 0);
+    effects.update(0.1);
+    assert.ok(spark.getPosition().z > impact.z);
+    assert.ok(spark.getPosition().y > impact.y);
+    effects.update(0.6);
+    assert.equal(effects.count, 0);
+    assert.equal(root.findByName('shield impact spark'), null);
+    effects.block(impact.x, impact.y, impact.z, Math.PI / 2, palette.shieldRim, palette.grabSelected);
+    effects.clear();
+    assert.equal(effects.count, 0);
+    assert.equal(root.findByName('shield impact spark'), null);
 });

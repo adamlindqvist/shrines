@@ -306,9 +306,10 @@ kbd {
     }
 }
 
-/* Touch controls: joystick bottom-left, attack bottom-right; shown on touch devices. */
+/* Touch controls: joystick bottom-left, attack and shield bottom-right. */
 .touch-stick,
-.touch-attack {
+.touch-attack,
+.touch-shield {
     position: absolute;
     display: none;
     border-radius: 50%;
@@ -320,13 +321,15 @@ kbd {
     -webkit-tap-highlight-color: transparent;
 }
 #hud.touch .touch-stick,
-#hud.touch .touch-attack {
+#hud.touch .touch-attack,
+#hud.touch .touch-shield {
     display: grid;
     place-items: center;
 }
 @media (pointer: coarse) {
     .touch-stick,
-    .touch-attack {
+    .touch-attack,
+    .touch-shield {
         display: grid;
         place-items: center;
     }
@@ -352,7 +355,8 @@ kbd {
         inset 0 -3px 0 #5a594f;
     pointer-events: none;
 }
-.touch-attack {
+.touch-attack,
+.touch-shield {
     right: 28px;
     bottom: 34px;
     width: 88px;
@@ -425,7 +429,8 @@ kbd {
         width: 58px;
         height: 58px;
     }
-    .touch-attack {
+    .touch-attack,
+    .touch-shield {
         right: 20px;
         bottom: 30px;
         width: 80px;
@@ -445,4 +450,32 @@ kbd {
     box-shadow: 0 0.5rem 2rem #263d3026;
     text-align: center;
     z-index: 10;
+}
+
+.touch-shield {
+    right: 130px;
+    background: #8b734e;
+}
+.touch-shield.raised {
+    transform: scale(0.93);
+    box-shadow:
+        inset 0 0 0 4px #fff2bc,
+        0 3px 10px #29443640;
+}
+@media (max-width: 560px) {
+    .touch-shield {
+        right: 112px;
+        bottom: 120px;
+    }
+}
+
+@media (max-width: 560px) {
+    #hud.touch #toast {
+        bottom: 225px;
+    }
+}
+@media (max-width: 560px) and (pointer: coarse) {
+    #toast {
+        bottom: 225px;
+    }
 }

@@ -2,7 +2,7 @@ import { BOOT_X, BOOT_Y, BOOT_Z } from '../objects/adventurer';
 import type { AdventurerHandles } from '../objects/adventurer';
 
 import type { Collision } from './collision';
-import { SWORD } from './combat';
+import { SHIELD, SWORD } from './combat';
 
 export const PLAYER = {
     walkSpeed: 7.5,
@@ -34,6 +34,8 @@ export type PlayerAnimation = {
     swing: number;
     attackHeading: number;
     invincible: number;
+    guarding?: boolean;
+    guardRecoil?: number;
 };
 
 const ease = (t: number) => {
@@ -80,7 +82,7 @@ export class PlayerController {
      * Eases toward the input direction and proposes the next position; the caller constrains and applies it.
      * With `turn` false (holding a block) facing stays locked and movement strafes.
      */
-    stride(dt: number, axis: { x: number; z: number }, turn = true): Stride {
+    stride(dt: number, axis: { x: number; z: number }, turn = true, speedScale = 1): Stride {
         // Keyboard diagonals are capped at full speed; shorter analog input walks proportionally slower.
         const length = Math.hypot(axis.x, axis.z);
         const scale = length ? Math.min(1, length) / length : 0;
@@ -90,7 +92,7 @@ export class PlayerController {
         this.moveX += (desiredX - this.moveX) * smooth;
         this.moveZ += (desiredZ - this.moveZ) * smooth;
         if (length && turn) this.face(Math.atan2(axis.x, axis.z));
-        const speed = this.walkSpeed;
+        const speed = this.walkSpeed * speedScale;
         const pos = this.position;
         return {
             x: pos.x + this.moveX * speed * dt,
@@ -111,7 +113,18 @@ export class PlayerController {
     }
 
     /** Poses use only resolved locomotion and the gameplay attack clock. */
-    animate({ dt, time, dx, dz, carrying, swing, attackHeading, invincible }: PlayerAnimation) {
+    animate({
+        dt,
+        time,
+        dx,
+        dz,
+        carrying,
+        swing,
+        attackHeading,
+        invincible,
+        guarding = false,
+        guardRecoil = 0
+    }: PlayerAnimation) {
         const { visual, torso, leftBoot, rightBoot, swordPivot, shieldPivot } = this.handles;
         const distance = Math.hypot(dx, dz);
         const amount = dt > 0 ? Math.min(1, distance / (dt * this.walkSpeed)) : 0;
@@ -175,12 +188,28 @@ export class PlayerController {
         const headingDelta = Math.atan2(Math.sin(attackHeading - this.heading), Math.cos(attackHeading - this.heading));
         torso.setLocalEulerAngles(0, twist + ((headingDelta * 180) / Math.PI) * attackWeight, 0);
         swordPivot.setLocalEulerAngles(pitch, yaw, 0);
-        shieldPivot.setLocalEulerAngles(-armWalk - attackWeight * 12, -twist * 0.5, 0);
+        const recoil = guardRecoil / SHIELD.recoilTime;
+        // Bring the shield in front of the chest without changing the gameplay root.
+        const rest = this.handles.rest.find((pose) => pose.entity === shieldPivot)!;
+        shieldPivot.setLocalPosition(
+            rest.position.x - (guarding ? 0.22 : 0),
+            rest.position.y + (guarding ? 0.12 : 0),
+            rest.position.z + (guarding ? 0.2 - recoil * 0.08 : 0)
+        );
+        shieldPivot.setLocalEulerAngles(
+            guarding ? -12 + recoil * 18 : -armWalk - attackWeight * 12,
+            guarding ? -8 : -twist * 0.5,
+            0
+        );
+        this.handles.guard.enabled = guarding;
+        const guardScale = 1 + recoil * 0.06;
+        this.handles.guard.setLocalScale(guardScale, 1 + recoil * 0.12, guardScale);
         visual.enabled = !(invincible > 0 && Math.floor(time * 18) % 2 === 0);
     }
 
     /** Cancels only the upper-body action when a block interaction interrupts a swing. */
     cancelAttackPose() {
+        this.handles.guard.enabled = false;
         for (const rest of this.handles.rest) {
             if ([this.handles.torso, this.handles.swordPivot, this.handles.shieldPivot].includes(rest.entity)) {
                 rest.entity.setLocalPosition(rest.position);
@@ -197,7 +226,9 @@ export class PlayerController {
         this.gait = 0;
         this.stepX = 0;
         this.stepZ = 1;
-        const { entity, visual, rest } = this.handles;
+        const { entity, visual, rest, guard } = this.handles;
+        guard.enabled = false;
+        guard.setLocalScale(1, 1, 1);
         entity.setPosition(x, this.ground?.heightAt(x, z) ?? 0, z);
         entity.setEulerAngles(0, 0, 0);
         visual.enabled = true;

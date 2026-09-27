@@ -1,4 +1,4 @@
-const CAPTURED = ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+const CAPTURED = ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight'];
 
 export type InputHandlers = {
     /** Called after the key has been recorded as held. */
@@ -11,6 +11,7 @@ export type InputHandlers = {
 /** Analog direction source such as an on-screen joystick, released whenever held input is cleared. */
 export type AxisSource = {
     axis(): { x: number; z: number };
+    guarding?(): boolean;
     release(): void;
     destroy(): void;
 };
@@ -18,6 +19,9 @@ export type AxisSource = {
 /** Keyboard and pointer state for one scene, attached to the window and canvas. */
 export class Input {
     private readonly keys = new Set<string>();
+
+    private shieldPointer: number | null = null;
+    private mouseGuard = false;
 
     private readonly canvas: HTMLCanvasElement;
 
@@ -34,6 +38,12 @@ export class Input {
         window.addEventListener('keyup', this.onKeyUp);
         window.addEventListener('blur', this.onBlur);
         canvas.addEventListener('pointerdown', this.onPointerDown);
+        window.addEventListener('pointerup', this.onPointerUp);
+        window.addEventListener('pointercancel', this.onPointerUp);
+        canvas.addEventListener('lostpointercapture', this.onPointerUp);
+        canvas.addEventListener('mousedown', this.onMouseDown);
+        window.addEventListener('mouseup', this.onMouseUp);
+        canvas.addEventListener('contextmenu', this.onContextMenu);
     }
 
     isDown(code: string) {
@@ -52,16 +62,37 @@ export class Input {
         return this.touch.axis();
     }
 
+    guarding() {
+        return (
+            this.isDown('ShiftLeft') ||
+            this.isDown('ShiftRight') ||
+            this.shieldPointer !== null ||
+            this.mouseGuard ||
+            !!this.touch?.guarding?.()
+        );
+    }
+
     clear() {
+        this.mouseGuard = false;
+        const pointer = this.shieldPointer;
+        this.shieldPointer = null;
+        if (pointer !== null && this.canvas.hasPointerCapture?.(pointer)) this.canvas.releasePointerCapture(pointer);
         this.keys.clear();
         this.touch?.release();
     }
 
     destroy() {
+        this.clear();
         window.removeEventListener('keydown', this.onKeyDown);
         window.removeEventListener('keyup', this.onKeyUp);
         window.removeEventListener('blur', this.onBlur);
         this.canvas.removeEventListener('pointerdown', this.onPointerDown);
+        window.removeEventListener('pointerup', this.onPointerUp);
+        window.removeEventListener('pointercancel', this.onPointerUp);
+        this.canvas.removeEventListener('lostpointercapture', this.onPointerUp);
+        this.canvas.removeEventListener('mousedown', this.onMouseDown);
+        window.removeEventListener('mouseup', this.onMouseUp);
+        this.canvas.removeEventListener('contextmenu', this.onContextMenu);
         this.keys.clear();
         this.touch?.destroy();
     }
@@ -83,6 +114,39 @@ export class Input {
     private onPointerDown = (e: PointerEvent) => {
         e.preventDefault();
         if (e.pointerType === 'touch') return;
+        if (e.button === 2) {
+            this.shieldPointer = e.pointerId;
+            try {
+                this.canvas.setPointerCapture?.(e.pointerId);
+            } catch {
+                // Window pointer-up still releases guard if capture is unavailable.
+            }
+        } else if (e.button !== 0) return;
         this.handlers.pointerdown();
     };
+    private onMouseDown = (e: MouseEvent) => {
+        if (e.button !== 2) return;
+        e.preventDefault();
+        // A second held mouse button produces mousedown but no new pointerdown.
+        this.mouseGuard = true;
+        this.handlers.pointerdown();
+    };
+
+    private onMouseUp = (e: MouseEvent) => {
+        if (e.button !== 2) return;
+        this.mouseGuard = false;
+        const pointer = this.shieldPointer;
+        this.shieldPointer = null;
+        if (pointer !== null && this.canvas.hasPointerCapture?.(pointer)) this.canvas.releasePointerCapture(pointer);
+    };
+
+    private onPointerUp = (e: PointerEvent) => {
+        if (e.pointerId === this.shieldPointer) {
+            this.mouseGuard = false;
+            this.shieldPointer = null;
+            if (this.canvas.hasPointerCapture?.(e.pointerId)) this.canvas.releasePointerCapture(e.pointerId);
+        }
+    };
+
+    private onContextMenu = (e: Event) => e.preventDefault();
 }

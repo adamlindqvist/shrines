@@ -84,3 +84,39 @@ export class Sword {
         this.hitThisSwing.clear();
     }
 }
+
+export const SHIELD = {
+    /** Frontal half-angle in radians: 160 degrees of protection in total. */
+    cone: (80 * Math.PI) / 180,
+    walkScale: 0.5,
+    recoilTime: 0.18,
+    shove: 0.12
+};
+
+/** Held guard and brief impact reaction, both advanced on the gameplay clock. */
+export class Shield {
+    raised = false;
+    recoil = 0;
+    blocks = 0;
+
+    update(dt: number, held: boolean, available: boolean) {
+        this.raised = held && available;
+        this.recoil = Math.max(0, this.recoil - dt);
+    }
+
+    /** (dx, dz) points from the player toward the attacker; heading is in radians. */
+    block(dx: number, dz: number, heading: number) {
+        const distance = Math.hypot(dx, dz);
+        if (!this.raised || distance === 0) return false;
+        if ((dx * Math.sin(heading) + dz * Math.cos(heading)) / distance < Math.cos(SHIELD.cone)) return false;
+        this.recoil = SHIELD.recoilTime;
+        this.blocks++;
+        return true;
+    }
+
+    reset() {
+        this.raised = false;
+        this.recoil = 0;
+        this.blocks = 0;
+    }
+}

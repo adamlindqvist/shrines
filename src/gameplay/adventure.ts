@@ -13,7 +13,7 @@ import { Hud } from '../ui/hud';
 import { TouchControls } from '../ui/touch-controls';
 
 import { Collision } from './collision';
-import { Sword } from './combat';
+import { SHIELD, Shield, Sword } from './combat';
 import { Effects } from './effects';
 import { Input } from './input';
 import { BridgeController, PortalController, ZoneTracker } from './level-objects';
@@ -95,6 +95,8 @@ export class AdventureGame {
     private readonly collision: Collision;
     private readonly player: PlayerController;
     private readonly sword = new Sword();
+    private readonly shield = new Shield();
+    private readonly touch: TouchControls;
     private readonly slimes: SlimePack;
     private readonly puzzle: BlockPuzzle;
     private readonly slimeTarget: SlimeTarget;
@@ -146,13 +148,13 @@ export class AdventureGame {
             hit: (ex, ez, d) => this.onPlayerHit(ex, ez, d)
         };
         this.hud = new Hud(level.hud, () => this.restart());
-        const touch = new TouchControls(this.hud.root, {
+        const touch = (this.touch = new TouchControls(this.hud.root, {
             press: () => this.unpause(),
             attack: () => {
                 this.unpause();
                 this.attack();
             }
-        });
+        }));
         this.input = new Input(
             context.canvas,
             {
@@ -195,6 +197,12 @@ export class AdventureGame {
         this.time += dt;
         this.invincible = Math.max(0, this.invincible - dt);
         this.sword.tick(dt);
+        this.shield.update(
+            dt,
+            this.input.guarding(),
+            !this.puzzle.grabbed && this.sword.swing === 0 && this.splash === 0
+        );
+        this.touch.setGuarding(this.shield.raised);
         this.hud.tick(dt);
 
         // Platforms move first so input resolves against where they are this frame.
@@ -206,7 +214,12 @@ export class AdventureGame {
             dz = 0;
         if (this.splash > 0) this.updateSplash(dt);
         else {
-            const stride = player.stride(dt, this.input.axis(), !this.puzzle.grabbed);
+            const stride = player.stride(
+                dt,
+                this.input.axis(),
+                !this.puzzle.grabbed && !this.shield.raised,
+                this.shield.raised ? SHIELD.walkScale : 1
+            );
             const solved = this.puzzle.constrain(stride, player.position);
             dx = solved.x - player.position.x;
             dz = solved.z - player.position.z;
@@ -223,7 +236,9 @@ export class AdventureGame {
             carrying: this.puzzle.grabbed,
             swing: this.sword.swing,
             attackHeading: this.sword.attackHeading,
-            invincible: this.invincible
+            invincible: this.invincible,
+            guarding: this.shield.raised,
+            guardRecoil: this.shield.recoil
         });
         if (this.sword.consumeActiveStart()) {
             const p = player.position;
@@ -297,6 +312,8 @@ export class AdventureGame {
             if (this.deps.onComplete) {
                 this.puzzle.release();
                 this.input.clear();
+                this.shield.raised = false;
+                this.player.cancelAttackPose();
                 this.state = 'complete';
                 this.deps.onComplete(this.health);
                 return;
@@ -363,6 +380,9 @@ export class AdventureGame {
             visitedZones: [...this.zones.visited],
             ...this.rules.diagnostics(),
             attackCooldown: this.sword.cooldown,
+            guarding: this.shield.raised,
+            blockedAttacks: this.shield.blocks,
+            heading: this.player.heading,
             effects: this.effects.count,
             movementSmoke: this.movementTrail.count,
             drawCalls: app.stats.drawCalls.total,
@@ -405,6 +425,7 @@ export class AdventureGame {
         this.splashedWater = false;
         this.lastSafe = { x: scene.spawn.x, z: scene.spawn.z };
         this.sword.reset();
+        this.shield.reset();
         this.player.reset(scene.spawn.x, scene.spawn.z);
         rig.reset();
         this.puzzle.reset();
@@ -434,7 +455,10 @@ export class AdventureGame {
     private onKeyDown(code: string) {
         if (this.state === 'title') {
             // Any key but Escape starts; the key itself does nothing else, so Space never swings.
-            if (code !== 'Escape') this.begin();
+            if (code !== 'Escape') {
+                this.begin();
+                this.input.clear();
+            }
             return;
         }
         if (code === 'KeyR' && this.state !== 'playing') {
@@ -450,7 +474,7 @@ export class AdventureGame {
     }
 
     private attack() {
-        if (this.state !== 'playing' || this.splash > 0) return;
+        if (this.state !== 'playing' || this.splash > 0 || (this.input.guarding() && !this.puzzle.grabbed)) return;
         if (this.puzzle.interact(this.player.position)) {
             if (this.puzzle.grabbed) {
                 const block = this.puzzle.heldPosition!;
@@ -485,6 +509,26 @@ export class AdventureGame {
     }
 
     private onPlayerHit(ex: number, ez: number, d: number) {
+        if (this.shield.block(-ex, -ez, this.player.heading)) {
+            const p = this.player.position;
+            const shove = this.puzzle.resolvePlayer(
+                { x: p.x + (ex / d) * SHIELD.shove, z: p.z + (ez / d) * SHIELD.shove },
+                p,
+                true
+            );
+            this.player.moveTo(shove.x, shove.z);
+            const impact = this.player.handles.shield.getPosition();
+            this.effects.block(
+                impact.x + Math.sin(this.player.heading) * 0.1,
+                impact.y,
+                impact.z + Math.cos(this.player.heading) * 0.1,
+                this.player.heading,
+                this.deps.palette.shieldRim,
+                this.deps.palette.grabSelected
+            );
+            this.hud.announce('Bra blockerat!');
+            return;
+        }
         this.health--;
         this.invincible = 1.2;
         this.hud.setHealth(this.health);
@@ -557,6 +601,9 @@ export class AdventureGame {
             this.puzzle.release();
             this.player.moveX = this.player.moveZ = 0;
             this.input.clear();
+            this.shield.raised = false;
+            this.shield.recoil = 0;
+            this.touch.setGuarding(false);
         } else if (!this.onPlatform(p.x, p.z)) this.lastSafe = { x: p.x, z: p.z };
     }
 
@@ -596,6 +643,10 @@ export class AdventureGame {
     private showEnd(next: 'won' | 'over') {
         this.puzzle.release();
         this.puzzle.updateIndicator(this.player.position, false);
+        this.input.clear();
+        this.shield.raised = false;
+        this.shield.recoil = 0;
+        this.player.cancelAttackPose();
         this.state = next;
         console.info(`${`[${this.deps.level.id}]`} state`, next, this.diagnostics());
         const card = this.deps.level.text[next];

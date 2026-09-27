@@ -13,12 +13,14 @@ export type TouchHandlers = {
     attack(): void;
 };
 
-/** On-screen joystick (bottom-left) and attack button (bottom-right), revealed on touch devices. */
+/** On-screen joystick and action/held-shield buttons, revealed on touch devices. */
 export class TouchControls {
     private readonly parent: HTMLElement;
     private readonly stick: HTMLElement;
     private readonly knob: HTMLElement;
     private readonly button: HTMLElement;
+    private readonly shield: HTMLElement;
+    private shieldPointer: number | null = null;
     private readonly handlers: TouchHandlers;
     private pointer: number | null = null;
     private centerX = 0;
@@ -39,9 +41,15 @@ export class TouchControls {
         this.button.className = 'touch-attack';
         this.button.setAttribute('aria-label', 'Attackera');
         this.button.textContent = '⚔️';
+        this.shield = document.createElement('button');
+        this.shield.className = 'touch-shield';
+        this.shield.setAttribute('aria-label', 'Håll för att skydda');
+        this.shield.textContent = '🛡️';
+        this.shield.setAttribute('aria-pressed', 'false');
         const overlay = parent.querySelector('#overlay');
         parent.insertBefore(this.stick, overlay);
         parent.insertBefore(this.button, overlay);
+        parent.insertBefore(this.shield, overlay);
 
         this.stick.addEventListener('pointerdown', this.onStickDown);
         this.stick.addEventListener('pointermove', this.onStickMove);
@@ -49,6 +57,12 @@ export class TouchControls {
         this.stick.addEventListener('pointercancel', this.onStickUp);
         this.stick.addEventListener('lostpointercapture', this.onStickUp);
         this.button.addEventListener('pointerdown', this.onAttack);
+        this.shield.addEventListener('pointerdown', this.onShieldDown);
+        for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+            this.shield.addEventListener(event, this.onShieldUp);
+        }
+        window.addEventListener('pointerup', this.onShieldUp);
+        window.addEventListener('pointercancel', this.onShieldUp);
         window.addEventListener('pointerdown', this.onAnyPointer);
         if (window.matchMedia?.('(pointer: coarse)').matches) this.reveal();
     }
@@ -58,8 +72,24 @@ export class TouchControls {
         return { x: this.x, z: this.z };
     }
 
-    /** Lets go of the stick and recentres the knob. */
+    /** Releases the stick and shield, and recentres the knob. */
+    guarding() {
+        return this.shieldPointer !== null;
+    }
+
+    /** Reflects the actual guard state, including attacks and carrying preventing guard. */
+    setGuarding(raised: boolean) {
+        this.shield.classList.toggle('raised', raised);
+        this.shield.setAttribute('aria-pressed', String(raised));
+    }
+
     release() {
+        const shieldPointer = this.shieldPointer;
+        this.shieldPointer = null;
+        if (shieldPointer !== null && this.shield.hasPointerCapture?.(shieldPointer)) {
+            this.shield.releasePointerCapture(shieldPointer);
+        }
+        this.setGuarding(false);
         if (this.pointer !== null && this.stick.hasPointerCapture?.(this.pointer)) {
             this.stick.releasePointerCapture(this.pointer);
         }
@@ -77,9 +107,16 @@ export class TouchControls {
         this.stick.removeEventListener('pointercancel', this.onStickUp);
         this.stick.removeEventListener('lostpointercapture', this.onStickUp);
         this.button.removeEventListener('pointerdown', this.onAttack);
+        this.shield.removeEventListener('pointerdown', this.onShieldDown);
+        for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+            this.shield.removeEventListener(event, this.onShieldUp);
+        }
+        window.removeEventListener('pointerup', this.onShieldUp);
+        window.removeEventListener('pointercancel', this.onShieldUp);
         window.removeEventListener('pointerdown', this.onAnyPointer);
         this.stick.remove();
         this.button.remove();
+        this.shield.remove();
     }
 
     private reveal() {
@@ -125,6 +162,25 @@ export class TouchControls {
 
     private onStickUp = (e: PointerEvent) => {
         if (e.pointerId === this.pointer) this.release();
+    };
+
+    private onShieldDown = (e: PointerEvent) => {
+        e.preventDefault();
+        if (this.shieldPointer !== null) return;
+        this.handlers.press();
+        this.shieldPointer = e.pointerId;
+        try {
+            this.shield.setPointerCapture?.(e.pointerId);
+        } catch {
+            // Window pointer-up also releases the button.
+        }
+    };
+
+    private onShieldUp = (e: Event) => {
+        const pointer = (e as PointerEvent).pointerId;
+        if (pointer !== this.shieldPointer) return;
+        this.shieldPointer = null;
+        if (this.shield.hasPointerCapture?.(pointer)) this.shield.releasePointerCapture(pointer);
     };
 
     private onAttack = (e: PointerEvent) => {
