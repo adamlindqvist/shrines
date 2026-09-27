@@ -80,5 +80,9 @@ export class Input {
         this.handlers.blur();
     };
 
-    private onPointerDown = () => this.handlers.pointerdown();
+    private onPointerDown = (e: PointerEvent) => {
+        e.preventDefault();
+        if (e.pointerType === 'touch') return;
+        this.handlers.pointerdown();
+    };
 }

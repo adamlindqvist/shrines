@@ -477,6 +477,28 @@ test('title splash holds the area frozen until a key starts play', (t) => {
     assert.equal(game.state, 'playing');
 });
 
+test('canvas touch does not interact or resume; mouse clicks and the touch button still interact', (t) => {
+    const { game, canvas, touch } = gameFixture(t);
+    const pressCanvas = (pointerType) => {
+        const event = Object.assign(new Event('pointerdown', { cancelable: true }), { pointerType });
+        canvas.dispatchEvent(event);
+        assert.equal(event.defaultPrevented, true);
+    };
+    pressCanvas('touch');
+    assert.equal(game.diagnostics().grabbed, false);
+    touch('touch-attack', 'pointerdown');
+    assert.equal(game.diagnostics().grabbed, true);
+    pressCanvas('touch');
+    assert.equal(game.diagnostics().grabbed, true);
+    pressCanvas('mouse');
+    assert.equal(game.diagnostics().grabbed, false);
+    globalThis.window.dispatchEvent(new Event('blur'));
+    pressCanvas('touch');
+    assert.equal(game.state, 'paused');
+    touch('touch-attack', 'pointerdown');
+    assert.equal(game.state, 'playing');
+});
+
 test('touch stick steers, releases on pause, and the attack button grabs', (t) => {
     const { game, tick, touch } = gameFixture(t);
     const start = game.diagnostics().player;

@@ -16,6 +16,9 @@ body {
     height: 100%;
     overflow: hidden;
     background: #c6e4cc;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
 }
 canvas {
     display: block;
@@ -331,8 +334,8 @@ kbd {
 .touch-stick {
     left: 24px;
     bottom: 24px;
-    width: 128px;
-    height: 128px;
+    width: 148px;
+    height: 148px;
     background: #fdf7eab8;
     box-shadow:
         0 4px 16px #3d5a3520,
@@ -340,8 +343,8 @@ kbd {
         inset 0 0 0 3px #fdf7ea;
 }
 .touch-knob {
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
     background: #6e6d62;
     box-shadow:
@@ -415,12 +418,12 @@ kbd {
     .touch-stick {
         left: 16px;
         bottom: 20px;
-        width: 116px;
-        height: 116px;
+        width: 134px;
+        height: 134px;
     }
     .touch-knob {
-        width: 50px;
-        height: 50px;
+        width: 58px;
+        height: 58px;
     }
     .touch-attack {
         right: 20px;
