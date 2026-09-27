@@ -70,6 +70,8 @@ Playable scenes and their rules are separate, JSON-compatible TypeScript data. `
 
 `backdrop` sets the sky plane under the island: its half-`size`, sky `gradient`, and the island's painted `shadowColor` and `shadowOffset`. Drifting cloud banks and a few small floating islets are scattered around the rim automatically from their own seeded stream, so they never shift scenery; `islets` overrides the islet count. They stay below the walkable top and off the island, with no collision.
 
+The orthographic camera expands its directional shadow range on resize to cover the visible ground and bank. `sun.shadowDistance` is a minimum camera-space distance, capped by the camera's far clip.
+
 Definitions contain plain objects, arrays, strings, numbers and booleans. Use data spreads for defaults; do not add callbacks, `Color` instances or scene-building code. Object types cover trees, rocks, bushes, bush clusters, pots, logs, signs, shrine platforms, bridges, piers, floating platforms, water regions, blocks, plates, portals, slimes and zones. Interactives have unique IDs across both lists. Rock scale is width in world units; other scale values retain their existing factory contracts. Camera RGB values are numeric triples.
 
 ### Add a complete level

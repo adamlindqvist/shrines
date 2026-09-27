@@ -7,7 +7,7 @@ import {
     SSAOTYPE_LIGHTING,
     TONEMAP_LINEAR
 } from 'playcanvas';
-import type { AppBase, Entity, Quat } from 'playcanvas';
+import type { AppBase, CameraComponent, Entity, Quat } from 'playcanvas';
 
 import { node } from '../rendering/primitives';
 
@@ -44,6 +44,22 @@ export function renderQuality(): RenderQuality {
 
 /** Shared framing keeps every adventure area at the same scale on a given viewport. */
 export const ADVENTURE_VIEW = { orthoHeight: 10, minVisibleHalfWidth: 12 };
+
+/** Lowest shadow receiver, including the clay bank and objects sinking into water. */
+export const SHADOW = { receiverFloor: -4 };
+
+/** Camera-space depth covering every visible orthographic ray down to the receiver floor. */
+export function shadowDistanceForView(
+    camera: Entity,
+    view: Pick<CameraComponent, 'orthoHeight' | 'aspectRatio' | 'farClip'>,
+    minimum: number
+) {
+    const downward = -camera.forward.y;
+    if (downward <= 0) return view.farClip;
+    const verticalExtent = view.orthoHeight * (Math.abs(camera.up.y) + view.aspectRatio * Math.abs(camera.right.y));
+    const depth = (camera.getPosition().y + verticalExtent - SHADOW.receiverFloor) / downward;
+    return Math.min(view.farClip, Math.max(minimum, depth));
+}
 
 export type CameraRigOptions = {
     /** Scene-wide ambient light, applied when the rig is created. */
@@ -140,7 +156,16 @@ export class CameraRig {
     /** Fits the orthographic view to the window's aspect ratio. */
     resize() {
         const { orthoHeight, minVisibleHalfWidth } = this.options.camera;
-        this.camera.camera!.orthoHeight = Math.max(orthoHeight, minVisibleHalfWidth / (innerWidth / innerHeight));
+        const aspectRatio = innerWidth / innerHeight;
+        const view = this.camera.camera!;
+        view.orthoHeight = Math.max(orthoHeight, minVisibleHalfWidth / aspectRatio);
+        // shadowDistance is measured from the camera, not from the followed player.
+        // Orthographic zoom-out exposes deeper ground even though the camera stays put.
+        this.sun.light!.shadowDistance = shadowDistanceForView(
+            this.camera,
+            { orthoHeight: view.orthoHeight, aspectRatio, farClip: view.farClip },
+            this.options.sun.shadowDistance
+        );
     }
 
     /** Eases the camera toward the followed point (x, z). */
