@@ -1,6 +1,6 @@
 import type { Entity, Material } from 'playcanvas';
 
-import { appendPrism, appendRoundedBox, appendSphere, createGeo, meshEntity } from '../rendering/geometry';
+import { appendLathe, appendPrism, appendRoundedBox, appendSphere, createGeo, meshEntity } from '../rendering/geometry';
 import type { Geo } from '../rendering/geometry';
 import { node, roundedBox } from '../rendering/primitives';
 
@@ -97,14 +97,14 @@ export function createSunSwitch(
     yaw: number,
     symbol: PuzzleSymbol = 'sun'
 ): SunSwitchHandles {
-    const base = roundedBox(device, root, 'sandstone plinth', c.sandstone, 0, 0.11, 0, 2.1, 0.22, 2.1, 0.12);
-    roundedBox(device, root, 'plinth groove', c.barkLight, 0, 0.226, 0, 1.8, 0.02, 1.8, 0.09);
-    roundedBox(device, root, 'plinth inner', c.sandstone, 0, 0.236, 0, 1.66, 0.02, 1.66, 0.08);
-    roundedBox(device, root, 'groove line', c.barkLight, 0, 0.246, 0, 1.48, 0.02, 1.48, 0.07);
-    roundedBox(device, root, 'ivory inset', c.cream, 0, 0.256, 0, 1.36, 0.02, 1.36, 0.06);
+    const base = roundedBox(device, root, 'rounded sandstone plate', c.sandstone, 0, 0.11, 0, 2.1, 0.22, 2.1, 0.18);
+    roundedBox(device, root, 'ivory plate border', c.cream, 0, 0.226, 0, 1.88, 0.028, 1.88, 0.12);
+    roundedBox(device, root, 'turquoise symbol inset', c.blockStone[0], 0, 0.249, 0, 1.62, 0.024, 1.62, 0.1);
     const sunDisk = createSymbol({ device, palette: c }, root, symbol, c.gold);
     sunDisk.setLocalPosition(0, 0.28, 0);
-    sunDisk.setLocalScale(1.55, 1, 1.55);
+    // The crescent has more solid area than the sun's rays, so give it a smaller footprint.
+    const symbolScale = symbol === 'moon' ? 1.12 : 1.4;
+    sunDisk.setLocalScale(symbolScale, 1, symbolScale);
     sunDisk.setLocalEulerAngles(0, -yaw, 0);
     return { entity: root, sunDisk, base };
 }
@@ -158,47 +158,78 @@ export type PortalHandles = {
     gate: Entity;
     /** Glow pane pivot at the centre of the doorway, widened from zero once the gate lands. */
     glow: Entity;
-    /** Swirl pivot inside the ring, spun about its local Y axis. */
+    /** Swirl pivot inside the doorway, spun about its local Y axis. */
     swirl: Entity;
 };
 
 /** Doorway proportions; the gate stands in the local X/Y plane and faces +Z. */
-export const PORTAL_FRAME = { opening: 1.3, height: 1.8, pillar: 0.44, depth: 0.56, sigil: 2.2 };
+export const PORTAL_FRAME = { opening: 1.3, height: 1.85, spring: 1.2, pillar: 0.44, depth: 0.56, sigil: 2.5 };
 
 /**
- * Sandstone plinth that waits for a turquoise doorway, matching the block and
+ * Sandstone plinth that waits for a rounded stone arch, matching the block and
  * plate style, centred on the origin of `root`. The gate is hidden until opened.
  */
 export function createPortal(ctx: PropContext, root: Entity): PortalHandles {
     const { device, palette: c } = ctx;
-    const { opening, height, pillar, depth, sigil: size } = PORTAL_FRAME;
+    const { opening, height, spring, pillar, depth, sigil: size } = PORTAL_FRAME;
     const sigil = node(root, 'portal plinth');
     {
-        // The same stepped slab, groove and ivory inset as the symbol plates, kept low.
+        // A low, bevelled sun seal reads as a sleeping shrine, distinct from a pressure plate.
         const sand = createGeo();
-        appendRoundedBox(sand, 0, 0.06, 0, size, 0.12, size, 0.08, 4);
-        appendRoundedBox(sand, 0, 0.13, 0, size - 0.36, 0.02, size - 0.36, 0.06, 3);
-        meshEntity(device, sigil, 'portal plinth', sand, c.sandstone, false, true);
-        const groove = createGeo();
-        appendRoundedBox(groove, 0, 0.123, 0, size - 0.24, 0.02, size - 0.24, 0.07, 3);
-        meshEntity(device, sigil, 'plinth groove', groove, c.barkLight, false, true);
+        const radius = size / 2;
+        appendLathe(
+            sand,
+            [
+                [0, 0],
+                [radius - 0.06, 0],
+                [radius, 0.045],
+                [radius, 0.075],
+                [radius - 0.08, 0.12],
+                [0, 0.12]
+            ],
+            0,
+            0,
+            0,
+            20
+        );
+        meshEntity(device, sigil, 'rounded sandstone seal', sand, c.sandstone, false, true);
+        const rim = createGeo();
+        appendLathe(
+            rim,
+            [
+                [radius - 0.13, 0.121],
+                [radius - 0.26, 0.121]
+            ],
+            0,
+            0,
+            0,
+            20
+        );
+        meshEntity(device, sigil, 'ivory seal rim', rim, c.cream, false, true);
         const inset = createGeo();
-        appendRoundedBox(inset, 0, 0.143, 0, size - 0.6, 0.02, size - 0.6, 0.05, 3);
-        meshEntity(device, sigil, 'ivory inset', inset, c.cream, false, true);
-        const recess = createGeo();
-        appendRoundedBox(recess, 0, 0.153, 0, opening, 0.012, 0.16, 0.04, 2);
-        meshEntity(device, sigil, 'threshold groove', recess, c.blockRecess, false, true);
+        appendLathe(
+            inset,
+            [
+                [0.61, 0.123],
+                [0, 0.123]
+            ],
+            0,
+            0,
+            0,
+            24
+        );
+        meshEntity(device, sigil, 'turquoise sun inset', inset, c.blockStone[0], false, true);
+        const sun = createSymbol(ctx, sigil, 'sun', c.gold);
+        sun.setLocalPosition(0, 0.126, 0);
+        sun.setLocalScale(0.9, 1, 0.9);
     }
-    // Turquoise corner studs hint at the stone that will rise; they glow once awake.
+    // Four low cabochons sit inside the ivory rim and wake with the doorway.
     const runes = createGeo();
-    const edge = size / 2 - 0.2;
-    for (const [x, z] of [
-        [-1, -1],
-        [1, -1],
-        [1, 1],
-        [-1, 1]
-    ])
-        appendRoundedBox(runes, x * edge, 0.2, z * edge, 0.26, 0.16, 0.26, 0.07, 4);
+    const edge = size / 2 - 0.38;
+    for (let i = 0; i < 4; i++) {
+        const angle = Math.PI / 4 + (i * Math.PI) / 2;
+        appendSphere(runes, Math.cos(angle) * edge, 0.125, Math.sin(angle) * edge, 0.12, 0.055, 0.12, 12, 6);
+    }
     const runesDim = meshEntity(device, sigil, 'dormant studs', runes, c.blockStone[0], true, true);
     const runesLit = meshEntity(device, sigil, 'awake studs', runes, c.portalGlow, true, false);
     runesLit.enabled = false;
@@ -207,37 +238,64 @@ export function createPortal(ctx: PropContext, root: Entity): PortalHandles {
     // Lifted onto the plinth; the controller animates `gate` itself.
     const frame = node(gate, 'gate frame', 0, 0.12, 0);
     {
-        const px = opening / 2 + pillar / 2;
-        const width = opening + pillar * 2;
-        const top = height + 0.06;
-        const pillars = createGeo();
-        for (const s of [-1, 1]) appendRoundedBox(pillars, s * px, top / 2, 0, pillar, top, depth, 0.14, 6);
-        meshEntity(device, frame, 'turquoise pillars', pillars, c.blockStone[0]);
-        const lintel = createGeo();
-        appendRoundedBox(lintel, 0, top + 0.22, 0, width + 0.16, 0.44, depth + 0.08, 0.16, 6);
-        meshEntity(device, frame, 'turquoise lintel', lintel, c.blockStone[1]);
-        const recess = createGeo();
-        for (const s of [-1, 1]) {
-            appendRoundedBox(recess, s * px, top * 0.62, depth / 2, pillar * 0.5, 0.05, 0.03, 0.02, 2);
-            appendRoundedBox(recess, s * px, top * 0.3, depth / 2, pillar * 0.5, 0.05, 0.03, 0.02, 2);
+        const radius = (opening + pillar) / 2;
+        const stone = createGeo();
+        const inlays = createGeo();
+        const trim = createGeo();
+        // Short, softly worn masonry blocks give the doorway a tactile silhouette.
+        for (const side of [-1, 1]) {
+            for (let row = 0; row < 3; row++) {
+                appendRoundedBox(stone, side * radius, 0.2 + row * 0.4, 0, pillar, 0.42, depth, 0.1, 4);
+            }
+            appendRoundedBox(trim, side * radius, 0.1, 0, pillar + 0.12, 0.2, depth + 0.12, 0.08, 4);
+            appendRoundedBox(inlays, side * radius, 0.67, depth / 2 - 0.025, 0.16, 0.3, 0.08, 0.04, 4);
         }
-        meshEntity(device, frame, 'carved channels', recess, c.blockRecess);
-        const gold = createGeo();
-        for (const s of [-1, 1]) {
-            appendRoundedBox(gold, s * px, 0.08, 0, pillar + 0.06, 0.12, depth + 0.06, 0.05, 3);
-            appendRoundedBox(gold, s * px, top - 0.02, 0, pillar + 0.04, 0.08, depth + 0.04, 0.03, 3);
+        // Batch the arch stones into the same mesh as the piers.
+        for (let segment = 0; segment <= 8; segment++) {
+            const angle = (segment * Math.PI) / 8;
+            const block = createGeo();
+            appendRoundedBox(block, 0, 0, 0, pillar, 0.38, depth, 0.09, 4);
+            const cos = Math.cos(angle),
+                sin = Math.sin(angle);
+            const base = stone.p.length / 3;
+            for (let v = 0; v < block.p.length; v += 3) {
+                const x = block.p[v],
+                    y = block.p[v + 1];
+                stone.p.push(cos * (x + radius) - sin * y, spring + sin * (x + radius) + cos * y, block.p[v + 2]);
+                stone.n.push(
+                    cos * block.n[v] - sin * block.n[v + 1],
+                    sin * block.n[v] + cos * block.n[v + 1],
+                    block.n[v + 2]
+                );
+            }
+            stone.u.push(...block.u);
+            stone.i.push(...block.i.map((index) => base + index));
         }
-        meshEntity(device, frame, 'gold bands', gold, c.gold);
-        const emblem = node(frame, 'lintel sun', 0, top + 0.22, (depth + 0.08) / 2 - 0.004);
+        appendRoundedBox(inlays, 0, spring + radius, depth / 2 + 0.02, 0.5, 0.5, 0.1, 0.05, 4);
+        meshEntity(device, frame, 'rounded sandstone arch', stone, c.sandstone);
+        meshEntity(device, frame, 'ivory foot stones', trim, c.cream);
+        meshEntity(device, frame, 'turquoise inlays', inlays, c.blockStone[0]);
+        const emblem = node(frame, 'arch sun', 0, spring + radius, depth / 2 + 0.075);
         emblem.setLocalEulerAngles(90, 0, 0);
-        emblem.setLocalScale(0.66, 1, 0.66);
+        emblem.setLocalScale(0.5, 1, 0.5);
         createSymbol(ctx, emblem, 'sun', c.gold);
     }
     const glow = node(frame, 'glow pane', 0, height / 2, 0);
     {
+        // A round-topped veil fills the arch without square corners outside the stone.
         const pane = createGeo();
-        appendRoundedBox(pane, 0, 0, 0, opening + 0.04, height, 0.08, 0.04, 2);
-        meshEntity(device, glow, 'portal glow', pane, c.portalGlow, false, false);
+        const radius = opening / 2 + 0.025;
+        const outline = [
+            [-radius, height / 2],
+            [radius, height / 2]
+        ];
+        for (let segment = 0; segment <= 20; segment++) {
+            const angle = (segment * Math.PI) / 20;
+            outline.push([Math.cos(angle) * radius, height / 2 - spring - Math.sin(angle) * radius]);
+        }
+        appendPrism(pane, outline.reverse(), 0, -0.025, 0.025, 0);
+        const veil = meshEntity(device, glow, 'arched turquoise veil', pane, c.portalVeil, false, false);
+        veil.setLocalEulerAngles(90, 0, 0);
     }
     // Built flat around Y, then stood up so the swirl faces +Z.
     const upright = node(frame, 'swirl upright', 0, height / 2, 0);
@@ -245,19 +303,19 @@ export function createPortal(ctx: PropContext, root: Entity): PortalHandles {
     const swirl = node(upright, 'portal swirl');
     {
         const arms = createGeo();
-        for (let arm = 0; arm < 3; arm++) {
-            const steps = 10;
+        for (let arm = 0; arm < 2; arm++) {
+            const steps = 18;
             for (let i = 0; i < steps; i++) {
                 const at = (t: number, r: number) => {
-                    const angle = (arm * Math.PI * 2) / 3 + t * 2.4;
+                    const angle = arm * Math.PI + t * 2.8;
                     return [Math.cos(angle) * r, Math.sin(angle) * r];
                 };
                 const t0 = i / steps,
                     t1 = (i + 1) / steps;
                 const r0 = 0.08 + t0 * 0.52,
                     r1 = 0.08 + t1 * 0.52;
-                const w0 = 0.02 + t0 * 0.04,
-                    w1 = 0.02 + t1 * 0.04;
+                const w0 = 0.012 + t0 * 0.023,
+                    w1 = 0.012 + t1 * 0.023;
                 const poly = [at(t0, r0 + w0), at(t1, r1 + w1), at(t1, r1 - w1), at(t0, r0 - w0)];
                 const cx = poly.reduce((sum, q) => sum + q[0], 0) / 4;
                 const cz = poly.reduce((sum, q) => sum + q[1], 0) / 4;
@@ -271,7 +329,7 @@ export function createPortal(ctx: PropContext, root: Entity): PortalHandles {
                 );
             }
         }
-        meshEntity(device, swirl, 'swirl arms', arms, c.portalLight, false, false);
+        meshEntity(device, swirl, 'swirl arms', arms, c.portalThread, false, false);
     }
     gate.enabled = false;
     return { entity: root, sigil, runesDim, runesLit, gate, glow, swirl };

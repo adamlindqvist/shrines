@@ -22,6 +22,15 @@ export function createPalette(resources: SceneResources) {
     portalLight.emissive.copy(portalLight.diffuse);
     portalLight.emissiveIntensity = 1.8;
     portalLight.update();
+    // Portal-only materials keep the doorway soft without dimming ferry and pier cues.
+    const portalVeil = mat('soft turquoise portal veil', '#39bfb2', 12);
+    portalVeil.emissive.copy(portalVeil.diffuse);
+    portalVeil.emissiveIntensity = 0.55;
+    portalVeil.update();
+    const portalThread = mat('ivory portal threads', '#fff0c9', 12);
+    portalThread.emissive.copy(portalThread.diffuse);
+    portalThread.emissiveIntensity = 0.8;
+    portalThread.update();
     const guardMaterial = (name: string, opacity: number) => {
         const m = mat(name, '#fff0b9');
         m.useLighting = false;
@@ -45,6 +54,8 @@ export function createPalette(resources: SceneResources) {
         blockRecess: mat('deep turquoise carving', '#087d79', 15),
         grabHint,
         grabSelected,
+        portalVeil,
+        portalThread,
         portalGlow,
         portalLight,
         bark: mat('warm bark', '#9c6530'),

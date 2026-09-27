@@ -4,7 +4,7 @@ The detailed behavior spec for the current game. Source constants remain authori
 
 ## The journey
 
-Shrines opens **Mossy Meadow**, a small clearing with a hooded adventurer, two strawberry slimes, a grabbable turquoise block, a sun switch and a dormant portal plinth. Solving the puzzle raises a turquoise portal leading to:
+Shrines opens **Mossy Meadow**, a small clearing with a hooded adventurer, two strawberry slimes, a grabbable turquoise block, a sun switch and a dormant portal plinth. Solving the puzzle raises a sandstone portal leading to:
 
 1. **Sun & Moon Grove** — a 40 × 30 world with four slimes and two symbol-marked blocks and plates. Both matches open its portal.
 2. **Two Suns Shrine** — a river island where two sun blocks are carried over a stone bridge onto two sun plates beside a raised shrine.
@@ -65,9 +65,11 @@ Animation is procedural and driven by game state; there are no authored clips.
 - `LevelRules` evaluates `plateActive`, `enemyDefeated`, `portalReached` and `zoneVisited`, combined with nonempty `all`/`any`. Rules read one snapshot after combat and object updates, fire once in definition order, and perform idempotent `openBridge`/`openPortal`/`activatePlatform` actions. Their consequences are observed next frame.
 - Completion is an explicit condition; reaching a portal never implicitly finishes a level. Zone visits include height and persist until reset. Generic plate feedback must not assume a portal was opened.
 
+Pressure plates use rounded square sandstone bases, ivory borders and recessed turquoise centres with large gold sun or moon symbols. Their existing activation colours remain state-driven.
+
 ## Portals
 
-Closed portals show only their sandstone plinth. Opened portals rumble, climb out of the plinth, land with a squash and bloom their swirl over 1.1 gameplay seconds, then spin down to a slow turn. They count as reached only once fully risen.
+Closed portals show a low, round sandstone seal with an ivory rim, a gold sun in a turquoise inset and four small turquoise stones. The doorway is a rounded sandstone arch with ivory feet, turquoise inlays and a gold sun crest; a soft turquoise veil and two ivory curls fill the opening. Opened portals rumble, climb out of the plinth, land with a squash and bloom their swirl over 1.1 gameplay seconds, then spin down to a slow turn. They count as reached only once fully risen.
 
 ## Bridges
 
