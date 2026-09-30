@@ -8,6 +8,7 @@ import { createBlockStone } from './block-model';
 import type { PropContext } from './context';
 
 export type PuzzleSymbol = 'sun' | 'moon';
+export type PlateMode = 'permanent' | 'temporary';
 
 export type PushBlockHandles = {
     entity: Entity;
@@ -88,18 +89,78 @@ export type SunSwitchHandles = {
 };
 
 /**
- * Sandstone pressure plate. `yaw` is the plinth's rotation in degrees, which
+ * Sandstone pressure plate: square and permanent, or round with a segmented rim and temporary. `yaw` is the plinth's rotation in degrees, which
  * the sun inlay counter-rotates so its rays stay aligned with the world axes.
  */
 export function createSunSwitch(
     { device, palette: c }: PropContext,
     root: Entity,
     yaw: number,
-    symbol: PuzzleSymbol = 'sun'
+    symbol: PuzzleSymbol = 'sun',
+    mode: PlateMode = 'permanent'
 ): SunSwitchHandles {
-    const base = roundedBox(device, root, 'rounded sandstone plate', c.sandstone, 0, 0.11, 0, 2.1, 0.22, 2.1, 0.18);
-    roundedBox(device, root, 'ivory plate border', c.cream, 0, 0.226, 0, 1.88, 0.028, 1.88, 0.12);
-    roundedBox(device, root, 'turquoise symbol inset', c.blockStone[0], 0, 0.249, 0, 1.62, 0.024, 1.62, 0.1);
+    let base: Entity;
+    if (mode === 'temporary') {
+        const stone = createGeo();
+        appendLathe(
+            stone,
+            [
+                [0, 0],
+                [1.1, 0],
+                [1.18, 0.08],
+                [1.18, 0.14],
+                [1.1, 0.22],
+                [0, 0.22]
+            ],
+            0,
+            0,
+            0,
+            32
+        );
+        base = meshEntity(device, root, 'round temporary plate', stone, c.sandstone);
+        const inset = createGeo();
+        appendLathe(
+            inset,
+            [
+                [0, 0.232],
+                [0.91, 0.232],
+                [0.94, 0.248],
+                [0.91, 0.27],
+                [0, 0.27]
+            ],
+            0,
+            0,
+            0,
+            32
+        );
+        meshEntity(device, root, 'round turquoise pressure inset', inset, c.blockStone[0]);
+        // Four separated ivory arcs retain their readable shape even while a block covers the centre.
+        const rim = createGeo();
+        for (let quarter = 0; quarter < 4; quarter++) {
+            for (let segment = 0; segment < 10; segment++) {
+                const a = (quarter * Math.PI) / 2 + 0.17 + (segment * (Math.PI / 2 - 0.34)) / 10;
+                const b = a + (Math.PI / 2 - 0.34) / 10;
+                appendPrism(
+                    rim,
+                    [
+                        [Math.cos(a) * 1.13, Math.sin(a) * 1.13],
+                        [Math.cos(b) * 1.13, Math.sin(b) * 1.13],
+                        [Math.cos(b) * 1.01, Math.sin(b) * 1.01],
+                        [Math.cos(a) * 1.01, Math.sin(a) * 1.01]
+                    ],
+                    0,
+                    0.225,
+                    0.255,
+                    0
+                );
+            }
+        }
+        meshEntity(device, root, 'segmented temporary plate rim', rim, c.cream);
+    } else {
+        base = roundedBox(device, root, 'rounded sandstone plate', c.sandstone, 0, 0.11, 0, 2.1, 0.22, 2.1, 0.18);
+        roundedBox(device, root, 'ivory plate border', c.cream, 0, 0.226, 0, 1.88, 0.028, 1.88, 0.12);
+        roundedBox(device, root, 'turquoise symbol inset', c.blockStone[0], 0, 0.249, 0, 1.62, 0.024, 1.62, 0.1);
+    }
     const sunDisk = createSymbol({ device, palette: c }, root, symbol, c.gold);
     sunDisk.setLocalPosition(0, 0.28, 0);
     // The crescent has more solid area than the sun's rays, so give it a smaller footprint.

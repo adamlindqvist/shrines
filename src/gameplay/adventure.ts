@@ -15,6 +15,8 @@ import { TouchControls } from '../ui/touch-controls';
 import { Collision } from './collision';
 import { SHIELD, Shield, Sword } from './combat';
 import { Effects } from './effects';
+import { GateController } from './gates';
+import type { GateHandles } from './gates';
 import { Input } from './input';
 import { BridgeController, PortalController, ZoneTracker } from './level-objects';
 import type { BridgeHandles } from './level-objects';
@@ -24,7 +26,7 @@ import type { PlatformHandles } from './platforms';
 import { PLAYER, PlayerController } from './player';
 import { BlockPuzzle } from './puzzle';
 import type { Point, PuzzleConfig } from './puzzle';
-import { LevelRules } from './rules';
+import { evaluateCondition, LevelRules } from './rules';
 import { SLIME, SlimePack } from './slimes';
 import type { Slime, SlimeTarget } from './slimes';
 
@@ -44,6 +46,7 @@ export type AdventureCast = {
     plates: SunSwitchHandles[];
     portals: PortalHandles[];
     bridges: BridgeHandles[];
+    gates: GateHandles[];
     platforms: PlatformHandles[];
 };
 
@@ -103,6 +106,7 @@ export class AdventureGame {
     private readonly rules: LevelRules;
     private readonly portals: PortalController[];
     private readonly bridges: BridgeController[];
+    private readonly gates: GateController[];
     private readonly platforms: PlatformController[];
     private readonly zones: ZoneTracker;
     private readonly puzzleConfig: PuzzleConfig;
@@ -129,7 +133,8 @@ export class AdventureGame {
         this.puzzle = new BlockPuzzle(this.puzzleConfig, cast.blocks, cast.plates, this.collision, {
             idle: palette.gold,
             lit: palette.teal,
-            baseIdle: palette.sandstone
+            baseIdle: palette.sandstone,
+            disabled: palette.stone
         });
         this.rules = new LevelRules(level);
         this.portals = this.objects
@@ -138,6 +143,7 @@ export class AdventureGame {
         this.bridges = this.objects
             .filter((o) => o.type === 'bridge')
             .map((o, i) => new BridgeController(o, cast.bridges[i]));
+        this.gates = this.objects.filter((o) => o.type === 'gate').map((o, i) => new GateController(o, cast.gates[i]));
         this.platforms = this.objects
             .filter((o) => o.type === 'platform')
             .map((o, i) => new PlatformController(o, cast.platforms[i]));
@@ -278,6 +284,15 @@ export class AdventureGame {
             portalReached: new Set(this.portals.filter((p) => p.reached).map((p) => p.definition.id)),
             zoneVisited: new Set(this.zones.visited)
         };
+        if (this.gates.length) {
+            const bodies = [
+                { x: player.position.x, z: player.position.z, r: PLAYER.radius },
+                ...this.puzzle.blockingBodies(),
+                ...this.slimes.slimes.filter((e) => e.hp > 0).map((e) => ({ x: e.x, z: e.z, r: SLIME.radius }))
+            ];
+            for (const gate of this.gates)
+                gate.update(dt, evaluateCondition(gate.definition.openWhen, snapshot), bodies);
+        }
         for (const rule of this.rules.update(snapshot)) {
             for (const action of rule.actions) {
                 switch (action.type) {
@@ -369,6 +384,12 @@ export class AdventureGame {
                 progress: +p.progress.toFixed(2)
             })),
             bridges: this.bridges.map((b) => ({ id: b.definition.id, state: b.state })),
+            gates: this.gates.map((g) => ({
+                id: g.definition.id,
+                state: g.state,
+                progress: +g.progress.toFixed(2),
+                desiredOpen: g.desiredOpen
+            })),
             platforms: this.platforms.map((p) => ({
                 id: p.definition.id,
                 state: p.state,
@@ -432,6 +453,7 @@ export class AdventureGame {
         this.rules.reset();
         this.portals.forEach((p) => p.reset());
         this.bridges.forEach((b) => b.reset());
+        this.gates.forEach((g) => g.reset());
         this.platforms.forEach((p) => p.reset());
         this.zones.reset();
         this.slimes.reset();

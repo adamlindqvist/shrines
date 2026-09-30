@@ -1,5 +1,6 @@
 import type { Bounds } from '../gameplay/collision';
 import { PLATFORM } from '../gameplay/platforms';
+import { GATE } from '../objects/gate';
 import { BRIDGE } from '../objects/shrine';
 
 import type { Condition, LevelDefinition, SceneDefinition, SceneObject } from './types';
@@ -81,6 +82,13 @@ export function validateLevel(level: LevelDefinition, scene: SceneDefinition) {
             positive(object.length, `${path}.length`);
             if (object.length <= BRIDGE.pillarInset * 2) fail(`${path}.length`, 'too short for bridge pillars');
         }
+        if (object.type === 'plate' && object.mode !== undefined && !['permanent', 'temporary'].includes(object.mode))
+            fail(`${path}.mode`, 'must be permanent or temporary');
+        if (object.type === 'gate') {
+            positive(object.width, `${path}.width`);
+            if (object.width < GATE.minWidth) fail(`${path}.width`, `must be at least ${GATE.minWidth} to carry a box`);
+            if (object.rotation !== undefined) finite(object.rotation, `${path}.rotation`);
+        }
         if (object.type === 'portal' && object.reach !== undefined) positive(object.reach, `${path}.reach`);
         if (object.type === 'bushCluster') {
             if (object.count !== undefined && (!Number.isInteger(object.count) || object.count < 0))
@@ -141,6 +149,31 @@ export function validateLevel(level: LevelDefinition, scene: SceneDefinition) {
                 fail(path, 'unknown condition');
         }
     };
+    for (const [i, object] of [...scene.scenery, ...scene.objects].entries()) {
+        if (object.type === 'gate') condition(object.openWhen, `objects[${i}].openWhen`);
+    }
+    for (const [i, object] of [...scene.scenery, ...scene.objects].entries()) {
+        if (object.type !== 'plate' || object.requiresPlate === undefined) continue;
+        const path = `objects[${i}].requiresPlate`;
+        reference(object.requiresPlate, 'plate', path);
+        const visited = new Set([object.id]);
+        let required = object.requiresPlate;
+        while (required) {
+            if (visited.has(required)) fail(path, 'plate prerequisites must not form a cycle');
+            visited.add(required);
+            const source = objects.get(required);
+            if (source?.type === 'plate') {
+                if (source.mode === 'temporary') fail(path, 'requires a permanent plate');
+                required = source.requiresPlate ?? '';
+            } else fail(path, `${required} must reference a plate`);
+        }
+    }
+    const containsTemporaryPlate = (c: Condition): boolean => {
+        if (c.type === 'all' || c.type === 'any') return c.conditions.some(containsTemporaryPlate);
+        if (c.type !== 'plateActive') return false;
+        const target = objects.get(c.target);
+        return target?.type === 'plate' && target.mode === 'temporary';
+    };
     const ids = new Set<string>();
     for (const [i, rule] of level.rules.entries()) {
         const path = `rules[${i}]`;
@@ -151,6 +184,8 @@ export function validateLevel(level: LevelDefinition, scene: SceneDefinition) {
             const targets = { openBridge: 'bridge', openPortal: 'portal', activatePlatform: 'platform' } as const;
             if (!Object.hasOwn(targets, action.type)) fail(path, 'unknown action');
             reference(action.target, targets[action.type], `${path}.actions[${j}]`);
+            if (action.type === 'openPortal' && containsTemporaryPlate(rule.when))
+                fail(`${path}.when`, 'temporary plates cannot unlock portals; use permanent plates');
         }
     }
     condition(level.completion, 'completion');

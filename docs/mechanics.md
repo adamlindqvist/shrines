@@ -7,10 +7,11 @@ The detailed behavior spec for the current game. Source constants remain authori
 Shrines opens **Mossy Meadow**, a small clearing with a hooded adventurer, two strawberry slimes, a grabbable turquoise block, a sun switch and a dormant portal plinth. Solving the puzzle raises a sandstone portal leading to:
 
 1. **Sun & Moon Grove** — a 40 × 30 world with four slimes and two symbol-marked blocks and plates. Both matches open its portal.
-2. **Two Suns Shrine** — a river island where two sun blocks are carried over a stone bridge onto two sun plates beside a raised shrine.
-3. **Twin Bridges Isle** — two rivers split the island into three banks. Each box-and-plate trigger raises the next bridge; a sun block carried to the shrine plate opens the portal.
-4. **Drifting Stones** — a moon plate wakes two floating stones that drift sideways out of step across a wide river between piers and a mid-river pad. The sun block must ride both to reach the shrine plate and open its portal.
-5. **Lantern Lake** (final) — the shrine stands on a lake islet and wants a moon block. A sun block on the west lantern wakes a ferry stone in the east bay; a second sun block, hidden in the north-west grove, must ride it to the east lantern. Both lanterns together raise the lake bridge, and the moon block from the far shore rides back across to the shrine plate to open the last portal.
+2. **Solgrinden** — a 40 × 36 dry grass island with a starting glade, a crescent rock chamber reached through a five-unit-wide gate rotated 35°, and an eastern shrine court. The moon sits behind an inner rock ridge with a broad bend around its eastern tip. Two optional slimes wander in a south-east side glade, away from the required transport route. The sun block starts in a separate eastern glade, out of the starting view; it must first be found and carried west. A sun block snapped onto its temporary plate keeps the only gate open; the enclosed moon block must be carried out along the sandy trail to the permanent moon plate in the shrine court. The two permanent plates stand together below the portal stairs. This readies the permanent sun plate, and the sun block must then be moved off the temporary plate onto it. Both permanent matches open the portal.
+3. **Two Suns Shrine** — a river island where two sun blocks are carried over a stone bridge onto two sun plates beside a raised shrine.
+4. **Twin Bridges Isle** — two rivers split the island into three banks. Each box-and-plate trigger raises the next bridge; a sun block carried to the shrine plate opens the portal.
+5. **Drifting Stones** — a moon plate wakes two floating stones that drift sideways out of step across a wide river between piers and a mid-river pad. The sun block must ride both to reach the shrine plate and open its portal.
+6. **Lantern Lake** (final) — the shrine stands on a lake islet and wants a moon block. A sun block on the west lantern wakes a ferry stone in the east bay; a second sun block, hidden in the north-west grove, must ride it to the east lantern. Both lanterns together raise the lake bridge, and the moon block from the far shore rides back across to the shrine plate to open the last portal.
 
 Defeating slimes is optional. Remaining hearts carry over between areas. Restarting after a defeat retries the current area with full hearts; restarting after victory returns to the first area with three hearts.
 
@@ -52,7 +53,7 @@ Animation is procedural and driven by game state; there are no authored clips.
 
 ## Carrying blocks
 
-- Puzzles use arrays of uniquely symbol-marked blocks and plates (`sun` / `moon`). A correct match snaps and locks the box; a wrong match stays movable.
+- Puzzles use arrays of uniquely symbol-marked blocks and plates (`sun` / `moon`). A correct match on a permanent plate (the default) snaps and locks the box; a wrong match stays movable. A `temporary` plate snaps a matching block without locking it, automatically releasing the block when carried over the plate. The player does not press it. Picking the block up immediately extinguishes the plate; that same plate ignores the held block until it leaves the snap radius, so it can be carried away without snapping back. Returning to the plate snaps again, and explicitly releasing while still over it also reactivates it. Moving it away or sinking removes pressure. A block can repeatedly activate temporary plates and later lock onto a permanent one. A plate may declare `requiresPlate`, the ID of a permanent plate that must already be matched before it accepts a block; before that its base and symbol are grey. Solgrinden uses this to prevent locking the sun block before the moon has been retrieved. Pickup transfers the plate support height into its visual lift to keep its height continuous.
 - Only one box can be held; nearest wins, with array order resolving ties. Other boxes constrain both the player and held box, including damage shoves.
 - Grabbing turns the player to face the block and locks facing until release. The pair translates rigidly, preserving the pickup offset: input strafes rather than turns, and the held box never rotates around the player. There is no swivel or orbit fallback; whichever of the player or box is blocked stops that axis of the pair, so diagonal input slides along walls.
 - Movement uses collision substeps of at most 0.05 world units, resolving X then Z.
@@ -61,15 +62,22 @@ Animation is procedural and driven by game state; there are no authored clips.
 
 ## Level rules
 
-- `BlockPuzzle` owns carrying and plate matching only. Portal, bridge and platform controllers own their independent states.
-- `LevelRules` evaluates `plateActive`, `enemyDefeated`, `portalReached` and `zoneVisited`, combined with nonempty `all`/`any`. Rules read one snapshot after combat and object updates, fire once in definition order, and perform idempotent `openBridge`/`openPortal`/`activatePlatform` actions. Their consequences are observed next frame.
+- `BlockPuzzle` owns carrying and plate matching only. Gate, portal, bridge and platform controllers own their independent states.
+- `LevelRules` evaluates `plateActive`, `enemyDefeated`, `portalReached` and `zoneVisited`, combined with nonempty `all`/`any`. Rules read one snapshot after combat and object updates, fire once in definition order, and perform idempotent `openBridge`/`openPortal`/`activatePlatform` actions. Their consequences are observed next frame. Gates evaluate their own `openWhen` condition against that same snapshot every playing frame and can open and close repeatedly; they do not use the fired-rule latch. Rules that open portals cannot depend on temporary plates, including within `all`/`any`; validation rejects such rules.
 - Completion is an explicit condition; reaching a portal never implicitly finishes a level. Zone visits include height and persist until reset. Generic plate feedback must not assume a portal was opened.
 
-Pressure plates use rounded square sandstone bases, ivory borders and recessed turquoise centres with large gold sun or moon symbols. Their existing activation colours remain state-driven.
+Permanent pressure plates use rounded square sandstone bases and continuous ivory borders. Temporary plates use round bevelled sandstone bases and four separated ivory rim arcs, so their silhouette remains distinct when a block covers the centre. Both use recessed turquoise centres with large gold sun or moon symbols. Their activation colours remain state-driven.
 
 ## Portals
 
 Closed portals show a low, round sandstone seal with an ivory rim, a gold sun in a turquoise inset and four small turquoise stones. The doorway is a rounded sandstone arch with ivory feet, turquoise inlays and a gold sun crest; a soft turquoise veil and two ivory curls fill the opening. Opened portals rumble, climb out of the plinth, land with a squash and bloom their swirl over 1.1 gameplay seconds, then spin down to a slow turn. They count as reached only once fully risen.
+
+## Pressure gates
+
+- A `gate` has an ID, X/Z position, clear `width` (at least 3.2 units), optional yaw `rotation` in degrees and `openWhen` using the existing condition syntax. It starts closed.
+- Sandstone posts remain solid. The wooden grille lowers 2.15 units into the ground over 0.6 gameplay seconds, using smoothstep motion; a reversed condition reverses from the current progress. The passage blocks players, carried blocks and slimes until fully open.
+- If its condition becomes false while open, the gate waits while any player, resting/held block or living slime overlaps the passage blockers. Once clear, the passage blocks immediately and the grille rises. It never damages or displaces a body.
+- Gates advance after puzzle matching against the rule snapshot; movement observes their collision on the next frame. Pause freezes motion, and reset restores closed state, progress, visibility, desired state and collision. Diagnostics include `state`, `progress` and `desiredOpen`.
 
 ## Bridges
 
@@ -91,7 +99,7 @@ Bridges are Z-aligned and permanently open once activated. Closed bridges rise f
 - The journey's opening area starts in `title` when the journey defines a `title` card: the area is built but frozen behind the splash. Its button or any key except Escape starts play; that key does nothing else (Space does not swing). Blur, pointer and R are ignored. Area changes and restarts skip the splash.
 - Gameplay time and ambient animation advance only while playing. Effects freeze while paused but finish after victory or defeat.
 - Pause freezes rules, portals, bridges, platforms and splashes.
-- Reset restores locks, bridge positions/collision, platform states and clocks, zone visits and fired rules; clears any splash; and moves the respawn point back to spawn.
+- Reset restores plate pressure, locks, gate positions/collision, bridge positions/collision, platform states and clocks, zone visits and fired rules; clears any splash; and moves the respawn point back to spawn.
 
 ## Input
 

@@ -2,13 +2,16 @@ import type { Entity } from 'playcanvas';
 
 import type { Obstacle, WalkSurface } from '../gameplay/collision';
 import { SHIELD } from '../gameplay/combat';
+import { createGateBlockers } from '../gameplay/gates';
+import type { GateHandles } from '../gameplay/gates';
 import { createBridgeBlockers } from '../gameplay/level-objects';
 import type { BridgeHandles } from '../gameplay/level-objects';
 import type { PlatformHandles } from '../gameplay/platforms';
-import type { PlatformDefinition, PierDefinition } from '../levels/types';
+import type { GateDefinition, PlatformDefinition, PierDefinition } from '../levels/types';
 import { createAdventurer } from '../objects/adventurer';
 import type { PropContext } from '../objects/context';
 import { appendBush, createBushBatch } from '../objects/foliage';
+import { GATE, createGate } from '../objects/gate';
 import { createFloatingStone, createPier } from '../objects/platform';
 import {
     LOG_HEIGHT,
@@ -20,7 +23,7 @@ import {
     createSignpost
 } from '../objects/props';
 import { createPortal, createPushBlock, createSunSwitch } from '../objects/puzzle';
-import type { PuzzleSymbol } from '../objects/puzzle';
+import type { PlateMode, PuzzleSymbol } from '../objects/puzzle';
 import { BRIDGE, SHRINE, SHRINE_TOP, createShrineDais, createStoneBridge, shrineFront } from '../objects/shrine';
 import { createSlime } from '../objects/slime';
 import { meshEntity } from '../rendering/geometry';
@@ -181,6 +184,23 @@ export class SceneBuilder {
         return { visual, blockers };
     }
 
+    /** Dry-land gate with permanent posts and a reversible passage blocker. */
+    addGate(definition: GateDefinition): GateHandles {
+        const visual = createGate(this.props, this.place('pressure gate', definition), definition.width);
+        const blockers = createGateBlockers(definition);
+        this.obstacles.push(...blockers);
+        const yaw = ((definition.rotation ?? 0) * Math.PI) / 180;
+        for (const side of [-1, 1]) {
+            const offset = (side * (definition.width + GATE.postSize)) / 2;
+            this.addObstacle(
+                definition.x + Math.cos(yaw) * offset,
+                definition.z - Math.sin(yaw) * offset,
+                GATE.postSize / 2
+            );
+        }
+        return { ...visual, blockers };
+    }
+
     /**
      * Static wooden jetty at meadow height. Its floor reaches `PIER_OVERLAP` past the planks so a
      * docked platform meets it without a gap.
@@ -289,8 +309,11 @@ export class SceneBuilder {
         return createPushBlock(this.props, this.place(`${symbol} block`, at), symbol);
     }
 
-    addSunSwitch({ x, z, rotation = 38 }: Placement, symbol: PuzzleSymbol = 'sun') {
-        return createSunSwitch(this.props, this.place(`${symbol} plate`, { x, z, rotation }), rotation, symbol);
+    addSunSwitch(
+        { x, z, rotation = 38, mode = 'permanent' }: Placement & { mode?: PlateMode },
+        symbol: PuzzleSymbol = 'sun'
+    ) {
+        return createSunSwitch(this.props, this.place(`${symbol} plate`, { x, z, rotation }), rotation, symbol, mode);
     }
 
     /** Walk-in portal without collision; `y` lifts it onto a plinth such as the shrine dais. */

@@ -1,5 +1,5 @@
 import type { Bounds } from '../gameplay/collision';
-import type { Point } from '../gameplay/puzzle';
+import type { Point, PuzzlePlate } from '../gameplay/puzzle';
 import type { PuzzleSymbol } from '../objects/puzzle';
 import type { BushClusterOptions, Placement, RockOptions, ScaledPlacement } from '../scenes/builder';
 import type { RiverIslandOptions } from '../scenes/river-island';
@@ -16,7 +16,9 @@ export type CameraDefinition = {
     follow?: { x: number; z: number; anchorZ: number; rate: number };
 };
 export type BlockDefinition = Point & { type: 'block'; id: string; symbol: PuzzleSymbol };
-export type PlateDefinition = Point & { type: 'plate'; id: string; symbol: PuzzleSymbol };
+export type PlateDefinition = PuzzlePlate & { type: 'plate'; id: string };
+/** Reversible dry-land passage; width is the clear opening in world units. */
+export type GateDefinition = Placement & { type: 'gate'; id: string; width: number; openWhen: Condition };
 export type PortalDefinition = Placement & { type: 'portal'; id: string; y?: number; locked: boolean; reach?: number };
 export type EnemyDefinition = Point & { type: 'slime'; id: string };
 export type BridgeDefinition = Point & { type: 'bridge'; id: string; length: number; state: 'closed' | 'open' };
@@ -51,6 +53,7 @@ export type SceneObject =
     | PortalDefinition
     | EnemyDefinition
     | BridgeDefinition
+    | GateDefinition
     | ZoneDefinition
     | PlatformDefinition
     | PierDefinition

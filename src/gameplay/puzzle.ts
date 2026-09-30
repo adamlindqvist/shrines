@@ -1,6 +1,6 @@
 import type { Material } from 'playcanvas';
 
-import type { PushBlockHandles, SunSwitchHandles, PuzzleSymbol } from '../objects/puzzle';
+import type { PushBlockHandles, SunSwitchHandles, PuzzleSymbol, PlateMode } from '../objects/puzzle';
 
 import type { Bounds, Collision } from './collision';
 import { PLAYER } from './player';
@@ -8,9 +8,15 @@ import type { Stride } from './player';
 
 export type Point = { x: number; z: number };
 export type PuzzlePiece = Point & { symbol: PuzzleSymbol };
+export type PuzzlePlate = PuzzlePiece & {
+    mode?: PlateMode;
+    id?: string;
+    /** A permanent plate that must be matched before this plate accepts a block. */
+    requiresPlate?: string;
+};
 export type PuzzleConfig = {
     blocks: PuzzlePiece[];
-    plates: PuzzlePiece[];
+    plates: PuzzlePlate[];
     /** Rectangle the block centres may be moved within. */
     blockBounds: Bounds;
 };
@@ -19,8 +25,10 @@ type BlockState = {
     handles: PushBlockHandles;
     symbol: PuzzleSymbol;
     locked: boolean;
-    /** Index of the plate this block is locked onto, or -1. */
+    /** Index of the plate this block rests on, or -1. */
     plate: number;
+    /** Plate just picked up from; ignored until carried out of its snap radius or explicitly released. */
+    pickupPlate: number;
     lift: number;
     hoverTime: number;
     dropSpeed: number;
@@ -50,6 +58,8 @@ export const PUZZLE = {
     blockRadius: 0.76,
     /** The block snaps onto the switch within this distance. */
     snapRadius: 0.55,
+    /** Resting height on a plate above the terrain. */
+    plateHeight: 0.3,
     /** Visual hover height above the ground; collision stays on X/Z. */
     liftHeight: 0.28,
     liftRate: 12,
@@ -75,7 +85,7 @@ export class BlockPuzzle {
     private readonly blocks: BlockState[];
     private readonly plates: SunSwitchHandles[];
     private readonly collision: Collision;
-    private readonly materials: { idle: Material; lit: Material; baseIdle: Material };
+    private readonly materials: { idle: Material; lit: Material; baseIdle: Material; disabled?: Material };
     readonly config: PuzzleConfig;
 
     constructor(
@@ -83,7 +93,7 @@ export class BlockPuzzle {
         blocks: PushBlockHandles[],
         plates: SunSwitchHandles[],
         collision: Collision,
-        materials: { idle: Material; lit: Material; baseIdle: Material }
+        materials: { idle: Material; lit: Material; baseIdle: Material; disabled?: Material }
     ) {
         this.config = config;
         this.blocks = blocks.map((handles, i) => ({
@@ -91,6 +101,7 @@ export class BlockPuzzle {
             symbol: config.blocks[i].symbol,
             locked: false,
             plate: -1,
+            pickupPlate: -1,
             lift: 0,
             hoverTime: 0,
             dropSpeed: 0,
@@ -109,13 +120,14 @@ export class BlockPuzzle {
         return this.held !== null;
     }
     get matched() {
-        return this.blocks.filter((b) => b.locked).length;
+        return this.plateStates().filter(Boolean).length;
     }
     get heldPosition() {
         return this.held?.handles.entity.getPosition();
     }
 
     release() {
+        if (this.held) this.held.pickupPlate = -1;
         this.held = null;
     }
 
@@ -134,9 +146,61 @@ export class BlockPuzzle {
         });
     }
 
-    /** Whether each plate, in config order, holds a locked block. */
+    /** Current pressure in config order; permanent matches remain active until reset. */
     plateStates() {
-        return this.config.plates.map((_, i) => this.blocks.some((b) => b.plate === i));
+        return this.config.plates.map((_, i) => this.blocks.some((b) => b.plate === i && this.pressing(b)));
+    }
+
+    /** Physical bodies used to prevent a gate closing through a block, including a held one. */
+    blockingBodies() {
+        return this.blocks
+            .filter((b) => b.sink === 0)
+            .map((b) => {
+                const p = b.handles.entity.getPosition();
+                return { x: p.x, z: p.z, r: PUZZLE.blockRadius };
+            });
+    }
+
+    private pressing(b: BlockState) {
+        if (b.plate < 0 || b === this.held || b.sink > 0) return false;
+        if (b.locked) return true;
+        const plate = this.config.plates[b.plate];
+        const p = b.handles.entity.getPosition();
+        return Math.hypot(p.x - plate.x, p.z - plate.z) < PUZZLE.snapRadius && !this.collision.isWater(p.x, p.z);
+    }
+
+    private plateReady(plate: PuzzlePlate) {
+        return (
+            !plate.requiresPlate ||
+            this.blocks.some((b) => b.locked && this.config.plates[b.plate]?.id === plate.requiresPlate)
+        );
+    }
+
+    private paintPlate(index: number, active: boolean) {
+        const plate = this.plates[index];
+        const disabled = !this.plateReady(this.config.plates[index]) ? this.materials.disabled : undefined;
+        plate.sunDisk.render!.meshInstances[0].material = active
+            ? this.materials.lit
+            : (disabled ?? this.materials.idle);
+        plate.base.render!.meshInstances[0].material = active
+            ? this.materials.lit
+            : (disabled ?? this.materials.baseIdle);
+    }
+
+    /** Transfer plate support into the visual lift so picking up never drops the body abruptly. */
+    private detachPlate(b: BlockState) {
+        const index = b.plate;
+        if (index < 0) return;
+        b.plate = -1;
+        if (b.sink === 0) {
+            const p = b.handles.entity.getPosition();
+            const ground = this.collision.heightAt(p.x, p.z);
+            const height = Math.max(0, b.handles.visual.getLocalPosition().y + p.y - ground);
+            b.handles.entity.setPosition(p.x, ground, p.z);
+            b.handles.visual.setLocalPosition(0, height, 0);
+            b.lift = height;
+        }
+        this.paintPlate(index, false);
     }
 
     private nearest(player: Point) {
@@ -163,6 +227,10 @@ export class BlockPuzzle {
             return true;
         }
         this.held = this.nearest(player);
+        if (this.held) {
+            this.held.pickupPlate = this.held.plate;
+            this.detachPlate(this.held);
+        }
         return this.grabbed;
     }
 
@@ -302,15 +370,25 @@ export class BlockPuzzle {
         return { x, z };
     }
 
-    /** Matches only like symbols, one block per plate. A matched block remains locked until reset. */
+    /** Matches like symbols; temporary matches auto-release but stay movable after pickup. */
     update(player: Point) {
         const clicked: PuzzlePiece[] = [];
         for (const b of this.blocks) {
-            if (b.locked || b.sink > 0) continue;
+            if (b.plate >= 0 && !b.locked && !this.pressing(b)) this.detachPlate(b);
+        }
+        for (const b of this.blocks) {
+            if (b.locked || b.sink > 0 || b.plate >= 0) continue;
             const p = b.handles.entity.getPosition();
+            if (b.pickupPlate >= 0) {
+                const from = this.config.plates[b.pickupPlate];
+                if (Math.hypot(p.x - from.x, p.z - from.z) >= PUZZLE.snapRadius) b.pickupPlate = -1;
+            }
             const i = this.config.plates.findIndex(
                 (plate, index) =>
                     plate.symbol === b.symbol &&
+                    this.plateReady(plate) &&
+                    b.pickupPlate !== index &&
+                    !(plate.mode === 'temporary' && this.collision.isWater(p.x, p.z)) &&
                     !this.blocks.some((other) => other.plate === index) &&
                     Math.hypot(p.x - plate.x, p.z - plate.z) < PUZZLE.snapRadius
             );
@@ -320,14 +398,20 @@ export class BlockPuzzle {
             // Do not snap onto the player when approaching from the far side.
             if (Math.abs(player.x - plate.x) < PUZZLE.blockHalf && Math.abs(player.z - plate.z) < PUZZLE.blockHalf)
                 continue;
-            b.locked = true;
+            b.locked = plate.mode !== 'temporary';
             b.plate = i;
             if (b === this.held) this.release();
-            b.handles.entity.setPosition(plate.x, this.collision.heightAt(plate.x, plate.z) + 0.3, plate.z);
-            this.plates[i].sunDisk.render!.meshInstances[0].material = this.materials.lit;
-            this.plates[i].base.render!.meshInstances[0].material = this.materials.lit;
+            const support = this.collision.heightAt(plate.x, plate.z) + PUZZLE.plateHeight;
+            if (!b.locked) {
+                b.lift = Math.max(0, b.handles.visual.getLocalPosition().y + p.y - support);
+                b.handles.visual.setLocalPosition(0, b.lift, 0);
+                b.dropSpeed = b.hoverTime = 0;
+            }
+            b.handles.entity.setPosition(plate.x, support, plate.z);
+            this.paintPlate(i, true);
             clicked.push(plate);
         }
+        this.plateStates().forEach((active, i) => this.paintPlate(i, active));
         return { clicked };
     }
 
@@ -425,6 +509,8 @@ export class BlockPuzzle {
 
     /** Sets one block down at (x, z), resting and unhighlighted. */
     private placeAt(b: BlockState, to: Point) {
+        this.detachPlate(b);
+        b.pickupPlate = -1;
         b.lift = b.hoverTime = b.dropSpeed = b.flicker = b.sink = 0;
         b.splashed = false;
         b.handles.visual.setLocalPosition(0, 0, 0);
@@ -448,9 +534,6 @@ export class BlockPuzzle {
             b.plate = -1;
             this.returnToStart(i);
         });
-        for (const plate of this.plates) {
-            plate.sunDisk.render!.meshInstances[0].material = this.materials.idle;
-            plate.base.render!.meshInstances[0].material = this.materials.baseIdle;
-        }
+        this.plates.forEach((_, i) => this.paintPlate(i, false));
     }
 }

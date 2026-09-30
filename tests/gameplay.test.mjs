@@ -1227,3 +1227,179 @@ test('mouse button chords raise and release guard even while left mouse remains 
     assert.equal(game.diagnostics().guarding, false);
     assert.equal(game.diagnostics().attackCooldown, 0);
 });
+
+test('temporary plates snap carried matching blocks, auto-release, stay active without repeated clicks and allow reuse', () => {
+    const { puzzle, config, blocks, materials, plates } = fixture();
+    config.plates[1].mode = 'temporary';
+    const plate = config.plates[1];
+    const player = { x: plate.x, z: plate.z + 1.3 };
+    // A carried sun snaps and auto-releases, like a permanent match, without locking.
+    blocks[0].entity.setPosition(plate.x, 0, plate.z);
+    assert.equal(puzzle.interact(player), true);
+    assert.equal(puzzle.update(player).clicked.length, 1);
+    assert.equal(puzzle.grabbed, false);
+    assert.equal(puzzle.diagnostics()[0].locked, false);
+    assert.equal(puzzle.matched, 1);
+    assert.equal(puzzle.update(player).clicked.length, 0);
+    assert.equal(plates[1].base.render.meshInstances[0].material, materials.lit);
+    const height = blocks[0].entity.getPosition().y + blocks[0].visual.getLocalPosition().y;
+    puzzle.interact(player);
+    assert.equal(puzzle.plateStates()[1], false, 'pickup removes pressure immediately');
+    assert.equal(plates[1].base.render.meshInstances[0].material, materials.baseIdle);
+    assert.equal(blocks[0].entity.getPosition().y + blocks[0].visual.getLocalPosition().y, height);
+    puzzle.updateLift(1 / 60);
+    assert.ok(Math.abs(blocks[0].visual.getLocalPosition().y - height) < 0.02, 'pickup preserves a continuous height');
+    for (let frame = 0; frame < 30; frame++) assert.equal(puzzle.update(player).clicked.length, 0);
+    assert.equal(puzzle.grabbed, true, 'picking up does not immediately snap back');
+    assert.equal(puzzle.matched, 0);
+    puzzle.release();
+    assert.equal(puzzle.update(player).clicked.length, 1, 'the same block activates again');
+    puzzle.interact(player);
+    config.plates[0].symbol = 'sun';
+    blocks[0].entity.setPosition(3, 0, -3);
+    assert.equal(puzzle.update({ x: 3, z: -1.7 }).clicked.length, 1);
+    assert.equal(puzzle.diagnostics()[0].locked, true, 'reuse on a permanent plate still locks');
+    assert.deepEqual(puzzle.plateStates(), [true, false]);
+    puzzle.reset();
+    assert.equal(puzzle.matched, 0);
+    assert.equal(blocks[0].visual.getLocalPosition().y, 0);
+});
+
+test('temporary pressure clears on displacement, water, sinking and returning a block to its start', () => {
+    for (const cause of ['moved', 'water', 'sinking', 'returned']) {
+        const { puzzle, config, blocks, plates, materials } = fixture();
+        config.plates[1].mode = 'temporary';
+        blocks[0].entity.setPosition(-3, 0, -3);
+        puzzle.update({ x: 0, z: 0 });
+        if (cause === 'moved') blocks[0].entity.setPosition(-3, 0, 0);
+        if (cause === 'water') puzzle.collision.water = () => true;
+        if (cause === 'sinking') puzzle.blocks[0].sink = 0.5;
+        if (cause === 'returned') puzzle.returnToStart(0);
+        assert.equal(puzzle.plateStates()[1], false, cause);
+        puzzle.update({ x: 0, z: 0 });
+        assert.equal(puzzle.matched, 0);
+        assert.equal(plates[1].base.render.meshInstances[0].material, materials.baseIdle);
+    }
+});
+
+test('wrong symbols and the player do not press a temporary plate', () => {
+    const { puzzle, config, blocks } = fixture();
+    config.plates[1].mode = 'temporary';
+    assert.equal(puzzle.update({ x: -3, z: -3 }).clicked.length, 0);
+    blocks[1].entity.setPosition(-3, 0, -3);
+    assert.equal(puzzle.update({ x: 0, z: 0 }).clicked.length, 0);
+    assert.deepEqual(puzzle.plateStates(), [false, false]);
+});
+
+const { GateController, createGateBlockers } = await import('../src/gameplay/gates.ts');
+
+test('adventure gates follow current pressure, pause and reset while portal rules remain one-shot', (t) => {
+    const { game, blocks, player, tick, tap } = gameFixture(t, {
+        level: {
+            ...meadowLevel,
+            rules: [
+                {
+                    id: 'unlock',
+                    when: { type: 'plateActive', target: 'plate-1' },
+                    actions: [{ type: 'openPortal', target: 'portal' }]
+                }
+            ]
+        }
+    });
+    game.puzzle.config.plates[1].mode = 'temporary';
+    const definition = {
+        type: 'gate',
+        id: 'gate',
+        x: 5,
+        z: 0,
+        width: 4,
+        openWhen: { type: 'plateActive', target: 'plate-2' }
+    };
+    const blockers = createGateBlockers(definition);
+    const panel = new Entity();
+    game.collision.obstacles.push(...blockers);
+    game.gates.push(new GateController(definition, { panel, blockers }));
+    blocks[0].entity.setPosition(-3, 0, -3);
+    tick(10);
+    assert.equal(game.diagnostics().gates[0].state, 'opening');
+    const y = panel.getLocalPosition().y;
+    tap('Escape');
+    tick(60);
+    assert.equal(panel.getLocalPosition().y, y);
+    assert.equal(game.diagnostics().gates[0].desiredOpen, true);
+    tap('Escape');
+    tick(30);
+    assert.equal(game.diagnostics().gates[0].state, 'open');
+    player.entity.setPosition(-3, 0, -1.7);
+    tap('Space');
+    tick();
+    assert.equal(game.diagnostics().plates[1].active, false);
+    assert.equal(game.diagnostics().gates[0].state, 'closing');
+    tick(40);
+    assert.equal(game.diagnostics().gates[0].state, 'closed');
+    tap('Space');
+    tick(40);
+    assert.equal(game.diagnostics().gates[0].state, 'open');
+    blocks[1].entity.setPosition(3, 0, -3);
+    tick();
+    assert.equal(game.diagnostics().portals[0].unlocked, true);
+    tick(80);
+    assert.deepEqual(game.diagnostics().activatedRules, ['unlock']);
+    game.reset();
+    assert.equal(game.diagnostics().gates[0].state, 'closed');
+    assert.equal(game.diagnostics().gates[0].desiredOpen, false);
+    assert.equal(game.diagnostics().portals[0].unlocked, false);
+    assert.equal(Math.abs(panel.getLocalPosition().y), 0);
+    assert.ok(blockers.every((b) => b.enabled));
+});
+
+test('a picked-up temporary block can leave and snap again when carried back, with no extra height jump', () => {
+    const { puzzle, config, blocks } = fixture();
+    config.plates[1].mode = 'temporary';
+    const player = { x: -3, z: -1.7 };
+    blocks[0].entity.setPosition(-3, 0, -3);
+    puzzle.update(player);
+    puzzle.interact(player);
+    puzzle.update(player);
+    assert.equal(puzzle.grabbed, true);
+    // Carry beyond the pickup plate's radius, then return while still holding it.
+    puzzle.constrain({ x: -3, z: 0 }, player);
+    const away = blocks[0].entity.getPosition().z;
+    assert.ok(away > -3 + PUZZLE.snapRadius);
+    assert.equal(puzzle.update({ x: -3, z: away + 1.3 }).clicked.length, 0);
+    assert.equal(puzzle.grabbed, true);
+    puzzle.constrain({ x: -3, z: -1.7 }, { x: -3, z: away + 1.3 });
+    assert.equal(puzzle.update(player).clicked.length, 1);
+    assert.equal(puzzle.grabbed, false);
+    assert.equal(puzzle.diagnostics()[0].locked, false);
+    assert.ok(
+        Math.abs(blocks[0].entity.getPosition().y + blocks[0].visual.getLocalPosition().y - PUZZLE.plateHeight) < 0.025
+    );
+    puzzle.interact(player);
+    puzzle.reset();
+    blocks[0].entity.setPosition(-3, 0, -3);
+    assert.equal(puzzle.update(player).clicked.length, 1, 'reset clears pickup suppression');
+});
+
+test('a prerequisite plate prevents locking an essential block too early and readies on the permanent match', () => {
+    const { puzzle, config, blocks, plates, materials } = fixture();
+    materials.disabled = {};
+    config.plates[0].id = 'moon-plate';
+    config.plates[1].requiresPlate = 'moon-plate';
+    puzzle.reset();
+    assert.equal(plates[1].sunDisk.render.meshInstances[0].material, materials.disabled);
+    blocks[0].entity.setPosition(-3, 0, -3);
+    const player = { x: -3, z: -1.7 };
+    puzzle.interact(player);
+    assert.equal(puzzle.update(player).clicked.length, 0);
+    assert.equal(puzzle.grabbed, true, 'sun remains movable before moon is secured');
+    blocks[1].entity.setPosition(3, 0, -3);
+    assert.equal(puzzle.update(player).clicked.length, 1);
+    assert.equal(plates[1].sunDisk.render.meshInstances[0].material, materials.idle);
+    assert.equal(puzzle.update(player).clicked.length, 1);
+    assert.equal(puzzle.grabbed, false);
+    assert.ok(puzzle.diagnostics().every((b) => b.locked));
+    puzzle.reset();
+    assert.deepEqual(puzzle.plateStates(), [false, false]);
+    assert.equal(plates[1].sunDisk.render.meshInstances[0].material, materials.disabled);
+});
