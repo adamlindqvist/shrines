@@ -7,7 +7,7 @@ This file applies to the whole repository. Preserve the project's identity when 
 
 ## What we are building
 
-Shrines is a small playable fantasy adventure: a hooded adventurer crosses seven areas (Mossy Meadow → Sun & Moon Grove → Solgrinden → Two Suns Shrine → Twin Bridges Isle → Drifting Stones → Lantern Lake), solving box-and-plate puzzles that open gates, bridges, platforms and portals, with optional slime combat.
+Shrines is a small playable fantasy adventure: a hooded adventurer crosses six areas (Mossy Meadow → Sun & Moon Grove → Twin Bridges Isle → Solgrinden → Drifting Stones → Lantern Lake), solving box-and-plate puzzles that open gates, bridges, platforms and portals, with optional slime combat.
 
 The intended feel is warm, playful, tactile and welcoming. Movement responds promptly, enemies communicate their intentions, and solving a small puzzle feels rewarding. Keep the gentle tone of toast and end-card text, including encouraging language after defeat.
 
