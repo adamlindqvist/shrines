@@ -1,12 +1,40 @@
 import { DEFAULT_HUD, DEFAULT_LIGHTING, DEFAULT_TEXT } from './defaults';
-import type { LevelDefinition, SceneDefinition } from './types';
+import type { LevelDefinition, SceneDefinition, SceneObject } from './types';
+
+/** Joined boulders enclose the grove; the broad southern gate is its only entrance. */
+const groveRim = [
+    [-21.1, -9],
+    [-22, -12],
+    [-21.5, -17.5],
+    [-19.5, -18.5],
+    [-15, -18.5],
+    [-13.5, -16.5],
+    [-13.5, -12],
+    [-13.9, -9]
+];
+const groveEnclosure: SceneObject[] = [];
+for (let segment = 1; segment < groveRim.length; segment++) {
+    const [x, z] = groveRim[segment - 1];
+    const [endX, endZ] = groveRim[segment];
+    // Overlapping collision circles seal the perimeter and the joints beside the gate posts.
+    const steps = Math.ceil(Math.hypot(endX - x, endZ - z) / 1.2);
+    for (let i = 0; i < steps; i++) {
+        groveEnclosure.push({
+            type: 'rock',
+            x: x + ((endX - x) * i) / steps,
+            z: z + ((endZ - z) * i) / steps,
+            scale: 1.8
+        });
+    }
+}
+groveEnclosure.push({ type: 'rock', x: -13.9, z: -9, scale: 1.8 });
 
 /**
  * The shrine stands on an islet in a northern lake, and its plate wants the moon. A sun box on
  * the west lantern wakes a ferry stone in the east bay; a second sun box, hidden in the north-west
- * grove, must ride it to the east lantern. Both lanterns raise the lake bridge, and the moon box
- * waiting on the far shore rides back across to the shrine. Clearing texels span X -22..22 and
- * Z -20..20.
+ * grove, must ride it to the east lantern. First retrieve the far shore's moon and leave it on
+ * the temporary plate to open the grove. Both lanterns raise the lake bridge; reclaim the moon
+ * for the shrine. Clearing texels span X -22..22 and Z -20..20.
  */
 export const scene: SceneDefinition = {
     id: 'lantern-lake',
@@ -32,8 +60,9 @@ export const scene: SceneDefinition = {
             { x: 512, y: 896, radius: [85, 70], innerRadius: [55, 45], path: { x: 512, y: 896, dx: -70, dy: -330 } },
             // West lantern and the bridge landing, trailing west along the shore.
             { x: 465, y: 550, radius: [110, 70], innerRadius: [72, 45], path: { x: 465, y: 550, dx: -325, dy: -120 } },
-            // Hidden grove on the north-west shore, trailing back south.
+            // Gated grove on the north-west shore, trailing back to its temporary moon plate.
             { x: 105, y: 141, radius: [66, 60], innerRadius: [42, 38], path: { x: 105, y: 141, dx: 35, dy: 300 } },
+            { x: 105, y: 346, radius: [70, 55], innerRadius: [48, 35], path: { x: 105, y: 346, dx: 35, dy: 95 } },
             // Sun box nook, trailing back to spawn.
             { x: 628, y: 794, radius: [70, 58], innerRadius: [45, 36], path: { x: 628, y: 794, dx: -116, dy: 102 } },
             // South pier landing, trailing west along the shore.
@@ -93,12 +122,12 @@ export const scene: SceneDefinition = {
         { type: 'pot', x: -21, z: 4, scale: 0.85 },
         { type: 'pot', x: 11.5, z: 5, scale: 0.8 },
 
-        // West shore, screening the grove without closing its trail.
-        { type: 'tree', x: -21, z: -4.5, scale: 0.85, rotation: 30 },
-        { type: 'tree', x: -14.5, z: -11, scale: 0.9, rotation: -20 },
+        // West shore; keep decoration clear of the moon plate and the grove's carrying lane.
+        { type: 'tree', x: -21, z: 5.5, scale: 0.85, rotation: 30 },
+        { type: 'tree', x: -13.5, z: -4, scale: 0.9, rotation: -20 },
         { type: 'bushCluster', x: -13.5, z: -8.5, count: 3, spread: 0.8, scale: 0.4 },
         { type: 'bushCluster', x: -21, z: -13.5, count: 3, spread: 0.7, scale: 0.42 },
-        { type: 'tree', x: -20, z: -17.8, scale: 1.2, rotation: -25 },
+        { type: 'tree', x: -19.8, z: -16.5, scale: 1.2, rotation: -25 },
         { type: 'rock', x: -15, z: -18.6, scale: 1.3, rotation: 20 },
         { type: 'pot', x: -13.8, z: -16.5, scale: 0.8 },
 
@@ -118,7 +147,10 @@ export const scene: SceneDefinition = {
         // Shrine islet.
         { type: 'bushCluster', x: 0, z: -14.6, count: 3, spread: 1.2, scale: 0.4 },
         { type: 'pot', x: -3.4, z: -12.3, scale: 0.8 },
-        { type: 'pot', x: 3.5, z: -12.5, scale: 0.7 }
+        { type: 'pot', x: 3.5, z: -12.5, scale: 0.7 },
+
+        // Append new seeded placements so existing scenery retains its random draw order.
+        ...groveEnclosure
     ],
     objects: [
         { type: 'bridge', id: 'lake-bridge', x: 0, z: -3.5, length: 4.8, state: 'closed' },
@@ -140,26 +172,41 @@ export const scene: SceneDefinition = {
         { type: 'block', id: 'moon-box', symbol: 'moon', x: 14.5, z: -16.8 },
         { type: 'plate', id: 'west-lantern', symbol: 'sun', x: -5.5, z: 3.5 },
         { type: 'plate', id: 'east-lantern', symbol: 'sun', x: 19, z: -14 },
-        { type: 'plate', id: 'shrine-plate', symbol: 'moon', x: -3.2, z: -7.8 },
+        { type: 'plate', id: 'shrine-plate', symbol: 'moon', x: -3.2, z: -7.8, requiresPlate: 'east-lantern' },
         { type: 'portal', id: 'portal', x: 0, z: -11.5, y: 0.45, rotation: 0, locked: true },
         { type: 'slime', id: 'meadow-slime', x: 12, z: 8 },
-        { type: 'slime', id: 'shore-slime', x: -17, z: -6 },
-        { type: 'slime', id: 'grove-slime', x: -14.5, z: -15.5 },
-        { type: 'slime', id: 'far-slime', x: 19, z: -18 }
+        { type: 'slime', id: 'shore-slime', x: -20, z: 8 },
+        { type: 'slime', id: 'grove-slime', x: -12, z: 15 },
+        { type: 'slime', id: 'far-slime', x: 19, z: -18 },
+        { type: 'plate', id: 'grove-plate', symbol: 'moon', x: -20, z: -5.5, mode: 'temporary' },
+        {
+            type: 'gate',
+            id: 'grove-gate',
+            x: -17.5,
+            z: -9,
+            width: 5,
+            openWhen: { type: 'plateActive', target: 'grove-plate' }
+        }
     ]
 };
 
 export const level: LevelDefinition = {
     id: 'lantern-lake',
     scene: 'lantern-lake',
-    hud: DEFAULT_HUD,
-    text: DEFAULT_TEXT,
+    hud: { ...DEFAULT_HUD, title: 'Lantern Lake · Månen visar vägen' },
+    text: { ...DEFAULT_TEXT, matched: 'Klick! Plattan lyser.' },
     rules: [
         {
             id: 'light-west',
             when: { type: 'plateActive', target: 'west-lantern' },
             actions: [{ type: 'activatePlatform', target: 'bay-stone' }],
-            message: 'Västra lyktan lyser! Något vaknar i östra viken.'
+            message: 'Västra lyktan lyser! Ta färjstenen till månen på andra stranden.'
+        },
+        {
+            id: 'open-grove',
+            when: { type: 'plateActive', target: 'grove-plate' },
+            actions: [],
+            message: 'Månen håller lundens grind öppen. Hämta solstenen och tänd östra lyktan!'
         },
         {
             id: 'raise-bridge',
@@ -171,7 +218,7 @@ export const level: LevelDefinition = {
                 ]
             },
             actions: [{ type: 'openBridge', target: 'lake-bridge' }],
-            message: 'Båda lyktorna lyser! Bron reser sig mot helgedomen.'
+            message: 'Båda lyktorna lyser! Hämta månen vid lunden och följ bron till helgedomen.'
         },
         {
             id: 'open-portal',

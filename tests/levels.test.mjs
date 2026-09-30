@@ -206,9 +206,10 @@ test('the journey ends at Lantern Lake, whose lanterns both raise the bridge', (
     assert.deepEqual(raise.when.conditions.map((c) => c.target).sort(), ['east-lantern', 'west-lantern']);
     const platforms = scene.objects.filter((o) => o.type === 'platform');
     assert.ok(platforms.length === 1 && platforms[0].state === 'dormant');
-    // Matches lock permanently, so every symbol needs at least as many blocks as plates.
+    // Only permanent matches consume blocks; temporary plates can reuse them.
     for (const symbol of ['sun', 'moon']) {
-        const count = (type) => scene.objects.filter((o) => o.type === type && o.symbol === symbol).length;
+        const count = (type) =>
+            scene.objects.filter((o) => o.type === type && o.symbol === symbol && o.mode !== 'temporary').length;
         assert.ok(count('block') >= count('plate'), symbol);
     }
 });
