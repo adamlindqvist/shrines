@@ -101,17 +101,22 @@ test('only opted-in plates create connectors, after all authored objects exist',
             }
         );
         const cast = buildDefinition(builder, definition);
-        if (definition.id !== 'sun-gate') {
+        const connections = {
+            'sun-gate': ['portal-plate', 'sun-portal-plate'],
+            'lantern-lake': ['moon-lantern', 'sun-lantern']
+        };
+        const connection = connections[definition.id];
+        if (!connection) {
             assert.equal(cast.plateConnectors.length, 0);
             continue;
         }
         assert.equal(cast.plateConnectors.length, 1);
-        assert.equal(cast.plateConnectors[0].sourceId, 'portal-plate');
+        assert.equal(cast.plateConnectors[0].sourceId, connection[0]);
         const last = calls.at(-1);
         assert.equal(last.name, 'addPlateConnector');
         assert.deepEqual(
             last.args.map((p) => p.id),
-            ['portal-plate', 'sun-portal-plate']
+            connection
         );
     }
 });

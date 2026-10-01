@@ -194,18 +194,18 @@ test('Drifting Stones platforms wake from the moon plate', () => {
     assert.ok(platforms.every((p) => p.state === 'dormant'));
 });
 
-test('the journey ends at Lantern Lake, whose lanterns both raise the bridge', () => {
+test('the journey ends at Lantern Lake, whose permanent lanterns both open the final portal', () => {
     const { adventureJourney } = journeyModule;
     assert.equal(adventureJourney.levels.at(-1), 'lantern-lake');
     const level = levelDefinitions['lantern-lake'];
     const scene = sceneDefinitions['lantern-lake'];
-    const wake = level.rules.find((rule) => rule.actions.some((a) => a.type === 'activatePlatform'));
-    assert.deepEqual(wake.when, { type: 'plateActive', target: 'west-lantern' });
-    const raise = level.rules.find((rule) => rule.actions.some((a) => a.type === 'openBridge'));
-    assert.equal(raise.when.type, 'all');
-    assert.deepEqual(raise.when.conditions.map((c) => c.target).sort(), ['east-lantern', 'west-lantern']);
-    const platforms = scene.objects.filter((o) => o.type === 'platform');
-    assert.ok(platforms.length === 1 && platforms[0].state === 'dormant');
+    const open = level.rules.find((rule) => rule.actions.some((a) => a.type === 'openPortal'));
+    assert.equal(open.when.type, 'all');
+    assert.deepEqual(open.when.conditions.map((c) => c.target).sort(), ['moon-lantern', 'sun-lantern']);
+    assert.equal(
+        scene.objects.some((o) => o.type === 'platform' || o.type === 'bridge'),
+        false
+    );
     // Only permanent matches consume blocks; temporary plates can reuse them.
     for (const symbol of ['sun', 'moon']) {
         const count = (type) =>
