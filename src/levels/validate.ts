@@ -153,7 +153,12 @@ export function validateLevel(level: LevelDefinition, scene: SceneDefinition) {
         if (object.type === 'gate') condition(object.openWhen, `objects[${i}].openWhen`);
     }
     for (const [i, object] of [...scene.scenery, ...scene.objects].entries()) {
-        if (object.type !== 'plate' || object.requiresPlate === undefined) continue;
+        if (object.type !== 'plate') continue;
+        if (object.showDependency !== undefined && typeof object.showDependency !== 'boolean')
+            fail(`objects[${i}].showDependency`, 'must be a boolean');
+        if (object.showDependency && !object.requiresPlate)
+            fail(`objects[${i}].showDependency`, 'requires requiresPlate');
+        if (object.requiresPlate === undefined) continue;
         const path = `objects[${i}].requiresPlate`;
         reference(object.requiresPlate, 'plate', path);
         const visited = new Set([object.id]);

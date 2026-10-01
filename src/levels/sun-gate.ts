@@ -96,7 +96,15 @@ export const scene: SceneDefinition = {
         { type: 'block', id: 'moon-box', symbol: 'moon', x: -10, z: -10 },
         { type: 'plate', id: 'gate-plate', symbol: 'sun', x: -8, z: 4.5, mode: 'temporary' },
         { type: 'plate', id: 'portal-plate', symbol: 'moon', x: 7, z: -7 },
-        { type: 'plate', id: 'sun-portal-plate', symbol: 'sun', x: 12, z: -7, requiresPlate: 'portal-plate' },
+        {
+            type: 'plate',
+            id: 'sun-portal-plate',
+            symbol: 'sun',
+            x: 12,
+            z: -7,
+            requiresPlate: 'portal-plate',
+            showDependency: true
+        },
         {
             type: 'gate',
             id: 'sun-gate',

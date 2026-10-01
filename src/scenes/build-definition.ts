@@ -9,6 +9,7 @@ export function buildDefinition(builder: SceneBuilder, definition: SceneDefiniti
         player: null!,
         blocks: [],
         plates: [],
+        plateConnectors: [],
         portals: [],
         slimes: [],
         bridges: [],
@@ -73,5 +74,11 @@ export function buildDefinition(builder: SceneBuilder, definition: SceneDefiniti
     definition.scenery.forEach(add);
     cast.player = builder.addAdventurer(definition.spawn);
     definition.objects.forEach(add);
+    const plates = [...definition.scenery, ...definition.objects].filter((o) => o.type === 'plate');
+    for (const plate of plates) {
+        if (!plate.showDependency) continue;
+        const source = plates.find((p) => p.id === plate.requiresPlate)!;
+        cast.plateConnectors.push({ sourceId: source.id, handles: builder.addPlateConnector(source, plate) });
+    }
     return cast;
 }

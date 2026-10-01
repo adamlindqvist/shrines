@@ -3,6 +3,7 @@ import type { Entity } from 'playcanvas';
 import type { AppContext } from '../app/context';
 import type { LevelDefinition, SceneDefinition, SceneObject, TitleCard } from '../levels/types';
 import type { AdventurerHandles } from '../objects/adventurer';
+import type { PlateConnectorHandles } from '../objects/plate-connector';
 import type { PortalHandles, PushBlockHandles, SunSwitchHandles } from '../objects/puzzle';
 import type { SlimeHandles } from '../objects/slime';
 import type { Palette } from '../rendering/palette';
@@ -21,6 +22,7 @@ import { Input } from './input';
 import { BridgeController, PortalController, ZoneTracker } from './level-objects';
 import type { BridgeHandles } from './level-objects';
 import { MovementTrail } from './movement-trail';
+import { PlateConnectorController } from './plate-connectors';
 import { PlatformController } from './platforms';
 import type { PlatformHandles } from './platforms';
 import { PLAYER, PlayerController } from './player';
@@ -44,6 +46,7 @@ export type AdventureCast = {
     slimes: SlimeHandles[];
     blocks: PushBlockHandles[];
     plates: SunSwitchHandles[];
+    plateConnectors: { sourceId: string; handles: PlateConnectorHandles }[];
     portals: PortalHandles[];
     bridges: BridgeHandles[];
     gates: GateHandles[];
@@ -102,6 +105,7 @@ export class AdventureGame {
     private readonly touch: TouchControls;
     private readonly slimes: SlimePack;
     private readonly puzzle: BlockPuzzle;
+    private readonly plateConnectors: PlateConnectorController[];
     private readonly slimeTarget: SlimeTarget;
     private readonly rules: LevelRules;
     private readonly portals: PortalController[];
@@ -136,6 +140,10 @@ export class AdventureGame {
             baseIdle: palette.sandstone,
             disabled: palette.stone
         });
+        this.plateConnectors = cast.plateConnectors.map(
+            ({ sourceId, handles }) =>
+                new PlateConnectorController(sourceId, handles, { idle: palette.stone, lit: palette.teal })
+        );
         this.rules = new LevelRules(level);
         this.portals = this.objects
             .filter((o) => o.type === 'portal')
@@ -284,6 +292,8 @@ export class AdventureGame {
             portalReached: new Set(this.portals.filter((p) => p.reached).map((p) => p.definition.id)),
             zoneVisited: new Set(this.zones.visited)
         };
+        for (const connector of this.plateConnectors)
+            connector.update(dt, snapshot.plateActive.has(connector.sourceId));
         if (this.gates.length) {
             const bodies = [
                 { x: player.position.x, z: player.position.z, r: PLAYER.radius },
@@ -450,6 +460,7 @@ export class AdventureGame {
         this.player.reset(scene.spawn.x, scene.spawn.z);
         rig.reset();
         this.puzzle.reset();
+        this.plateConnectors.forEach((connector) => connector.reset());
         this.rules.reset();
         this.portals.forEach((p) => p.reset());
         this.bridges.forEach((b) => b.reset());

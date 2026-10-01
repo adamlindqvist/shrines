@@ -312,6 +312,7 @@ test('reset clears lifted, held and matched state', () => {
 });
 
 const { AdventureGame } = await import('../src/gameplay/adventure.ts');
+const { PlateConnectorController } = await import('../src/gameplay/plate-connectors.ts');
 const { MovementTrail } = await import('../src/gameplay/movement-trail.ts');
 const { Effects } = await import('../src/gameplay/effects.ts');
 const { scene: meadowScene, level: meadowLevel } = await import('../src/levels/meadow.ts');
@@ -372,7 +373,7 @@ function gameFixture(t, overrides = {}) {
         palette: {},
         layout: { obstacles: [], animate: noop },
         rig: { camera: new Entity(), sun: new Entity(), follow: noop, reset: noop },
-        cast: { player, blocks, plates, portals: [portal], slimes: [slime], bridges: [] },
+        cast: { player, blocks, plates, plateConnectors: [], portals: [portal], slimes: [slime], bridges: [] },
         scene: {
             ...meadowScene,
             scenery: [],
@@ -1402,4 +1403,40 @@ test('a prerequisite plate prevents locking an essential block too early and rea
     puzzle.reset();
     assert.deepEqual(puzzle.plateStates(), [false, false]);
     assert.equal(plates[1].sunDisk.render.meshInstances[0].material, materials.disabled);
+});
+
+test('plate connector follows the gameplay snapshot and freezes on pause, blur and end states', (t) => {
+    const { game, blocks, tick, tap } = gameFixture(t);
+    const idle = {},
+        lit = {};
+    const chevrons = Array.from({ length: 3 }, () => ({ render: { meshInstances: [{ material: null }] } }));
+    game.plateConnectors.push(new PlateConnectorController('plate-1', { chevrons }, { idle, lit }));
+    const states = () => chevrons.map((mark) => mark.render.meshInstances[0].material === lit);
+    blocks[1].entity.setPosition(3, 0, -3);
+    // Raw frame spikes must not finish a feedback sequence in one frame.
+    game.update(5);
+    assert.equal(game.diagnostics().plates[0].active, true);
+    assert.deepEqual(states(), [false, false, false]);
+    tick(8);
+    assert.deepEqual(states(), [true, false, false]);
+    tap('Escape');
+    tick(60);
+    assert.deepEqual(states(), [true, false, false]);
+    tap('Escape');
+    tick(9);
+    assert.deepEqual(states(), [true, true, false]);
+    globalThis.window.dispatchEvent(new Event('blur'));
+    tick(60);
+    assert.deepEqual(states(), [true, true, false]);
+    tap('Escape');
+    game.state = 'over';
+    tick(60);
+    assert.deepEqual(states(), [true, true, false]);
+    game.reset();
+    assert.deepEqual(states(), [false, false, false]);
+    blocks[1].entity.setPosition(3, 0, -3);
+    tick(30);
+    assert.deepEqual(states(), [true, true, true]);
+    game.reset();
+    assert.deepEqual(states(), [false, false, false]);
 });

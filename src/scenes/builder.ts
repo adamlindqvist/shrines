@@ -12,6 +12,7 @@ import { createAdventurer } from '../objects/adventurer';
 import type { PropContext } from '../objects/context';
 import { appendBush, createBushBatch } from '../objects/foliage';
 import { GATE, createGate } from '../objects/gate';
+import { createPlateConnector, PLATE_CONNECTOR } from '../objects/plate-connector';
 import { createFloatingStone, createPier } from '../objects/platform';
 import {
     LOG_HEIGHT,
@@ -314,6 +315,20 @@ export class SceneBuilder {
         symbol: PuzzleSymbol = 'sun'
     ) {
         return createSunSwitch(this.props, this.place(`${symbol} plate`, { x, z, rotation }), rotation, symbol, mode);
+    }
+
+    /** Decorative inlay between ground plates; registers no collision or walk surface. */
+    addPlateConnector(source: Placement, target: Placement) {
+        const dx = target.x - source.x,
+            dz = target.z - source.z;
+        const length = Math.hypot(dx, dz) - PLATE_CONNECTOR.edge * 2;
+        if (length <= 0) throw new Error('Plate connector requires space between the plates');
+        const root = this.place('plate dependency', {
+            x: (source.x + target.x) / 2,
+            z: (source.z + target.z) / 2,
+            rotation: (Math.atan2(dx, dz) * 180) / Math.PI
+        });
+        return createPlateConnector(this.props, root, length);
     }
 
     /** Walk-in portal without collision; `y` lifts it onto a plinth such as the shrine dais. */

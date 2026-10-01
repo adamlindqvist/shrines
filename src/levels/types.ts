@@ -16,7 +16,12 @@ export type CameraDefinition = {
     follow?: { x: number; z: number; anchorZ: number; rate: number };
 };
 export type BlockDefinition = Point & { type: 'block'; id: string; symbol: PuzzleSymbol };
-export type PlateDefinition = PuzzlePlate & { type: 'plate'; id: string };
+export type PlateDefinition = PuzzlePlate & {
+    type: 'plate';
+    id: string;
+    /** Show a directional ground inlay from requiresPlate; omitted means hidden. */
+    showDependency?: boolean;
+};
 /** Reversible dry-land passage; width is the clear opening in world units. */
 export type GateDefinition = Placement & { type: 'gate'; id: string; width: number; openWhen: Condition };
 export type PortalDefinition = Placement & { type: 'portal'; id: string; y?: number; locked: boolean; reach?: number };
