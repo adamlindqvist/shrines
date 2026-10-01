@@ -14,6 +14,16 @@ Shrines opens **Mossy Meadow**, a small clearing with a hooded adventurer, two s
 
 Defeating slimes is optional. Remaining hearts carry over between areas. Restarting after a defeat retries the current area with full hearts; restarting after victory returns to the first area with three hearts.
 
+### Saved progress and replay
+
+- The normal adventure saves a level checkpoint in this browser's `localStorage` (`shrines.progress.v1`). Completing an area by reaching its open portal marks it completed and unlocks the next area immediately. For example, completing Twin Bridges Isle saves Solgrinden as the checkpoint. Final victory marks Lantern Lake completed and keeps it as the checkpoint.
+- Refreshing or reopening starts the furthest reached area at its authored spawn with full hearts, fresh puzzles and enemies, behind a title card offering **Fortsätt äventyret**. Positions, hearts and partial puzzle progress are not saved. Normal portal transitions still carry remaining hearts.
+- **Välj område** on the title and end cards, and **Områden** in the HUD, open the area selector. It lists the six areas in journey order with completed, current, checkpoint and locked states. Earlier areas and the checkpoint are selectable; later areas stay locked. Selecting any area, including the current one, starts it fresh with full hearts and skips the title.
+- Replaying earlier areas follows the normal portal sequence. Replays, defeat retries and **Spela igen** after final victory retain every unlock and never move the saved checkpoint backwards. Refresh during a replay still resumes the furthest reached area.
+- The selector freezes gameplay, ambient motion, effects and action poses, clears held keyboard/touch input and blocks the canvas. Closing it or pressing Escape restores the previous title, playing, paused, victory or defeat screen. Keyboard navigation and button activation belong to the dialog, not gameplay.
+- Missing, corrupt, unsupported or obsolete saves fall back to Meadow. Unknown completed IDs are ignored. If browser storage is denied or full, the game remains playable and retains progress for the current session.
+- Development startup overrides (`?level=N`, a non-default `SCENE`, and `shrines.load(...)`) neither read player progress to choose the area nor write it, and do not show the selector.
+
 ## Tuning baseline
 
 | Action         | Current baseline                                                                                                |
@@ -94,8 +104,8 @@ Bridges are Z-aligned and permanently open once activated. Closed bridges rise f
 
 ## States, pause and reset
 
-- States are `title`, `playing`, `paused`, `won`, `over`, and the transient `complete` state used while an area change is queued. Lethal damage takes precedence over puzzle completion in the same frame.
-- The journey's opening area starts in `title` when the journey defines a `title` card: the area is built but frozen behind the splash. Its button or any key except Escape starts play; that key does nothing else (Space does not swing). Blur, pointer and R are ignored. Area changes and restarts skip the splash.
+- States are `title`, `playing`, `paused`, `levels` (the area selector), `won`, `over`, and the transient `complete` state used while an area change is queued. Lethal damage takes precedence over puzzle completion in the same frame.
+- The journey's opening area starts in `title` when the journey defines a `title` card: the area is built but frozen behind the splash. Its start button or any key except Escape, Tab or Shift starts play; that key does nothing else (Space does not swing). Tab/Shift+Tab navigate buttons without starting play. Blur and canvas pointer input are ignored. Area changes and restarts skip the splash.
 - Gameplay time and ambient animation advance only while playing. Effects freeze while paused but finish after victory or defeat.
 - Pause freezes rules, portals, bridges, platforms and splashes.
 - Reset restores plate pressure, locks, gate positions/collision, bridge positions/collision, platform states and clocks, zone visits and fired rules; clears any splash; and moves the respawn point back to spawn.

@@ -1,4 +1,5 @@
 import type { AppContext, SceneInstance } from '../app/context';
+import type { ProgressStore } from '../app/progress';
 import { adventureJourney, levelDefinitions, sceneDefinitions } from '../levels';
 import type { JourneyDefinition, TitleCard } from '../levels/types';
 import { validateLevel } from '../levels/validate';
@@ -9,7 +10,8 @@ import { createAdventureArea } from './adventure-area';
 export function createJourneyScene(
     context: AppContext,
     startAt = 'meadow',
-    journey: JourneyDefinition = adventureJourney
+    journey: JourneyDefinition = adventureJourney,
+    progress?: ProgressStore
 ): SceneInstance {
     if (new Set(journey.levels).size !== journey.levels.length) throw new Error('Journey level IDs must be unique');
     if (!journey.levels.includes(startAt) || !journey.levels.includes(journey.restart))
@@ -29,6 +31,24 @@ export function createJourneyScene(
             initialHealth: health,
             stage: index + 1,
             title,
+            onLevelCompleted: progress ? () => progress.complete(id) : undefined,
+            levelMenu: progress
+                ? {
+                      choices: () =>
+                          journey.levels.map((levelId) => ({
+                              id: levelId,
+                              name: sceneDefinitions[levelDefinitions[levelId].scene].name,
+                              unlocked: progress.isUnlocked(levelId),
+                              completed: progress.isCompleted(levelId),
+                              current: levelId === id,
+                              checkpoint: levelId === progress.checkpoint
+                          })),
+                      select: (levelId) => {
+                          if (!journey.levels.includes(levelId) || !progress.isUnlocked(levelId) || pending) return;
+                          pending = { id: levelId, health: levelDefinitions[levelId].hud.maxHealth };
+                      }
+                  }
+                : undefined,
             onComplete:
                 index < journey.levels.length - 1
                     ? (remaining) => {
@@ -43,7 +63,16 @@ export function createJourneyScene(
         });
     };
     // Only the opening area shows the title splash; area changes and restarts go straight to play.
-    let active = create(startAt, maxHealth, journey.title);
+    const title = journey.title && {
+        ...journey.title,
+        ...(progress && (progress.checkpoint !== journey.levels[0] || progress.isCompleted(startAt))
+            ? {
+                  start: 'Fortsätt äventyret',
+                  copy: `Fortsätt i ${sceneDefinitions[levelDefinitions[startAt].scene].name}. Dina områden väntar på dig.`
+              }
+            : {})
+    };
+    let active = create(startAt, levelDefinitions[startAt].hud.maxHealth, title);
     return {
         update(dt) {
             active.update(dt);

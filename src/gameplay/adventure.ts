@@ -11,6 +11,7 @@ import type { Random } from '../rendering/random';
 import type { SceneLayout } from '../scenes/builder';
 import type { CameraRig } from '../scenes/camera-rig';
 import { Hud } from '../ui/hud';
+import type { LevelChoice } from '../ui/hud';
 import { TouchControls } from '../ui/touch-controls';
 
 import { Collision } from './collision';
@@ -32,7 +33,7 @@ import { evaluateCondition, LevelRules } from './rules';
 import { SLIME, SlimePack } from './slimes';
 import type { Slime, SlimeTarget } from './slimes';
 
-export type GameState = 'title' | 'playing' | 'paused' | 'won' | 'over' | 'complete';
+export type GameState = 'title' | 'playing' | 'paused' | 'levels' | 'won' | 'over' | 'complete';
 
 /**
  * Stepping into open water: the player drops `fallDepth` below the deck over `sinkTime`
@@ -69,6 +70,12 @@ export type AdventureDeps = {
     /** When set, the area opens frozen behind this title splash until the player starts. */
     title?: TitleCard;
     onComplete?: (health: number) => void;
+    /** Records completion for every area, including the final victory. */
+    onLevelCompleted?: () => void;
+    levelMenu?: {
+        choices(): LevelChoice[];
+        select(id: string): void;
+    };
     /** Called from the end card; `over` restarts the current area, `won` the whole journey. */
     onRestart?: (after: 'won' | 'over') => void;
 };
@@ -93,6 +100,7 @@ export class AdventureGame {
     private fps = 60;
     private frameTime = 0;
     private frameCount = 0;
+    private menuReturnState: Exclude<GameState, 'levels' | 'complete'> | null = null;
 
     private readonly input: Input;
     private readonly hud: Hud;
@@ -161,7 +169,7 @@ export class AdventureGame {
             canBeHit: () => this.state === 'playing' && this.invincible === 0 && this.splash === 0,
             hit: (ex, ez, d) => this.onPlayerHit(ex, ez, d)
         };
-        this.hud = new Hud(level.hud, () => this.restart());
+        this.hud = new Hud(level.hud, () => this.restart(), deps.levelMenu ? () => this.openLevels() : undefined);
         const touch = (this.touch = new TouchControls(this.hud.root, {
             press: () => this.unpause(),
             attack: () => {
@@ -200,12 +208,13 @@ export class AdventureGame {
             this.hud.setDiagnostics(JSON.stringify(this.diagnostics()));
         }
         const dt = Math.min(rawDt, 0.035);
-        if (this.state !== 'paused') {
+        const frozen = this.state === 'paused' || this.state === 'levels';
+        if (!frozen) {
             this.effects.update(dt);
             this.movementTrail.update(dt);
         }
         if (this.state !== 'playing') {
-            if (this.state !== 'paused') this.updateBlockLift(dt);
+            if (!frozen) this.updateBlockLift(dt);
             return;
         }
         this.time += dt;
@@ -332,6 +341,7 @@ export class AdventureGame {
             if (rule.message) this.announce(rule.message);
         }
         if (this.rules.complete) {
+            this.deps.onLevelCompleted?.();
             const reward = this.portals.find((p) => p.reached)?.definition ?? player.position;
             this.effects.burst(reward.x, reward.z, this.deps.palette.gold, 28);
             if (this.deps.onComplete) {
@@ -441,7 +451,31 @@ export class AdventureGame {
     begin() {
         if (this.state !== 'title') return;
         this.state = 'playing';
+        this.input.clear();
         this.hud.hideTitle();
+        this.deps.context.canvas.focus();
+    }
+
+    /** Freezes every animation and keeps the previous screen ready to restore on cancel. */
+    openLevels() {
+        if (!this.deps.levelMenu || this.state === 'levels' || this.state === 'complete') return;
+        this.menuReturnState = this.state;
+        this.state = 'levels';
+        this.input.clear();
+        this.hud.showLevels(
+            this.deps.levelMenu.choices(),
+            (id) => this.deps.levelMenu?.select(id),
+            () => this.closeLevels()
+        );
+    }
+
+    closeLevels() {
+        if (this.state !== 'levels' || !this.menuReturnState) return;
+        this.state = this.menuReturnState;
+        this.menuReturnState = null;
+        this.hud.hideLevels();
+        this.input.clear();
+        if (this.state === 'playing' || this.state === 'paused') this.deps.context.canvas.focus();
     }
 
     /** Puts every piece of play state back to the start without rebuilding the scene. */
@@ -471,6 +505,8 @@ export class AdventureGame {
         this.effects.clear();
         this.movementTrail.reset();
         this.input.clear();
+        this.menuReturnState = null;
+        this.hud.hideLevels();
         this.state = 'playing';
         this.hud.hideEnd();
         this.hud.hideTitle();
@@ -486,11 +522,15 @@ export class AdventureGame {
     }
 
     private onKeyDown(code: string) {
+        if (this.state === 'levels') {
+            this.input.clear();
+            if (code === 'Escape') this.closeLevels();
+            return;
+        }
         if (this.state === 'title') {
-            // Any key but Escape starts; the key itself does nothing else, so Space never swings.
-            if (code !== 'Escape') {
+            // Keep navigation keys for title buttons; starting never swings or leaves held input.
+            if (!['Escape', 'Tab', 'ShiftLeft', 'ShiftRight'].includes(code)) {
                 this.begin();
-                this.input.clear();
             }
             return;
         }

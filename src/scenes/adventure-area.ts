@@ -29,7 +29,10 @@ declare global {
 /** Extra shore gap on each side of a pier along X, in world units. */
 const PIER_SHORE_MARGIN = 0.6;
 
-type JourneyHooks = Pick<AdventureDeps, 'initialHealth' | 'onComplete' | 'onRestart' | 'stage' | 'title'>;
+type JourneyHooks = Pick<
+    AdventureDeps,
+    'initialHealth' | 'onComplete' | 'onLevelCompleted' | 'onRestart' | 'stage' | 'title' | 'levelMenu'
+>;
 
 /** Builds a data-authored scene; the level supplies rules, never construction callbacks. */
 export function createAdventureArea(

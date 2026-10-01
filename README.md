@@ -23,6 +23,8 @@ Open the URL printed by Vite. Use **WASD or arrow keys** to move at 7.5 units/s 
 
 The main journey has six areas: **Mossy Meadow → Sun & Moon Grove → Twin Bridges Isle → Solgrinden → Drifting Stones → Lantern Lake**.
 
+Progress saves automatically in this browser when you finish an area and enter its portal. Refreshing or reopening resumes the furthest area reached, with full hearts and its puzzle reset; finishing area 3 resumes area 4. Use **Välj område** on the title or end card, or **Områden** during play, to replay completed areas or return to your checkpoint. Opening the selector freezes the game; Escape or its close button restores the previous screen. Choosing an area starts it fresh with full hearts. Replaying earlier areas and starting over after victory preserve your unlocks and saved checkpoint. Saves stay on this browser/device; partial puzzles and player positions are not saved.
+
 The hooded hero has layered matte clothing, a wooden shield, and a tapered sword held above the ground. Walking uses resolved travel distance for alternating foot arcs and a subtle vertical footstep bounce, settling when blocked or stopped. Carrying preserves facing with directional steps. Sword attacks have 0.05 seconds of anticipation, a 0.12-second damaging slash, and 0.13 seconds of recovery; the blade and slash cue follow the captured attack direction even while turning. Pause freezes these poses, and restart restores their rest transforms.
 
 ## Install on an iPad or phone
@@ -70,7 +72,7 @@ Playable scenes and their rules are separate, JSON-compatible TypeScript data. `
 
 - `SceneDefinition` owns terrain, spawn, bounds, camera, lighting and ordered object lists. `scenery` is constructed before the player; `objects` afterwards. Preserve this order and the seed when keeping existing scenery unchanged.
 - `LevelDefinition` references a scene and owns rules, completion, HUD and text. Multiple levels can reference the same scene with different objectives.
-- `JourneyDefinition` lists level IDs in order and specifies the restart level. Health carries across levels; restarting after defeat retries the current level with its maximum health, and restarting after victory starts the restart level with its maximum health.
+- `JourneyDefinition` lists level IDs in order and specifies the restart level. Health carries across levels; restarting after defeat retries the current level with its maximum health, and restarting after victory starts the restart level with its maximum health. The normal adventure's checkpoint and replay selector use these IDs and order; both kinds of restart preserve saved unlocks.
 
 `backdrop` sets the sky plane under the island: its half-`size`, sky `gradient`, and the island's painted `shadowColor` and `shadowOffset`. Drifting cloud banks and a few small floating islets are scattered around the rim automatically from their own seeded stream, so they never shift scenery; `islets` overrides the islet count. They stay below the walkable top and off the island, with no collision.
 
@@ -190,4 +192,4 @@ A scene factory receives the shared `AppContext` and returns `update(dt)`, `resi
 
 ### Select a scene
 
-Registered levels are exposed automatically in `src/scenes/index.ts`. Set `SCENE` in `src/main.ts` to choose the startup level. In development, use `shrines.load('sun-moon')` or `?level=2` (its 1-based position among `levelDefinitions`' keys) to inspect another area, and `shrines.unload()` to check teardown. Add `?debug=true` to walk at twice the normal speed (`PLAYER.debugSpeedScale`). URL overrides are ignored in production. `window.meadow` and the hidden `#diagnostics` output describe the active adventure area, including stage, remaining hearts, each block's symbol and lock state, activated plates, and camera position.
+Registered levels are exposed automatically in `src/scenes/index.ts`. The default `SCENE` in `src/main.ts` opens the saved adventure checkpoint; changing it to another ID overrides startup for inspection. In development, use `shrines.load('sun-moon')` or `?level=2` (its 1-based position among `levelDefinitions`' keys) to inspect another area, and `shrines.unload()` to check teardown. These inspection routes leave player saves untouched and omit the replay selector. Add `?debug=true` to walk at twice the normal speed (`PLAYER.debugSpeedScale`). URL overrides are ignored in production. `window.meadow` and the hidden `#diagnostics` output describe the active adventure area, including stage, remaining hearts, each block's symbol and lock state, activated plates, and camera position.

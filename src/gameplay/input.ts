@@ -98,6 +98,8 @@ export class Input {
     }
 
     private onKeyDown = (e: KeyboardEvent) => {
+        // Let native buttons and the level dialog own their keyboard interactions.
+        if (e.code === 'Tab' || (e.target as HTMLElement | null)?.closest?.('button, dialog')) return;
         if (CAPTURED.includes(e.code)) e.preventDefault();
         if (e.repeat || this.keys.has(e.code)) return;
         this.keys.add(e.code);

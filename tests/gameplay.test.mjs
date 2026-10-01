@@ -326,20 +326,35 @@ function gameFixture(t, overrides = {}) {
     const oldDocument = globalThis.document;
     globalThis.window = new EventTarget();
     const created = [];
-    const element = () =>
-        Object.assign(new EventTarget(), {
+    const element = () => {
+        const queries = new Map();
+        return Object.assign(new EventTarget(), {
             textContent: '',
             hidden: false,
             style: {},
             classList: { add: noop, remove: noop, toggle: noop, contains: () => false },
-            querySelector: () => element(),
+            querySelector: (selector) => {
+                if (!queries.has(selector)) queries.set(selector, element());
+                return queries.get(selector);
+            },
             remove: noop,
             appendChild: noop,
+            append: noop,
+            replaceChildren: noop,
+            focus: noop,
+            open: false,
+            showModal() {
+                this.open = true;
+            },
+            close() {
+                this.open = false;
+            },
             insertBefore: noop,
             setAttribute: noop,
             setPointerCapture: noop,
             getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 100 })
         });
+    };
     globalThis.document = {
         createElement: () => {
             const el = element();
@@ -366,7 +381,7 @@ function gameFixture(t, overrides = {}) {
         }));
     const slime = { entity: new Entity(), body: new Entity() };
     slime.entity.setPosition(8, 0, 8);
-    const canvas = Object.assign(new EventTarget(), { width: 800, height: 600 });
+    const canvas = Object.assign(new EventTarget(), { width: 800, height: 600, focus: noop });
     const game = new AdventureGame({
         context: { canvas, app: { stats: { drawCalls: { total: 0 } } } },
         root: new Entity(),
@@ -421,7 +436,7 @@ function gameFixture(t, overrides = {}) {
         created
             .find((el) => el.className === className)
             .dispatchEvent(Object.assign(new Event(type), { pointerId: 1, clientX, clientY }));
-    return { game, key, tap, tick, touch, blocks, player, canvas, slime };
+    return { game, key, tap, tick, touch, blocks, player, canvas, slime, hud: created.find((el) => el.id === 'hud') };
 }
 
 test('held input moves the pair; pause and blur freeze it, release settles it', (t) => {
@@ -464,6 +479,8 @@ test('title splash holds the area frozen until a key starts play', (t) => {
     assert.equal(game.state, 'title');
     canvas.dispatchEvent(Object.assign(new Event('pointerdown'), { button: 0 }));
     tap('Escape');
+    tap('Tab');
+    tap('ShiftLeft');
     tick(30);
     assert.equal(game.state, 'title');
     assert.equal(game.diagnostics().elapsed, 0);
@@ -475,6 +492,87 @@ test('title splash holds the area frozen until a key starts play', (t) => {
     tick(30);
     assert.ok(game.diagnostics().player.x > start.x + 0.5);
     game.reset();
+    assert.equal(game.state, 'playing');
+});
+
+test('level menu freezes movement, action poses and effects, ignores gameplay keys, and clears held input', (t) => {
+    const selected = [];
+    const levels = [
+        { id: 'meadow', name: 'Meadow', unlocked: true, completed: false, current: true, checkpoint: true }
+    ];
+    const { game, key, tap, tick, canvas, hud } = gameFixture(t, {
+        levelMenu: { choices: () => levels, select: (id) => selected.push(id) }
+    });
+    let effectsUpdated = 0;
+    t.mock.method(Effects.prototype, 'update', () => effectsUpdated++);
+    key('keydown', 'KeyD');
+    tick(5);
+    hud.querySelector('#levels-button').onclick();
+    const frozen = game.diagnostics();
+    const effectCount = effectsUpdated;
+    assert.equal(game.state, 'levels');
+    assert.equal(hud.querySelector('#level-menu').open, true);
+    tap('Space');
+    tap('KeyR');
+    canvas.dispatchEvent(Object.assign(new Event('pointerdown'), { button: 0 }));
+    tick(60);
+    assert.equal(game.state, 'levels');
+    assert.deepEqual(game.diagnostics().player, frozen.player);
+    assert.equal(game.diagnostics().elapsed, frozen.elapsed);
+    assert.equal(effectsUpdated, effectCount);
+    assert.equal(game.diagnostics().grabbed, false);
+    assert.deepEqual(selected, []);
+    tap('Escape');
+    assert.equal(game.state, 'playing');
+    assert.equal(hud.querySelector('#level-menu').open, false);
+    tick(60);
+    const settled = game.diagnostics().player;
+    tick(60);
+    assert.ok(Math.abs(game.diagnostics().player.x - settled.x) < 0.001, 'held movement was cleared');
+});
+
+test('closing the level menu restores title, pause and end states; reset closes it', (t) => {
+    const title = { eyebrow: '', title: 'Shrines', copy: '', start: 'Start', hint: '', touchHint: '' };
+    const { game, hud, tap } = gameFixture(t, {
+        title,
+        levelMenu: { choices: () => [], select: () => undefined }
+    });
+    assert.equal(hud.querySelector('#levels-button').hidden, true, 'title only exposes its own selector button');
+    const button = hud.querySelector('#title-levels');
+    button.closest = () => button;
+    button.click = () => button.onclick();
+    const enter = (repeat = false) => {
+        const event = Object.assign(new Event('keydown', { cancelable: true }), { key: 'Enter', repeat });
+        Object.defineProperty(event, 'target', { value: button });
+        hud.dispatchEvent(event);
+        assert.equal(event.defaultPrevented, true);
+    };
+    enter(true);
+    assert.equal(game.state, 'title');
+    enter();
+    assert.equal(game.state, 'levels');
+    const dialog = hud.querySelector('#level-menu');
+    const cancel = new Event('cancel', { cancelable: true });
+    dialog.oncancel(cancel);
+    assert.equal(cancel.defaultPrevented, true);
+    assert.equal(game.state, 'title');
+    tap('Space');
+    assert.equal(hud.querySelector('#levels-button').hidden, false);
+    game.pause();
+    game.openLevels();
+    dialog.querySelector('#close-levels').onclick();
+    assert.equal(game.state, 'paused');
+    for (const endState of ['won', 'over']) {
+        game.state = endState;
+        hud.querySelector('#end-levels').onclick();
+        game.closeLevels();
+        assert.equal(game.state, endState);
+    }
+    game.openLevels();
+    game.reset();
+    assert.equal(game.state, 'playing');
+    assert.equal(dialog.open, false);
+    game.closeLevels();
     assert.equal(game.state, 'playing');
 });
 
@@ -550,7 +648,9 @@ test('completion reports surviving hearts once, without a victory state', (t) =>
 
 test('final shrine wins and restart delegates to the journey', (t) => {
     const restarts = [];
+    let completed = 0;
     const { game, blocks, player, tick, tap } = gameFixture(t, {
+        onLevelCompleted: () => completed++,
         onRestart: (after) => {
             restarts.push(after);
         }
@@ -560,6 +660,9 @@ test('final shrine wins and restart delegates to the journey', (t) => {
     player.entity.setPosition(0, 0, -6);
     tick(Math.ceil(PORTAL.rise * 60) + 2);
     assert.equal(game.state, 'won');
+    assert.equal(completed, 1);
+    tick(60);
+    assert.equal(completed, 1);
     tap('KeyR');
     assert.deepEqual(restarts, ['won']);
 });
@@ -583,8 +686,12 @@ test('restarting after defeat asks the journey to retry the current area', (t) =
 
 test('a lethal strike wins over reaching the portal in the same frame', (t) => {
     let completed = false;
+    let saved = false;
     const { game, blocks, player, tick } = gameFixture(t, {
         initialHealth: 1,
+        onLevelCompleted: () => {
+            saved = true;
+        },
         onComplete: () => {
             completed = true;
         }
@@ -599,6 +706,7 @@ test('a lethal strike wins over reaching the portal in the same frame', (t) => {
     enemy.windup = 0.01;
     tick();
     assert.equal(game.state, 'over');
+    assert.equal(saved, false);
     assert.equal(game.health, 0);
     assert.equal(completed, false);
     assert.equal(game.diagnostics().unlocked, false);

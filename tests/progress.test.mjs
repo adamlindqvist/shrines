@@ -1,0 +1,109 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { PROGRESS_KEY, ProgressStore } from '../src/app/progress.ts';
+
+const levels = ['meadow', 'sun-moon', 'twin-bridges', 'sun-gate', 'drifting-stones', 'lantern-lake'];
+
+function storage(saved = null) {
+    let value = saved;
+    return {
+        getItem: (key) => (key === PROGRESS_KEY ? value : null),
+        setItem(key, next) {
+            assert.equal(key, PROGRESS_KEY);
+            value = next;
+        }
+    };
+}
+
+test('a fresh journey unlocks only Meadow; three completions resume the fourth area after reload', () => {
+    const disk = storage();
+    const progress = new ProgressStore(levels, () => disk);
+    assert.equal(progress.checkpoint, 'meadow');
+    assert.equal(progress.isUnlocked('meadow'), true);
+    assert.equal(progress.isUnlocked('sun-moon'), false);
+    for (const id of levels.slice(0, 3)) progress.complete(id);
+    const restored = new ProgressStore(levels, () => disk);
+    assert.equal(restored.checkpoint, 'sun-gate');
+    assert.ok(levels.slice(0, 3).every((id) => restored.isCompleted(id)));
+    assert.equal(restored.isUnlocked('sun-gate'), true);
+    assert.equal(restored.isUnlocked('drifting-stones'), false);
+});
+
+test('replays, invalid IDs and locked completion cannot move the checkpoint backwards or skip ahead', () => {
+    const disk = storage();
+    const progress = new ProgressStore(levels, () => disk);
+    progress.complete('lantern-lake');
+    progress.complete('unknown');
+    assert.equal(progress.checkpoint, 'meadow');
+    progress.complete('meadow');
+    progress.complete('sun-moon');
+    progress.complete('meadow');
+    const restored = new ProgressStore(levels, () => disk);
+    assert.equal(restored.checkpoint, 'twin-bridges');
+    assert.equal(restored.isUnlocked('unknown'), false);
+    assert.deepEqual(JSON.parse(disk.getItem(PROGRESS_KEY)).completedLevelIds, ['meadow', 'sun-moon']);
+});
+
+test('final victory persists its completion and keeps every level available', () => {
+    const disk = storage();
+    const progress = new ProgressStore(levels, () => disk);
+    levels.forEach((id) => progress.complete(id));
+    const restored = new ProgressStore(levels, () => disk);
+    assert.equal(restored.checkpoint, 'lantern-lake');
+    assert.ok(levels.every((id) => restored.isUnlocked(id) && restored.isCompleted(id)));
+});
+
+test('missing, corrupt, unsupported and unknown checkpoints fall back to Meadow', () => {
+    for (const saved of [
+        null,
+        'broken JSON',
+        'null',
+        '42',
+        '[]',
+        '{"version":2,"furthestLevelId":"sun-gate"}',
+        '{"version":1,"furthestLevelId":"removed-level"}',
+        '{"version":1,"furthestLevelId":42}'
+    ]) {
+        const progress = new ProgressStore(levels, () => storage(saved));
+        assert.equal(progress.checkpoint, 'meadow');
+        assert.equal(progress.isCompleted('meadow'), false);
+    }
+});
+
+test('saved IDs are sanitized and stay stable when a new level is appended', () => {
+    const disk = storage(
+        JSON.stringify({
+            version: 1,
+            furthestLevelId: 'twin-bridges',
+            completedLevelIds: ['meadow', 'removed', 'meadow', 5, 'lantern-lake']
+        })
+    );
+    const progress = new ProgressStore([...levels, 'new-level'], () => disk);
+    assert.equal(progress.checkpoint, 'twin-bridges');
+    assert.equal(progress.isCompleted('meadow'), true);
+    assert.equal(progress.isCompleted('lantern-lake'), false);
+    assert.equal(progress.isUnlocked('new-level'), false);
+    const malformed = new ProgressStore(levels, () =>
+        storage('{"version":1,"furthestLevelId":"sun-moon","completedLevelIds":{}}')
+    );
+    assert.equal(malformed.checkpoint, 'sun-moon');
+    assert.equal(malformed.isCompleted('meadow'), false);
+});
+
+test('denied storage access and writes retain playable session progress', () => {
+    const denied = new ProgressStore(levels, () => {
+        throw new Error('Storage denied');
+    });
+    denied.complete('meadow');
+    assert.equal(denied.checkpoint, 'sun-moon');
+    const full = new ProgressStore(levels, () => ({
+        getItem: () => null,
+        setItem: () => {
+            throw new Error('Storage full');
+        }
+    }));
+    full.complete('meadow');
+    full.complete('sun-moon');
+    assert.equal(full.checkpoint, 'twin-bridges');
+});

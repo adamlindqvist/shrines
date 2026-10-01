@@ -1,11 +1,14 @@
 import './style.css';
 import { createApp } from './app/create-app';
+import { ProgressStore } from './app/progress';
 import { registerGameUpdates } from './app/pwa-updates';
 import { SceneHost } from './app/scene-host';
+import { adventureJourney } from './levels';
 import { scenes } from './scenes';
 import type { SceneName } from './scenes';
+import { createJourneyScene } from './scenes/journey';
 
-/** The level to start. */
+/** Default adventure startup resumes saved progress; other IDs override it for inspection. */
 const SCENE: SceneName = 'meadow';
 
 if (import.meta.env.PROD) registerGameUpdates();
@@ -16,8 +19,15 @@ const host = new SceneHost(context);
 const sceneNames = Object.keys(scenes) as SceneName[];
 const requestedLevel = import.meta.env.DEV ? new URLSearchParams(location.search).get('level') : null;
 const requestedScene = requestedLevel ? sceneNames[Number(requestedLevel) - 1] : undefined;
-const initialScene = requestedScene ?? SCENE;
-host.load(scenes[initialScene]);
+const progress = new ProgressStore(adventureJourney.levels);
+if (requestedScene) {
+    // Development inspections are isolated from the player's save and unlocks.
+    host.load(scenes[requestedScene]);
+} else if (SCENE === adventureJourney.restart) {
+    host.load((appContext) => createJourneyScene(appContext, progress.checkpoint, adventureJourney, progress));
+} else {
+    host.load(scenes[SCENE]);
+}
 context.app.start();
 
 if (import.meta.env.DEV) {
