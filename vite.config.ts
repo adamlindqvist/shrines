@@ -4,9 +4,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
     plugins: [
         VitePWA({
-            // Let a new worker wait until all game windows close; never reload mid-game.
+            // The app offers an explicit reload when a new version is ready.
             registerType: 'prompt',
-            injectRegister: 'script',
+            injectRegister: false,
             includeAssets: ['favicon.png', 'apple-touch-icon.png'],
             manifest: {
                 id: './',
@@ -32,7 +32,7 @@ export default defineConfig({
                 maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
                 cleanupOutdatedCaches: true,
                 skipWaiting: false,
-                clientsClaim: false
+                clientsClaim: true
             }
         })
     ]

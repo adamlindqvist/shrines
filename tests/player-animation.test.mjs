@@ -16,7 +16,7 @@ const { createAdventurer } = await import('../src/objects/adventurer.ts');
 const { createPalette } = await import('../src/rendering/palette.ts');
 const { SceneResources } = await import('../src/rendering/resources.ts');
 const playerModule = await import('../src/gameplay/player.ts');
-const { PlayerController } = playerModule;
+const { PlayerController, PLAYER } = playerModule;
 const { Sword, SWORD, Shield, SHIELD } = await import('../src/gameplay/combat.ts');
 
 function fixture(t) {
@@ -60,7 +60,7 @@ test('blocked input settles feet; movement distance controls gait independently 
     const { player, handles, pose } = fixture(t);
     const run = (fps) => {
         player.reset(0, 0);
-        for (let i = 0; i < fps; i++) pose({ dt: 1 / fps, dz: 7.5 / fps });
+        for (let i = 0; i < fps; i++) pose({ dt: 1 / fps, dz: PLAYER.walkSpeed / fps });
         return handles.leftBoot.getLocalPosition().clone();
     };
     const a = run(30),
@@ -175,9 +175,10 @@ test('slash transition fires once, follows gameplay time, and clears on cancella
 
 test('running bounce is vertical, bounded, reduced while carrying, and settles at rest', (t) => {
     const { player, handles, pose } = fixture(t);
+    const dz = PLAYER.walkSpeed / 60;
     const heights = [];
     for (let i = 0; i < 120; i++) {
-        pose({ dz: 0.125 });
+        pose({ dz });
         const p = handles.visual.getLocalPosition();
         heights.push(p.y);
         near(p.x, 0);
@@ -188,7 +189,7 @@ test('running bounce is vertical, bounded, reduced while carrying, and settles a
     assert.ok(Math.max(...heights) > 0.034);
     player.reset(0, 0);
     for (let i = 0; i < 120; i++) {
-        pose({ dz: 0.125, carrying: true });
+        pose({ dz, carrying: true });
         near(handles.visual.getLocalPosition().y, heights[i] * 0.6);
     }
     for (let i = 0; i < 120; i++) pose();
@@ -196,7 +197,6 @@ test('running bounce is vertical, bounded, reduced while carrying, and settles a
 });
 
 test('a scaled walk speed (debug mode) scales each stride', (t) => {
-    const { PLAYER } = playerModule;
     const { player } = fixture(t);
     const fast = new PlayerController(player.handles, undefined, PLAYER.walkSpeed * PLAYER.debugSpeedScale);
     fast.reset(0, 0);

@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/client" />
 
 declare module 'playcanvas/scripts/esm/camera-controls.mjs' {
     import type { Script } from 'playcanvas';

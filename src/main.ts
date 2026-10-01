@@ -1,11 +1,14 @@
 import './style.css';
 import { createApp } from './app/create-app';
+import { registerGameUpdates } from './app/pwa-updates';
 import { SceneHost } from './app/scene-host';
 import { scenes } from './scenes';
 import type { SceneName } from './scenes';
 
 /** The level to start. */
 const SCENE: SceneName = 'meadow';
+
+if (import.meta.env.PROD) registerGameUpdates();
 
 const canvas = document.getElementById('application-canvas') as HTMLCanvasElement;
 const context = await createApp(canvas);

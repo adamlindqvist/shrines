@@ -174,6 +174,64 @@ kbd {
     display: none;
 }
 
+/* App-wide PWA updates stay above scene overlays without covering touch controls. */
+#game-update {
+    position: fixed;
+    z-index: 10;
+    top: calc(env(safe-area-inset-top, 0px) + 16px);
+    right: calc(env(safe-area-inset-right, 0px) + 16px);
+    max-width: min(340px, calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+    padding: 16px;
+    border-radius: 17px;
+    background: #fdf7ea;
+    box-shadow: 0 4px 16px #3d5a3520;
+}
+#game-update[hidden] {
+    display: none;
+}
+#game-update p {
+    margin: 0 0 12px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+#game-update strong,
+#game-update span {
+    display: block;
+}
+#game-update span {
+    margin-top: 4px;
+    color: #7d7c6c;
+}
+#game-update div {
+    display: flex;
+    gap: 8px;
+}
+#game-update button {
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 0;
+    border-radius: 12px;
+    background: #52784f;
+    color: #fff9e9;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+#game-update .update-later {
+    background: #e9e7d8;
+    color: #4a4941;
+}
+#game-update button:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+@media (max-width: 560px) {
+    #game-update {
+        top: calc(env(safe-area-inset-top, 0px) + 115px);
+    }
+}
+
 /* Title splash: the opening area waits, softened, behind a welcome card. */
 #title {
     position: absolute;

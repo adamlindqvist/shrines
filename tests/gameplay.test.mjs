@@ -17,6 +17,7 @@ registerHooks({
 });
 const { BlockPuzzle, PUZZLE } = await import('../src/gameplay/puzzle.ts');
 const { Collision } = await import('../src/gameplay/collision.ts');
+const { PLAYER } = await import('../src/gameplay/player.ts');
 
 function fixture() {
     const config = {
@@ -1132,7 +1133,7 @@ test('guard locks facing and halves movement, prevents attacks and grabbing, the
     assert.equal(game.player.heading, 0);
     assert.ok(game.player.position.x > -3);
     const guarded = game.player.stride(1 / 60, { x: 1, z: 0 }, false, 0.5);
-    assert.equal(guarded.speed, 3.75);
+    assert.equal(guarded.speed, PLAYER.walkSpeed * 0.5);
     key('keyup', 'ShiftLeft');
     tick();
     assert.equal(game.player.heading, Math.PI / 2);
