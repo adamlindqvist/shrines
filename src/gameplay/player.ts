@@ -5,7 +5,7 @@ import type { Collision } from './collision';
 import { SHIELD, SWORD } from './combat';
 
 export const PLAYER = {
-    walkSpeed: 7.5,
+    walkSpeed: 8,
     /** Walk speed multiplier while debug mode is on. */
     debugSpeedScale: 2,
     /** Exponential rate at which movement eases toward the input direction. */

@@ -18,7 +18,7 @@ Defeating slimes is optional. Remaining hearts carry over between areas. Restart
 
 | Action         | Current baseline                                                                                                |
 | -------------- | --------------------------------------------------------------------------------------------------------------- |
-| Movement       | Normalized eight-way input, 7.5 units/s, exponential smoothing rate 14.                                         |
+| Movement       | Normalized eight-way input, 8 units/s, exponential smoothing rate 14.                                           |
 | Sword          | 0.30 s swing/cooldown: 0.05 s anticipation, 0.12 s active slash, 0.13 s recovery; one hit per enemy per swing.  |
 | Slime attack   | 0.45 s visible windup, followed by a hit or miss cooldown.                                                      |
 | Slime reaction | Squash, knockback, stagger, and a 0.45 s death animation.                                                       |
