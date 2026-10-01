@@ -64,8 +64,8 @@ test('completion saves before transition and carries hearts; reload uses fresh h
     reload.destroy();
 });
 
-test('the five-area journey goes directly from Sun & Moon Grove to Solgrinden with carried hearts', (t) => {
-    const expected = ['meadow', 'sun-moon', 'sun-gate', 'drifting-stones', 'lantern-lake'];
+test('the six-area journey goes directly from Sun & Moon Grove to Solgrinden with carried hearts', (t) => {
+    const expected = ['meadow', 'sun-moon', 'sun-gate', 'drifting-stones', 'lantern-lake', 'returning-glade'];
     assert.deepEqual(adventureJourney.levels, expected);
     assert.deepEqual(Object.keys(levelDefinitions), expected);
     assert.deepEqual(Object.keys(sceneDefinitions), expected);
@@ -92,7 +92,7 @@ test('menu switches are queued, reject locked IDs, and replays preserve the save
     assert.equal(areas[0].id, 'sun-gate');
     assert.deepEqual(
         menu.choices().map((level) => level.unlocked),
-        [true, true, true, false, false]
+        [true, true, true, false, false, false]
     );
     menu.select('lantern-lake');
     journey.update(1 / 60);
@@ -131,17 +131,17 @@ test('development selector allows all areas without changing saved unlocks', (t)
 test('defeat retries the current level; final victory and starting over retain unlocks', (t) => {
     const { progress, journey, areas } = fixture(t, adventureJourney.levels.slice(0, -1));
     const final = areas[0];
-    assert.equal(final.id, 'lantern-lake');
+    assert.equal(final.id, 'returning-glade');
     assert.equal(final.hooks.onComplete, undefined, 'the final area still shows the victory card');
     final.hooks.onRestart('over');
     journey.update(1 / 60);
-    assert.equal(areas[1].id, 'lantern-lake');
+    assert.equal(areas[1].id, 'returning-glade');
     areas[1].hooks.onLevelCompleted();
     assert.equal(areas[1].hooks.levelMenu.choices().at(-1).completed, true);
     areas[1].hooks.onRestart('won');
     journey.update(1 / 60);
     assert.equal(areas[2].id, 'meadow');
-    assert.equal(progress.checkpoint, 'lantern-lake');
+    assert.equal(progress.checkpoint, 'returning-glade');
     assert.ok(adventureJourney.levels.every((id) => progress.isUnlocked(id) && progress.isCompleted(id)));
 });
 
@@ -151,4 +151,20 @@ test('development journeys have no persistence or replay menu', (t) => {
     assert.equal(areas[1].hooks.onLevelCompleted, undefined);
     assert.equal(areas[1].hooks.levelMenu, undefined);
     inspected.destroy();
+});
+
+test('Lantern Lake now transitions to the sixth area with remaining hearts and no finale card', (t) => {
+    const { progress, journey, areas } = fixture(t, adventureJourney.levels.slice(0, 4));
+    assert.equal(areas[0].id, 'lantern-lake');
+    areas[0].update = () => {
+        areas[0].hooks.onLevelCompleted();
+        areas[0].hooks.onComplete(1);
+        assert.equal(areas.length, 1);
+    };
+    journey.update(1 / 60);
+    assert.equal(areas[1].id, 'returning-glade');
+    assert.equal(areas[1].hooks.stage, 6);
+    assert.equal(areas[1].hooks.initialHealth, 1);
+    assert.equal(areas[1].hooks.onComplete, undefined);
+    assert.equal(progress.checkpoint, 'returning-glade');
 });

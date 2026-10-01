@@ -26,12 +26,20 @@ export class ProgressStore {
             // Twin Bridges Isle was removed; resume its successor without losing saved progress.
             const checkpoint = data.furthestLevelId === 'twin-bridges' ? 'sun-gate' : data.furthestLevelId;
             if (data.version !== 1 || !levels.includes(checkpoint ?? '')) return;
-            const furthest = levels.indexOf(checkpoint!);
+            const completedThrough = levels.indexOf(checkpoint!);
+            let furthest = completedThrough;
             const completed = Array.isArray(data.completedLevelIds) ? data.completedLevelIds : [];
+            // A completed former finale unlocks the newly appended sixth area.
+            if (
+                checkpoint === 'lantern-lake' &&
+                completed.includes('lantern-lake') &&
+                levels[furthest + 1] === 'returning-glade'
+            )
+                furthest++;
             this.progress = {
                 version: 1,
                 furthestLevelId: levels[furthest],
-                completedLevelIds: levels.filter((id, index) => index <= furthest && completed.includes(id))
+                completedLevelIds: levels.filter((id, index) => index <= completedThrough && completed.includes(id))
             };
         } catch {
             // A corrupt save or denied storage must never prevent play.

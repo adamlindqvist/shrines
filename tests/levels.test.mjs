@@ -194,9 +194,9 @@ test('Drifting Stones platforms wake from the moon plate', () => {
     assert.ok(platforms.every((p) => p.state === 'dormant'));
 });
 
-test('the journey ends at Lantern Lake, whose permanent lanterns both open the final portal', () => {
+test('Lantern Lake leads into the sixth area and still requires both permanent lanterns', () => {
     const { adventureJourney } = journeyModule;
-    assert.equal(adventureJourney.levels.at(-1), 'lantern-lake');
+    assert.deepEqual(adventureJourney.levels.slice(-2), ['lantern-lake', 'returning-glade']);
     const level = levelDefinitions['lantern-lake'];
     const scene = sceneDefinitions['lantern-lake'];
     const open = level.rules.find((rule) => rule.actions.some((a) => a.type === 'openPortal'));

@@ -103,7 +103,8 @@ test('only opted-in plates create connectors, after all authored objects exist',
         const cast = buildDefinition(builder, definition);
         const connections = {
             'sun-gate': ['portal-plate', 'sun-portal-plate'],
-            'lantern-lake': ['moon-lantern', 'sun-lantern']
+            'lantern-lake': ['moon-lantern', 'sun-lantern'],
+            'returning-glade': ['shrine-moon', 'shrine-sun']
         };
         const connection = connections[definition.id];
         if (!connection) {

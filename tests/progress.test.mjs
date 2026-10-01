@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { PROGRESS_KEY, ProgressStore } from '../src/app/progress.ts';
 
-const levels = ['meadow', 'sun-moon', 'sun-gate', 'drifting-stones', 'lantern-lake'];
+const levels = ['meadow', 'sun-moon', 'sun-gate', 'drifting-stones', 'lantern-lake', 'returning-glade'];
 
 function storage(saved = null) {
     let value = saved;
@@ -50,7 +50,7 @@ test('final victory persists its completion and keeps every level available', ()
     const progress = new ProgressStore(levels, () => disk);
     levels.forEach((id) => progress.complete(id));
     const restored = new ProgressStore(levels, () => disk);
-    assert.equal(restored.checkpoint, 'lantern-lake');
+    assert.equal(restored.checkpoint, 'returning-glade');
     assert.ok(levels.every((id) => restored.isUnlocked(id) && restored.isCompleted(id)));
 });
 
@@ -136,7 +136,32 @@ test('later saved checkpoints ignore the retired level without losing remaining 
     );
     const progress = new ProgressStore(levels, () => disk);
     assert.equal(progress.checkpoint, 'lantern-lake');
-    assert.ok(levels.every((id) => progress.isUnlocked(id)));
-    assert.ok(levels.slice(0, -1).every((id) => progress.isCompleted(id)));
+    assert.ok(levels.slice(0, 5).every((id) => progress.isUnlocked(id)));
+    assert.equal(progress.isUnlocked('returning-glade'), false);
+    assert.ok(levels.slice(0, 4).every((id) => progress.isCompleted(id)));
     assert.equal(progress.isCompleted('twin-bridges'), false);
+});
+
+test('a completed former finale unlocks the sixth area without marking it completed', () => {
+    const disk = storage(
+        JSON.stringify({ version: 1, furthestLevelId: 'lantern-lake', completedLevelIds: levels.slice(0, 5) })
+    );
+    const progress = new ProgressStore(levels, () => disk);
+    assert.equal(progress.checkpoint, 'returning-glade');
+    assert.ok(levels.every((id) => progress.isUnlocked(id)));
+    assert.ok(levels.slice(0, 5).every((id) => progress.isCompleted(id)));
+    assert.equal(progress.isCompleted('returning-glade'), false);
+    progress.complete('meadow');
+    assert.equal(new ProgressStore(levels, () => disk).checkpoint, 'returning-glade');
+    assert.equal(JSON.parse(disk.getItem(PROGRESS_KEY)).version, 1);
+});
+
+test('unfinished or malformed former-finale completions never unlock the sixth area', () => {
+    for (const completedLevelIds of [levels.slice(0, 4), null, {}, 'lantern-lake']) {
+        const progress = new ProgressStore(levels, () =>
+            storage(JSON.stringify({ version: 1, furthestLevelId: 'lantern-lake', completedLevelIds }))
+        );
+        assert.equal(progress.checkpoint, 'lantern-lake');
+        assert.equal(progress.isUnlocked('returning-glade'), false);
+    }
 });
