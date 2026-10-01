@@ -23,8 +23,10 @@ export class ProgressStore {
             const saved: unknown = JSON.parse(this.storage().getItem(PROGRESS_KEY) ?? 'null');
             if (!saved || typeof saved !== 'object') return;
             const data = saved as Partial<JourneyProgress>;
-            if (data.version !== 1 || !levels.includes(data.furthestLevelId ?? '')) return;
-            const furthest = levels.indexOf(data.furthestLevelId!);
+            // Twin Bridges Isle was removed; resume its successor without losing saved progress.
+            const checkpoint = data.furthestLevelId === 'twin-bridges' ? 'sun-gate' : data.furthestLevelId;
+            if (data.version !== 1 || !levels.includes(checkpoint ?? '')) return;
+            const furthest = levels.indexOf(checkpoint!);
             const completed = Array.isArray(data.completedLevelIds) ? data.completedLevelIds : [];
             this.progress = {
                 version: 1,

@@ -15,7 +15,7 @@ registerHooks({
     }
 });
 const { createJourneyScene } = await import('../src/scenes/journey.ts');
-const { adventureJourney } = await import('../src/levels/index.ts');
+const { adventureJourney, levelDefinitions, sceneDefinitions } = await import('../src/levels/index.ts');
 const { ProgressStore } = await import('../src/app/progress.ts');
 
 function fixture(t, completed = [], allowLockedLevels = false) {
@@ -64,13 +64,35 @@ test('completion saves before transition and carries hearts; reload uses fresh h
     reload.destroy();
 });
 
+test('the five-area journey goes directly from Sun & Moon Grove to Solgrinden with carried hearts', (t) => {
+    const expected = ['meadow', 'sun-moon', 'sun-gate', 'drifting-stones', 'lantern-lake'];
+    assert.deepEqual(adventureJourney.levels, expected);
+    assert.deepEqual(Object.keys(levelDefinitions), expected);
+    assert.deepEqual(Object.keys(sceneDefinitions), expected);
+    const { progress, journey, areas } = fixture(t, ['meadow']);
+    assert.equal(areas[0].id, 'sun-moon');
+    areas[0].update = () => {
+        areas[0].hooks.onLevelCompleted();
+        areas[0].hooks.onComplete(2);
+    };
+    journey.update(1 / 60);
+    assert.equal(areas[1].id, 'sun-gate');
+    assert.equal(areas[1].hooks.stage, 3);
+    assert.equal(areas[1].hooks.initialHealth, 2);
+    assert.equal(progress.checkpoint, 'sun-gate');
+    assert.deepEqual(
+        areas[1].hooks.levelMenu.choices().map((level) => level.id),
+        expected
+    );
+});
+
 test('menu switches are queued, reject locked IDs, and replays preserve the saved checkpoint', (t) => {
-    const { progress, journey, areas } = fixture(t, ['meadow', 'sun-moon', 'twin-bridges']);
+    const { progress, journey, areas } = fixture(t, ['meadow', 'sun-moon']);
     const menu = areas[0].hooks.levelMenu;
     assert.equal(areas[0].id, 'sun-gate');
     assert.deepEqual(
         menu.choices().map((level) => level.unlocked),
-        [true, true, true, true, false, false]
+        [true, true, true, false, false]
     );
     menu.select('lantern-lake');
     journey.update(1 / 60);

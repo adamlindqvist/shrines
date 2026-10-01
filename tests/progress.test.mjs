@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { PROGRESS_KEY, ProgressStore } from '../src/app/progress.ts';
 
-const levels = ['meadow', 'sun-moon', 'twin-bridges', 'sun-gate', 'drifting-stones', 'lantern-lake'];
+const levels = ['meadow', 'sun-moon', 'sun-gate', 'drifting-stones', 'lantern-lake'];
 
 function storage(saved = null) {
     let value = saved;
@@ -24,10 +24,10 @@ test('a fresh journey unlocks only Meadow; three completions resume the fourth a
     assert.equal(progress.isUnlocked('sun-moon'), false);
     for (const id of levels.slice(0, 3)) progress.complete(id);
     const restored = new ProgressStore(levels, () => disk);
-    assert.equal(restored.checkpoint, 'sun-gate');
+    assert.equal(restored.checkpoint, 'drifting-stones');
     assert.ok(levels.slice(0, 3).every((id) => restored.isCompleted(id)));
-    assert.equal(restored.isUnlocked('sun-gate'), true);
-    assert.equal(restored.isUnlocked('drifting-stones'), false);
+    assert.equal(restored.isUnlocked('drifting-stones'), true);
+    assert.equal(restored.isUnlocked('lantern-lake'), false);
 });
 
 test('replays, invalid IDs and locked completion cannot move the checkpoint backwards or skip ahead', () => {
@@ -40,7 +40,7 @@ test('replays, invalid IDs and locked completion cannot move the checkpoint back
     progress.complete('sun-moon');
     progress.complete('meadow');
     const restored = new ProgressStore(levels, () => disk);
-    assert.equal(restored.checkpoint, 'twin-bridges');
+    assert.equal(restored.checkpoint, 'sun-gate');
     assert.equal(restored.isUnlocked('unknown'), false);
     assert.deepEqual(JSON.parse(disk.getItem(PROGRESS_KEY)).completedLevelIds, ['meadow', 'sun-moon']);
 });
@@ -75,12 +75,12 @@ test('saved IDs are sanitized and stay stable when a new level is appended', () 
     const disk = storage(
         JSON.stringify({
             version: 1,
-            furthestLevelId: 'twin-bridges',
+            furthestLevelId: 'sun-gate',
             completedLevelIds: ['meadow', 'removed', 'meadow', 5, 'lantern-lake']
         })
     );
     const progress = new ProgressStore([...levels, 'new-level'], () => disk);
-    assert.equal(progress.checkpoint, 'twin-bridges');
+    assert.equal(progress.checkpoint, 'sun-gate');
     assert.equal(progress.isCompleted('meadow'), true);
     assert.equal(progress.isCompleted('lantern-lake'), false);
     assert.equal(progress.isUnlocked('new-level'), false);
@@ -105,5 +105,38 @@ test('denied storage access and writes retain playable session progress', () => 
     }));
     full.complete('meadow');
     full.complete('sun-moon');
-    assert.equal(full.checkpoint, 'twin-bridges');
+    assert.equal(full.checkpoint, 'sun-gate');
+});
+
+test('a retired Twin Bridges checkpoint resumes Solgrinden and preserves earlier completions', () => {
+    const disk = storage(
+        JSON.stringify({
+            version: 1,
+            furthestLevelId: 'twin-bridges',
+            completedLevelIds: ['meadow', 'sun-moon']
+        })
+    );
+    const progress = new ProgressStore(levels, () => disk);
+    assert.equal(progress.checkpoint, 'sun-gate');
+    assert.ok(['meadow', 'sun-moon'].every((id) => progress.isCompleted(id)));
+    assert.equal(progress.isUnlocked('sun-gate'), true);
+    assert.equal(progress.isUnlocked('drifting-stones'), false);
+    assert.equal(progress.isUnlocked('twin-bridges'), false);
+    progress.complete('sun-gate');
+    assert.equal(JSON.parse(disk.getItem(PROGRESS_KEY)).furthestLevelId, 'drifting-stones');
+});
+
+test('later saved checkpoints ignore the retired level without losing remaining completions', () => {
+    const disk = storage(
+        JSON.stringify({
+            version: 1,
+            furthestLevelId: 'lantern-lake',
+            completedLevelIds: ['meadow', 'sun-moon', 'twin-bridges', 'sun-gate', 'drifting-stones']
+        })
+    );
+    const progress = new ProgressStore(levels, () => disk);
+    assert.equal(progress.checkpoint, 'lantern-lake');
+    assert.ok(levels.every((id) => progress.isUnlocked(id)));
+    assert.ok(levels.slice(0, -1).every((id) => progress.isCompleted(id)));
+    assert.equal(progress.isCompleted('twin-bridges'), false);
 });

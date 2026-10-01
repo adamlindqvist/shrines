@@ -120,7 +120,7 @@ function reachable(collision, target, radius = PLAYER.radius) {
 
 test('Lantern Lake keeps its journey position with two reusable stones and no platform or bridge transport', () => {
     validateLevel(level, scene);
-    assert.equal(adventureJourney.levels[5], scene.id);
+    assert.equal(adventureJourney.levels[4], scene.id);
     assert.equal(scene.objects.filter((o) => o.type === 'block').length, 2);
     assert.equal(scene.objects.filter((o) => o.type === 'plate' && o.mode === 'temporary').length, 3);
     assert.equal(

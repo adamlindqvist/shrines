@@ -115,9 +115,9 @@ for (const rotation of [0, 37, 90, -90]) {
     });
 }
 
-test('sun gate follows Twin Bridges and precedes Drifting Stones and validates reactive references', () => {
+test('sun gate follows Sun & Moon Grove and precedes Drifting Stones and validates reactive references', () => {
     const order = adventureJourney.levels;
-    assert.equal(order[order.indexOf('sun-gate') - 1], 'twin-bridges');
+    assert.equal(order[order.indexOf('sun-gate') - 1], 'sun-moon');
     assert.equal(order[order.indexOf('sun-gate') + 1], 'drifting-stones');
     for (const [mutate, pattern] of [
         [
