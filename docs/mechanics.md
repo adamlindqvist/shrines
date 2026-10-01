@@ -23,6 +23,7 @@ Defeating slimes is optional. Remaining hearts carry over between areas. Restart
 - The selector freezes gameplay, ambient motion, effects and action poses, clears held keyboard/touch input and blocks the canvas. Closing it or pressing Escape restores the previous title, playing, paused, victory or defeat screen. Keyboard navigation and button activation belong to the dialog, not gameplay.
 - Missing, corrupt, unsupported or obsolete saves fall back to Meadow. Unknown completed IDs are ignored. If browser storage is denied or full, the game remains playable and retains progress for the current session.
 - Development startup overrides (`?level=N`, a non-default `SCENE`, and `shrines.load(...)`) neither read player progress to choose the area nor write it, and do not show the selector.
+- In the default development adventure, the selector allows every journey area for testing, regardless of saved unlocks. Selecting an area does not change saved progress; production keeps the normal unlock restrictions.
 
 ## Tuning baseline
 

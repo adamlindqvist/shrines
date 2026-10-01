@@ -18,7 +18,7 @@ const { createJourneyScene } = await import('../src/scenes/journey.ts');
 const { adventureJourney } = await import('../src/levels/index.ts');
 const { ProgressStore } = await import('../src/app/progress.ts');
 
-function fixture(t, completed = []) {
+function fixture(t, completed = [], allowLockedLevels = false) {
     let saved = null;
     const storage = { getItem: () => saved, setItem: (_, value) => (saved = value) };
     const progress = new ProgressStore(adventureJourney.levels, () => storage);
@@ -35,7 +35,7 @@ function fixture(t, completed = []) {
             destroy: () => events.push(`destroy:${level.id}`)
         };
     };
-    const journey = createJourneyScene({}, progress.checkpoint, adventureJourney, progress);
+    const journey = createJourneyScene({}, progress.checkpoint, adventureJourney, progress, allowLockedLevels);
     t.after(() => {
         journey.destroy();
         delete globalThis.buildJourneyArea;
@@ -86,6 +86,24 @@ test('menu switches are queued, reject locked IDs, and replays preserve the save
     journey.update(1 / 60);
     assert.equal(areas[2].id, 'sun-moon');
     assert.equal(progress.checkpoint, 'sun-gate');
+});
+
+test('development selector allows all areas without changing saved unlocks', (t) => {
+    const { progress, journey, areas, storage } = fixture(t, [], true);
+    const menu = areas[0].hooks.levelMenu;
+    assert.ok(menu.choices().every((level) => level.unlocked));
+    menu.select('unknown');
+    journey.update(1 / 60);
+    assert.equal(areas.length, 1);
+    menu.select('lantern-lake');
+    assert.equal(areas.length, 1, 'scene changes are still queued');
+    journey.update(1 / 60);
+    assert.equal(areas[1].id, 'lantern-lake');
+    assert.equal(areas[1].hooks.initialHealth, 3);
+    assert.equal(areas[1].hooks.title, undefined);
+    assert.equal(progress.checkpoint, 'meadow');
+    assert.equal(progress.isUnlocked('lantern-lake'), false);
+    assert.equal(storage.getItem(), null);
 });
 
 test('defeat retries the current level; final victory and starting over retain unlocks', (t) => {

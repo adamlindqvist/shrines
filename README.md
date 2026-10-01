@@ -192,4 +192,6 @@ A scene factory receives the shared `AppContext` and returns `update(dt)`, `resi
 
 ### Select a scene
 
+In `npm run dev`, the default adventure's area selector lets you choose any of the six areas for testing, regardless of saved progress. Selecting an area does not unlock it in your save. Production keeps the normal unlock rules.
+
 Registered levels are exposed automatically in `src/scenes/index.ts`. The default `SCENE` in `src/main.ts` opens the saved adventure checkpoint; changing it to another ID overrides startup for inspection. In development, use `shrines.load('sun-moon')` or `?level=2` (its 1-based position among `levelDefinitions`' keys) to inspect another area, and `shrines.unload()` to check teardown. These inspection routes leave player saves untouched and omit the replay selector. Add `?debug=true` to walk at twice the normal speed (`PLAYER.debugSpeedScale`). URL overrides are ignored in production. `window.meadow` and the hidden `#diagnostics` output describe the active adventure area, including stage, remaining hearts, each block's symbol and lock state, activated plates, and camera position.

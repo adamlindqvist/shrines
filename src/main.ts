@@ -24,7 +24,9 @@ if (requestedScene) {
     // Development inspections are isolated from the player's save and unlocks.
     host.load(scenes[requestedScene]);
 } else if (SCENE === adventureJourney.restart) {
-    host.load((appContext) => createJourneyScene(appContext, progress.checkpoint, adventureJourney, progress));
+    host.load((appContext) =>
+        createJourneyScene(appContext, progress.checkpoint, adventureJourney, progress, import.meta.env.DEV)
+    );
 } else {
     host.load(scenes[SCENE]);
 }

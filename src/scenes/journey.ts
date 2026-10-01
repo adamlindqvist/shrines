@@ -11,7 +11,8 @@ export function createJourneyScene(
     context: AppContext,
     startAt = 'meadow',
     journey: JourneyDefinition = adventureJourney,
-    progress?: ProgressStore
+    progress?: ProgressStore,
+    allowLockedLevels = false
 ): SceneInstance {
     if (new Set(journey.levels).size !== journey.levels.length) throw new Error('Journey level IDs must be unique');
     if (!journey.levels.includes(startAt) || !journey.levels.includes(journey.restart))
@@ -38,13 +39,18 @@ export function createJourneyScene(
                           journey.levels.map((levelId) => ({
                               id: levelId,
                               name: sceneDefinitions[levelDefinitions[levelId].scene].name,
-                              unlocked: progress.isUnlocked(levelId),
+                              unlocked: allowLockedLevels || progress.isUnlocked(levelId),
                               completed: progress.isCompleted(levelId),
                               current: levelId === id,
                               checkpoint: levelId === progress.checkpoint
                           })),
                       select: (levelId) => {
-                          if (!journey.levels.includes(levelId) || !progress.isUnlocked(levelId) || pending) return;
+                          if (
+                              !journey.levels.includes(levelId) ||
+                              (!allowLockedLevels && !progress.isUnlocked(levelId)) ||
+                              pending
+                          )
+                              return;
                           pending = { id: levelId, health: levelDefinitions[levelId].hud.maxHealth };
                       }
                   }
