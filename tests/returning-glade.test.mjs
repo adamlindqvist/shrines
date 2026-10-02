@@ -151,6 +151,24 @@ function fixture() {
     };
     // Search with the real shore, dynamic blockers, shrine steps and resting boxes.
     const walk = (target) => {
+        // A box can now snap onto a plate the player stands on; walk out of its footprint first.
+        for (let step = 0; step < 100; step++) {
+            const inside = blocks
+                .map((b) => b.entity.getPosition())
+                .find(
+                    (b) => Math.abs(player.x - b.x) < PUZZLE.blockHalf && Math.abs(player.z - b.z) < PUZZLE.blockHalf
+                );
+            if (!inside) break;
+            const away = Math.hypot(player.x - inside.x, player.z - inside.z) || 1;
+            player = puzzle.resolvePlayer(
+                {
+                    x: player.x + ((player.x - inside.x) / away) * 0.05,
+                    z: player.z + ((player.z - inside.z) / away) * 0.05
+                },
+                player
+            );
+            tick();
+        }
         const route = path(collision, player, target, PLAYER.radius, puzzle.blockingBodies());
         assert.ok(route, `walking route from ${JSON.stringify(player)} to ${JSON.stringify(target)}`);
         for (const point of route) {

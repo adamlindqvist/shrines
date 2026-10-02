@@ -56,8 +56,12 @@ export const PUZZLE = {
     grabReach: 0.6,
     /** Clearance kept between the block's centre and obstacles. */
     blockRadius: 0.76,
-    /** The block snaps onto the switch within this distance. */
-    snapRadius: 0.55,
+    /** The block snaps onto the switch within this distance; generous so touch play can land it. */
+    snapRadius: 1.0,
+    /** Used while the player stands on the plate: the player's own footprint keeps the block at least `blockHalf` away. */
+    occupiedSnapRadius: 1.3,
+    /** Speed at which the player is eased out of a box that snapped onto the plate underneath. */
+    pushOutSpeed: 6,
     /** Resting height on a plate above the terrain. */
     plateHeight: 0.3,
     /** Visual hover height above the ground; collision stays on X/Z. */
@@ -167,6 +171,13 @@ export class BlockPuzzle {
         const plate = this.config.plates[b.plate];
         const p = b.handles.entity.getPosition();
         return Math.hypot(p.x - plate.x, p.z - plate.z) < PUZZLE.snapRadius && !this.collision.isWater(p.x, p.z);
+    }
+
+    /** Snap distance for a plate; wider while the player stands on it, since the player keeps the block `blockHalf` away. */
+    private snapRadiusFor(player: Point, plate: Point) {
+        const occupied =
+            Math.abs(player.x - plate.x) < PUZZLE.blockHalf && Math.abs(player.z - plate.z) < PUZZLE.blockHalf;
+        return occupied ? PUZZLE.occupiedSnapRadius : PUZZLE.snapRadius;
     }
 
     private plateReady(plate: PuzzlePlate) {
@@ -381,7 +392,7 @@ export class BlockPuzzle {
             const p = b.handles.entity.getPosition();
             if (b.pickupPlate >= 0) {
                 const from = this.config.plates[b.pickupPlate];
-                if (Math.hypot(p.x - from.x, p.z - from.z) >= PUZZLE.snapRadius) b.pickupPlate = -1;
+                if (Math.hypot(p.x - from.x, p.z - from.z) >= this.snapRadiusFor(player, from)) b.pickupPlate = -1;
             }
             const i = this.config.plates.findIndex(
                 (plate, index) =>
@@ -390,14 +401,11 @@ export class BlockPuzzle {
                     b.pickupPlate !== index &&
                     !(plate.mode === 'temporary' && this.collision.isWater(p.x, p.z)) &&
                     !this.blocks.some((other) => other.plate === index) &&
-                    Math.hypot(p.x - plate.x, p.z - plate.z) < PUZZLE.snapRadius
+                    Math.hypot(p.x - plate.x, p.z - plate.z) < this.snapRadiusFor(player, plate)
             );
             if (i < 0) continue;
             const plate = this.config.plates[i];
             if (this.overlapsBlocks(plate.x, plate.z, PUZZLE.blockRadius * 2, b)) continue;
-            // Do not snap onto the player when approaching from the far side.
-            if (Math.abs(player.x - plate.x) < PUZZLE.blockHalf && Math.abs(player.z - plate.z) < PUZZLE.blockHalf)
-                continue;
             b.locked = plate.mode !== 'temporary';
             b.plate = i;
             if (b === this.held) this.release();
@@ -413,6 +421,39 @@ export class BlockPuzzle {
         }
         this.plateStates().forEach((active, i) => this.paintPlate(i, active));
         return { clicked };
+    }
+
+    /**
+     * Eases the player out of a snapped box's footprint along the nearest free direction.
+     * Returns the new position, or null when nothing overlaps; skipped while carrying.
+     */
+    pushPlayerOut(player: Point, dt: number): Point | null {
+        if (this.held) return null;
+        const half = PUZZLE.blockHalf;
+        for (const b of this.blocks) {
+            if (b.plate < 0 || b.sink > 0) continue;
+            const p = b.handles.entity.getPosition();
+            const dx = player.x - p.x;
+            const dz = player.z - p.z;
+            if (Math.abs(dx) >= half || Math.abs(dz) >= half) continue;
+            // Exit directions, nearest edge first.
+            const exits = [
+                { x: Math.sign(dx) || 1, z: 0, gap: half - Math.abs(dx) },
+                { x: 0, z: Math.sign(dz) || 1, gap: half - Math.abs(dz) },
+                { x: -(Math.sign(dx) || 1), z: 0, gap: half + Math.abs(dx) },
+                { x: 0, z: -(Math.sign(dz) || 1), gap: half + Math.abs(dz) }
+            ].sort((a, c) => a.gap - c.gap);
+            for (const exit of exits) {
+                const step = Math.min(exit.gap + 0.02, PUZZLE.pushOutSpeed * dt);
+                const next = this.resolvePlayer(
+                    { x: player.x + exit.x * step, z: player.z + exit.z * step },
+                    player,
+                    true
+                );
+                if (next.x !== player.x || next.z !== player.z) return next;
+            }
+        }
+        return null;
     }
 
     /** Indices of unlocked blocks resting (not held) where `inside` holds, such as on a platform. */

@@ -29,14 +29,14 @@ Defeating slimes is optional. Remaining hearts carry over between areas. Restart
 
 ## Tuning baseline
 
-| Action         | Current baseline                                                                                                |
-| -------------- | --------------------------------------------------------------------------------------------------------------- |
-| Movement       | Normalized eight-way input, 8 units/s, exponential smoothing rate 14.                                           |
-| Sword          | 0.30 s swing/cooldown: 0.05 s anticipation, 0.12 s active slash, 0.13 s recovery; one hit per enemy per swing.  |
-| Slime attack   | 0.45 s visible windup, followed by a hit or miss cooldown.                                                      |
-| Slime reaction | Squash, knockback, stagger, and a 0.45 s death animation.                                                       |
-| Player damage  | Health feedback, a short shove and burst, and flashing during 1.2 s of invulnerability.                         |
-| Puzzle         | Block snaps within 0.55 units; switch changes material, portal rises, and toast/effect feedback marks progress. |
+| Action         | Current baseline                                                                                                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Movement       | Normalized eight-way input, 8 units/s, exponential smoothing rate 14.                                                                                                                                   |
+| Sword          | 0.30 s swing/cooldown: 0.05 s anticipation, 0.12 s active slash, 0.13 s recovery; one hit per enemy per swing.                                                                                          |
+| Slime attack   | 0.45 s visible windup, followed by a hit or miss cooldown.                                                                                                                                              |
+| Slime reaction | Squash, knockback, stagger, and a 0.45 s death animation.                                                                                                                                               |
+| Player damage  | Health feedback, a short shove and burst, and flashing during 1.2 s of invulnerability.                                                                                                                 |
+| Puzzle         | Block snaps within 1.0 unit (1.3 while the player stands on the plate, who is then eased out of the box at 6 units/s); switch changes material, portal rises, and toast/effect feedback marks progress. |
 
 ## Shield
 

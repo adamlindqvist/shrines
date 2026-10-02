@@ -1549,3 +1549,38 @@ test('plate connector follows the gameplay snapshot and freezes on pause, blur a
     game.reset();
     assert.deepEqual(states(), [false, false, false]);
 });
+
+test('a box held beside a plate snaps even while the player stands on the plate', () => {
+    const { puzzle, blocks } = fixture();
+    // Sun plate at (-3, -3): the box rests next to it and the player stands on the plate.
+    blocks[0].entity.setPosition(-3 + PUZZLE.blockHalf + 0.1, 0, -3);
+    const player = { x: -3, z: -3 };
+    assert.equal(puzzle.update(player).clicked.length, 1);
+    assert.equal(puzzle.diagnostics()[0].locked, true);
+    assert.equal(blocks[0].entity.getPosition().x, -3);
+});
+
+test('the wider snap applies only while the player stands on the plate', () => {
+    const { puzzle, blocks } = fixture();
+    blocks[0].entity.setPosition(-3 + 1.2, 0, -3);
+    assert.equal(puzzle.update({ x: -3 - 5, z: -3 }).clicked.length, 0);
+    assert.equal(puzzle.update({ x: -3, z: -3 }).clicked.length, 1);
+});
+
+test('a player inside a snapped box is eased out of its footprint and never pushed while carrying', () => {
+    const { puzzle, blocks } = fixture();
+    blocks[0].entity.setPosition(-3 + PUZZLE.blockHalf + 0.1, 0, -3);
+    let player = { x: -3, z: -3 };
+    assert.equal(puzzle.update(player).clicked.length, 1);
+    for (let i = 0; i < 30; i++) {
+        const next = puzzle.pushPlayerOut(player, 0.035);
+        if (!next) break;
+        player = next;
+    }
+    const box = blocks[0].entity.getPosition();
+    assert.ok(Math.abs(player.x - box.x) >= PUZZLE.blockHalf || Math.abs(player.z - box.z) >= PUZZLE.blockHalf);
+    assert.equal(puzzle.pushPlayerOut(player, 0.035), null);
+    // Holding another box suspends the push.
+    puzzle.interact({ x: 3, z: 3 + 1.3 });
+    assert.equal(puzzle.pushPlayerOut({ x: box.x, z: box.z }, 0.035), null);
+});

@@ -277,6 +277,9 @@ export class AdventureGame {
         if (this.state !== 'playing') return;
 
         const { clicked } = this.puzzle.update(player.position);
+        // A box that snapped onto the plate under the player eases them out instead of trapping them.
+        const pushed = this.puzzle.pushPlayerOut(player.position, dt);
+        if (pushed) player.moveTo(pushed.x, pushed.z);
         if (clicked.length) {
             this.announce(this.deps.level.text.matched);
             for (const plate of clicked) this.effects.burst(plate.x, plate.z, this.deps.palette.gold, 20);
