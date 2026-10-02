@@ -168,38 +168,13 @@ export const scene: SceneDefinition = {
 export const level: LevelDefinition = {
     id: 'lantern-lake',
     scene: 'lantern-lake',
-    hud: { ...DEFAULT_HUD, title: 'Lantern Lake · Sol och måne hjälps åt' },
+    hud: DEFAULT_HUD,
     text: {
         ...DEFAULT_TEXT,
-        matched: 'Klick! Plattan lyser.',
         won: { title: 'Alla lyktor lyser!', copy: 'Sol och måne hittade vägen tillsammans. Fint gjort!' },
         over: { title: 'Ett nytt försök?', copy: 'Stenarna väntar på dig. Du klarar det!' }
     },
     rules: [
-        {
-            id: 'light-west',
-            when: { type: 'plateActive', target: 'west-gate-plate' },
-            actions: [],
-            message: 'Solen lyser. Västra grinden öppnas!'
-        },
-        {
-            id: 'light-east-moon',
-            when: { type: 'plateActive', target: 'east-moon-plate' },
-            actions: [],
-            message: 'Månen lyser. Östra grinden öppnas!'
-        },
-        {
-            id: 'light-east-sun',
-            when: { type: 'plateActive', target: 'east-sun-plate' },
-            actions: [],
-            message: 'Även solen kan hålla östra grinden öppen.'
-        },
-        {
-            id: 'light-moon-lantern',
-            when: { type: 'plateActive', target: 'moon-lantern' },
-            actions: [],
-            message: 'Månlyktan lyser! Grinden stannar öppen och solplattan vaknar.'
-        },
         {
             id: 'open-portal',
             when: {
@@ -209,8 +184,7 @@ export const level: LevelDefinition = {
                     { type: 'plateActive', target: 'sun-lantern' }
                 ]
             },
-            actions: [{ type: 'openPortal', target: 'portal' }],
-            message: 'Båda lyktorna lyser! Portalen öppnar sig. Fint gjort!'
+            actions: [{ type: 'openPortal', target: 'portal' }]
         }
     ],
     completion: { type: 'portalReached', target: 'portal' }

@@ -143,26 +143,13 @@ export const scene: SceneDefinition = {
 export const level: LevelDefinition = {
     id: 'returning-glade',
     scene: 'returning-glade',
-    hud: { ...DEFAULT_HUD, title: 'Återvägens glänta · En ny väg hem' },
+    hud: DEFAULT_HUD,
     text: {
         ...DEFAULT_TEXT,
-        matched: 'Klick! Plattan lyser.',
         won: { title: 'Du hittade vägen!', copy: 'Sol och måne lyser tillsammans igen. Vilket fint äventyr!' },
         over: { title: 'Ett nytt försök?', copy: 'Gläntan väntar på dig. Ta det i din takt!' }
     },
     rules: [
-        {
-            id: 'open-court',
-            when: { type: 'plateActive', target: 'court-sun' },
-            actions: [],
-            message: 'Solen lyser. Gårdens grind öppnas!'
-        },
-        {
-            id: 'open-crossing',
-            when: { type: 'plateActive', target: 'crossing-moon' },
-            actions: [],
-            message: 'Månen lyser. Vägen över floden öppnas!'
-        },
         {
             id: 'raise-return-bridge',
             when: {
@@ -172,14 +159,7 @@ export const level: LevelDefinition = {
                     { type: 'plateActive', target: 'bridge-sun' }
                 ]
             },
-            actions: [{ type: 'openBridge', target: 'return-bridge' }],
-            message: 'Bron har rest sig och stannar uppe!'
-        },
-        {
-            id: 'light-moon',
-            when: { type: 'plateActive', target: 'shrine-moon' },
-            actions: [],
-            message: 'Månen lyser vid helgedomen. Solplattan vaknar!'
+            actions: [{ type: 'openBridge', target: 'return-bridge' }]
         },
         {
             id: 'open-portal',
@@ -190,8 +170,7 @@ export const level: LevelDefinition = {
                     { type: 'plateActive', target: 'shrine-sun' }
                 ]
             },
-            actions: [{ type: 'openPortal', target: 'portal' }],
-            message: 'Sol och måne är framme. Portalen öppnar sig!'
+            actions: [{ type: 'openPortal', target: 'portal' }]
         }
     ],
     completion: { type: 'portalReached', target: 'portal' }

@@ -123,26 +123,13 @@ export const scene: SceneDefinition = {
 export const level: LevelDefinition = {
     id: 'sun-gate',
     scene: 'sun-gate',
-    hud: { ...DEFAULT_HUD, title: 'Solgrinden · Hitta solen, hämta månen' },
+    hud: DEFAULT_HUD,
     text: {
         ...DEFAULT_TEXT,
-        matched: 'Klick! Plattan lyser.',
         won: { title: 'Vägen är öppen!', copy: 'Sol och måne hjälpte dig vidare. Fint gjort!' },
         over: { title: 'Ett nytt försök?', copy: 'Stenarna väntar på dig. Du klarar det!' }
     },
     rules: [
-        {
-            id: 'explain-gate',
-            when: { type: 'plateActive', target: 'gate-plate' },
-            actions: [],
-            message: 'Solstenen håller grinden öppen. Hämta månstenen!'
-        },
-        {
-            id: 'explain-sun-plate',
-            when: { type: 'plateActive', target: 'portal-plate' },
-            actions: [],
-            message: 'Månen är på plats! Hämta solen och följ stigen till solplattan vid helgedomen.'
-        },
         {
             id: 'open-portal',
             when: {
@@ -152,8 +139,7 @@ export const level: LevelDefinition = {
                     { type: 'plateActive', target: 'sun-portal-plate' }
                 ]
             },
-            actions: [{ type: 'openPortal', target: 'portal' }],
-            message: 'Sol och måne lyser! Portalen öppnar sig. Bra gjort!'
+            actions: [{ type: 'openPortal', target: 'portal' }]
         }
     ],
     completion: { type: 'portalReached', target: 'portal' }

@@ -9,7 +9,7 @@ This file applies to the whole repository. Preserve the project's identity when 
 
 Shrines is a small playable fantasy adventure: a hooded adventurer crosses six areas (Mossy Meadow → Sun & Moon Grove → Solgrinden → Drifting Stones → Lantern Lake → Återvägens glänta), solving box-and-plate puzzles that open gates, bridges, platforms and portals, with optional slime combat.
 
-The intended feel is warm, playful, tactile and welcoming. Movement responds promptly, enemies communicate their intentions, and solving a small puzzle feels rewarding. Keep the gentle tone of toast and end-card text, including encouraging language after defeat.
+The intended feel is warm, playful, tactile and welcoming. Movement responds promptly, enemies communicate their intentions, and solving a small puzzle feels rewarding. Keep the gentle tone of end-card text, including encouraging language after defeat.
 
 - **A readable little world.** Rounded silhouettes, oversized character features, chunky faceted rocks, clearly recognizable interactive objects.
 - **Room to play.** Broad continuous clearings with sparse perimeter decoration. Protect sightlines to the player and objectives.
@@ -59,7 +59,7 @@ Factories construct visuals; behavior lives in gameplay controllers with explici
 - Trees and rocks come from `src/assets/low_poly_nature_free.glb` (calibration in `src/rendering/nature-tuning.ts`, credit in `public/asset-credits.txt`); every SceneBuilder requires loaded NatureModels. Everything else is procedural. Introducing more imported art is a deliberate pipeline change.
 - Use `src/rendering/palette.ts`: clover greens, warm bark and stone, turquoise, sunshine gold, warm ivory, strawberry pink. Preserve the relative prominence of hero, puzzle objects and enemies; props must read at gameplay camera distance.
 - Start scenes from `CameraRig` and `MEADOW_LIGHTING`. All levels use `ADVENTURE_VIEW` (orthographic half-height ≥ 10, visible half-width ≥ 12; narrow viewports zoom out, same zoom in every level). Keep effects and lighting subordinate to readability; no routine camera shake or large flashes.
-- The HUD uses rounded cream panels, soft shadows, rounded typography and short friendly copy, driven by game state and separate from the 3D hierarchy. Noninteractive overlays pass pointer input to the canvas.
+- The HUD uses rounded cream panels, soft shadows, rounded typography and short friendly copy, driven by game state and separate from the 3D hierarchy. Noninteractive overlays pass pointer input to the canvas. During play the HUD shows only hearts; there are no toast messages, and the pause notice is the only in-play text.
 
 ## Animation and game feel
 

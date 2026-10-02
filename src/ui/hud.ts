@@ -1,7 +1,6 @@
 import type { TitleCard } from '../levels/types';
 
 export type HudOptions = {
-    title: string;
     maxHealth: number;
 };
 
@@ -14,7 +13,7 @@ export type LevelChoice = {
     checkpoint: boolean;
 };
 
-/** DOM overlay: hearts, controls, toast, title splash, end card and a hidden diagnostics readout. */
+/** DOM overlay: hearts, controls, pause notice, title splash, end card and a hidden diagnostics readout. */
 export class Hud {
     readonly root: HTMLDivElement;
     private readonly hearts: HTMLElement;
@@ -28,7 +27,6 @@ export class Hud {
     private readonly levelsButton: HTMLElement;
     private readonly hasLevels: boolean;
     private onStart: (() => void) | null = null;
-    private toastTimer = 0;
 
     private readonly options: HudOptions;
 
@@ -38,9 +36,8 @@ export class Hud {
         const hud = document.createElement('div');
         hud.id = 'hud';
         hud.classList.toggle('has-levels', !!onLevels);
-        hud.innerHTML = `<section class="health"><div class="eyebrow"></div><div id="hearts"></div></section><button id="levels-button" class="levels-button" hidden>Områden</button><div id="toast"></div><div id="overlay" hidden><div class="end-card"><span class="end-icon">☀️</span><h1 id="end-title"></h1><p id="end-copy"></p><button id="restart">Spela igen <span>↗</span></button><button id="end-levels" class="secondary-button" hidden>Välj område</button></div></div><div id="title" hidden><div class="title-card"><span class="title-icon">☀️</span><div class="title-eyebrow"></div><h1 class="title-name"></h1><p class="title-copy"></p><button id="start"><span class="start-label"></span> <span>↗</span></button><button id="title-levels" class="secondary-button" hidden>Välj område</button><p class="title-hint"><span class="hint-keys"></span><span class="hint-touch"></span></p></div></div><dialog id="level-menu" aria-labelledby="level-menu-title" aria-describedby="level-menu-copy"><div class="level-menu-heading"><h2 id="level-menu-title">Dina områden</h2><button id="close-levels" aria-label="Stäng områdesväljaren" autofocus>✕</button></div><p id="level-menu-copy">Besök en gammal favorit eller fortsätt framåt. Området börjar om när du väljer det.</p><div id="level-list"></div><p class="level-menu-note">Ditt längst nådda område sparas i den här webbläsaren.</p></dialog><output id="diagnostics" aria-hidden="true"></output>`;
+        hud.innerHTML = `<section class="health"><div id="hearts"></div></section><button id="levels-button" class="levels-button" hidden>Områden</button><div id="toast"></div><div id="overlay" hidden><div class="end-card"><span class="end-icon">☀️</span><h1 id="end-title"></h1><p id="end-copy"></p><button id="restart">Spela igen <span>↗</span></button><button id="end-levels" class="secondary-button" hidden>Välj område</button></div></div><div id="title" hidden><div class="title-card"><span class="title-icon">☀️</span><div class="title-eyebrow"></div><h1 class="title-name"></h1><p class="title-copy"></p><button id="start"><span class="start-label"></span> <span>↗</span></button><button id="title-levels" class="secondary-button" hidden>Välj område</button><p class="title-hint"><span class="hint-keys"></span><span class="hint-touch"></span></p></div></div><dialog id="level-menu" aria-labelledby="level-menu-title" aria-describedby="level-menu-copy"><div class="level-menu-heading"><h2 id="level-menu-title">Dina områden</h2><button id="close-levels" aria-label="Stäng områdesväljaren" autofocus>✕</button></div><p id="level-menu-copy">Besök en gammal favorit eller fortsätt framåt. Området börjar om när du väljer det.</p><div id="level-list"></div><p class="level-menu-note">Ditt längst nådda område sparas i den här webbläsaren.</p></dialog><output id="diagnostics" aria-hidden="true"></output>`;
         const find = (selector: string) => hud.querySelector<HTMLElement>(selector)!;
-        find('.eyebrow').textContent = options.title;
         this.hearts = find('#hearts');
         this.toastEl = find('#toast');
         this.overlay = find('#overlay');
@@ -70,14 +67,7 @@ export class Hud {
         ).join(' ');
     }
 
-    /** Shows a toast that fades after 2.6 seconds of play. */
-    announce(text: string) {
-        this.toastEl.textContent = text;
-        this.toastEl.classList.add('visible');
-        this.toastTimer = 2.6;
-    }
-
-    /** Shows a toast that stays until hidden. */
+    /** Shows a notice that stays until hidden. */
     notify(text: string) {
         this.toastEl.textContent = text;
         this.toastEl.classList.add('visible');
@@ -85,12 +75,6 @@ export class Hud {
 
     hideToast() {
         this.toastEl.classList.remove('visible');
-    }
-
-    /** Counts down the announcement timer; call only while play is running. */
-    tick(dt: number) {
-        this.toastTimer -= dt;
-        if (this.toastTimer < 0) this.hideToast();
     }
 
     showEnd(title: string, copy: string) {

@@ -226,7 +226,6 @@ export class AdventureGame {
             !this.puzzle.grabbed && this.sword.swing === 0 && this.splash === 0
         );
         this.touch.setGuarding(this.shield.raised);
-        this.hud.tick(dt);
 
         // Platforms move first so input resolves against where they are this frame.
         this.ridePlatforms(dt);
@@ -281,7 +280,6 @@ export class AdventureGame {
         const pushed = this.puzzle.pushPlayerOut(player.position, dt);
         if (pushed) player.moveTo(pushed.x, pushed.z);
         if (clicked.length) {
-            this.announce(this.deps.level.text.matched);
             for (const plate of clicked) this.effects.burst(plate.x, plate.z, this.deps.palette.gold, 20);
         }
         for (const bridge of this.bridges) bridge.update(dt);
@@ -341,7 +339,6 @@ export class AdventureGame {
                     }
                 }
             }
-            if (rule.message) this.announce(rule.message);
         }
         if (this.rules.complete) {
             this.deps.onLevelCompleted?.();
@@ -602,7 +599,6 @@ export class AdventureGame {
                 this.deps.palette.shieldRim,
                 this.deps.palette.grabSelected
             );
-            this.hud.announce('Bra blockerat!');
             return;
         }
         this.health--;
@@ -708,12 +704,6 @@ export class AdventureGame {
     private restart() {
         if (this.deps.onRestart) this.deps.onRestart(this.state === 'won' ? 'won' : 'over');
         else this.reset();
-    }
-
-    private announce(text: string) {
-        if (!text) return;
-        console.info(`[${this.deps.level.id}]`, text, this.diagnostics());
-        this.hud.announce(text);
     }
 
     private showEnd(next: 'won' | 'over') {

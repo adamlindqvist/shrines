@@ -49,17 +49,10 @@ canvas {
     left: 24px;
     padding: 13px 22px 13px;
 }
-.eyebrow {
-    font-size: 19px;
-    font-weight: 700;
-    letter-spacing: 0.015em;
-    color: #4a4941;
-}
 #hearts {
     font-size: 27px;
     letter-spacing: 4px;
     line-height: 1.25;
-    margin-top: 2px;
 }
 
 .controls {
@@ -582,9 +575,6 @@ kbd {
         top: 14px;
         left: 14px;
         padding: 10px 15px;
-    }
-    .eyebrow {
-        font-size: 14px;
     }
     #hearts {
         font-size: 20px;

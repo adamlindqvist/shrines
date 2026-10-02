@@ -121,13 +121,12 @@ export const level: LevelDefinition = {
     id: 'little-shrine',
     scene: 'little-shrine',
     hud: DEFAULT_HUD,
-    text: { ...DEFAULT_TEXT, matched: 'Klick! Solen lyser.' },
+    text: DEFAULT_TEXT,
     rules: [
         {
             id: 'open-portal',
             when: { type: 'plateActive', target: 'plate' },
-            actions: [{ type: 'openPortal', target: 'portal' }],
-            message: 'En portal öppnar sig!'
+            actions: [{ type: 'openPortal', target: 'portal' }]
         }
     ],
     completion: { type: 'portalReached', target: 'portal' }

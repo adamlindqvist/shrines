@@ -82,9 +82,8 @@ export type Condition =
     | { type: 'plateActive' | 'enemyDefeated' | 'portalReached' | 'zoneVisited'; target: string }
     | { type: 'all' | 'any'; conditions: Condition[] };
 export type Action = { type: 'openBridge' | 'openPortal' | 'activatePlatform'; target: string };
-export type RuleDefinition = { id: string; when: Condition; actions: Action[]; message?: string };
+export type RuleDefinition = { id: string; when: Condition; actions: Action[] };
 export type LevelText = {
-    matched: string;
     paused: string;
     won: { title: string; copy: string };
     over: { title: string; copy: string };

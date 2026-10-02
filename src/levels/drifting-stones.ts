@@ -153,14 +153,12 @@ export const level: LevelDefinition = {
             actions: [
                 { type: 'activatePlatform', target: 'west-stone' },
                 { type: 'activatePlatform', target: 'east-stone' }
-            ],
-            message: 'Stenarna vaknar och börjar glida över floden.'
+            ]
         },
         {
             id: 'open-portal',
             when: { type: 'plateActive', target: 'shrine-plate' },
-            actions: [{ type: 'openPortal', target: 'portal' }],
-            message: 'Klick! En portal öppnar sig.'
+            actions: [{ type: 'openPortal', target: 'portal' }]
         }
     ],
     completion: { type: 'portalReached', target: 'portal' }

@@ -1,8 +1,7 @@
 import type { CameraDefinition, LevelText } from './types';
 
-export const DEFAULT_HUD = { title: '', maxHealth: 3 };
+export const DEFAULT_HUD = { maxHealth: 3 };
 export const DEFAULT_TEXT: LevelText = {
-    matched: '',
     paused: 'Paus · tryck på en rörelsetangent eller klicka för att fortsätta',
     won: { title: '', copy: '' },
     over: { title: '', copy: '' }

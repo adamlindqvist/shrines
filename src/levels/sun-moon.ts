@@ -366,8 +366,7 @@ export const level: LevelDefinition = {
                     type: 'openPortal',
                     target: 'portal'
                 }
-            ],
-            message: 'Klick! En portal öppnar sig.'
+            ]
         }
     ],
     completion: {

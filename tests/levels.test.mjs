@@ -71,13 +71,12 @@ const fixtureLevel = {
     id: 'bridge-fixture',
     scene: 'bridge-fixture',
     hud: DEFAULT_HUD,
-    text: { ...DEFAULT_TEXT, matched: 'Klick! Solen lyser.' },
+    text: DEFAULT_TEXT,
     rules: [
         {
             id: 'raise-bridge',
             when: { type: 'plateActive', target: 'plate' },
-            actions: [{ type: 'openBridge', target: 'bridge' }],
-            message: 'Bron vaknar! Nu kan du gå över.'
+            actions: [{ type: 'openBridge', target: 'bridge' }]
         }
     ],
     completion: { type: 'portalReached', target: 'portal' }
