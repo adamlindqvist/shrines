@@ -93,7 +93,7 @@ Closed portals show a low, round sandstone seal with an ivory rim, a gold sun in
 
 ## Bridges
 
-Bridges are Z-aligned and permanently open once activated. Closed bridges rise from 2.4 units below their authored position over 0.8 gameplay seconds; their whole passage is blocked until fully open. River shore openings derive from bridge footprints.
+Bridges are Z-aligned and permanently open once activated. Closed bridges rise from 2.4 units below their authored position over 0.8 gameplay seconds; the water they span is blocked until fully open. On river terrain the blockers cover only the deck over or within 0.5 units of open water, so the sunk bridge's dry approaches stay walkable; curbs and pillars collide only once the bridge is open. River shore openings derive from bridge footprints.
 
 ## Platforms and water
 

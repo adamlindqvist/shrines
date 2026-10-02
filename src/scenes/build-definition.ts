@@ -3,8 +3,15 @@ import type { SceneDefinition, SceneObject } from '../levels/types';
 
 import type { SceneBuilder } from './builder';
 
-/** Shared data interpreter. Preserve list order: factories consume the seeded random stream. */
-export function buildDefinition(builder: SceneBuilder, definition: SceneDefinition): AdventureCast {
+/**
+ * Shared data interpreter. Preserve list order: factories consume the seeded random stream.
+ * `isWater` limits closed-bridge blockers to the water they span.
+ */
+export function buildDefinition(
+    builder: SceneBuilder,
+    definition: SceneDefinition,
+    isWater?: (x: number, z: number) => boolean
+): AdventureCast {
     const cast: AdventureCast = {
         player: null!,
         blocks: [],
@@ -43,7 +50,7 @@ export function buildDefinition(builder: SceneBuilder, definition: SceneDefiniti
                 builder.addShrineDais(object);
                 break;
             case 'bridge':
-                cast.bridges.push(builder.addBridge({ ...object, dynamic: object.state === 'closed' }));
+                cast.bridges.push(builder.addBridge({ ...object, dynamic: object.state === 'closed', isWater }));
                 break;
             case 'gate':
                 cast.gates.push(builder.addGate(object));

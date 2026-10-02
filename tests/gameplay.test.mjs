@@ -843,7 +843,7 @@ test('rules wait for the next snapshot, pause freezes bridge progress, reset cle
     game.bridges.push(
         new BridgeController(
             { type: 'bridge', id: 'bridge', x: 0, z: 0, length: 5, state: 'closed' },
-            { visual, blockers: [blocker] }
+            { visual, blockers: [blocker], structure: [] }
         )
     );
     blocks[1].entity.setPosition(3, 0, -3); // moon matches plate-1

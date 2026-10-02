@@ -256,10 +256,12 @@ for (const [label, change, pattern] of [
 test('bridge blocks throughout raising, opens once, and resets visual and collision', () => {
     const definition = { type: 'bridge', id: 'bridge', x: 0, z: 0, length: 7, state: 'closed' };
     const blocker = { x: 0, z: 0, r: 1 };
+    const curb = { x: 2.1, z: 0, r: 0.3 };
     const visual = new Entity();
-    const bridge = new BridgeController(definition, { visual, blockers: [blocker] });
-    const collision = new Collision([blocker], { minX: -5, maxX: 5, minZ: -5, maxZ: 5 });
+    const bridge = new BridgeController(definition, { visual, blockers: [blocker], structure: [curb] });
+    const collision = new Collision([blocker, curb], { minX: -5, maxX: 5, minZ: -5, maxZ: 5 });
     assert.equal(collision.overlaps(0, 0, 0.4), true);
+    assert.equal(collision.overlaps(2.1, 0, 0.1), false);
     assert.equal(visual.getLocalPosition().y, -2.4);
     bridge.open();
     bridge.update(0.4);
@@ -270,11 +272,13 @@ test('bridge blocks throughout raising, opens once, and resets visual and collis
     bridge.update(0.4);
     assert.equal(bridge.state, 'open');
     assert.equal(collision.overlaps(0, 0, 0.4), false);
+    assert.equal(collision.overlaps(2.1, 0, 0.1), true);
     assert.equal(visual.getLocalPosition().y, 0);
     assert.deepEqual(collision.resolve(0.1, 0), { x: 0.1, z: 0 });
     bridge.reset();
     assert.equal(bridge.state, 'closed');
     assert.equal(blocker.enabled, true);
+    assert.equal(curb.enabled, false);
 });
 
 test('portals open and reach independently, retain visits, and reset to authored locks', () => {
@@ -366,7 +370,7 @@ test('dynamic bridge footprint blocks every part of the passage for all actor ra
     const collision = new Collision(blockers, { minX: -20, maxX: 20, minZ: -20, maxZ: 20 });
     const controller = new BridgeController(
         { type: 'bridge', id: 'bridge', x: 4, z: -2, length: 7, state: 'closed' },
-        { visual: new Entity(), blockers }
+        { visual: new Entity(), blockers, structure: [] }
     );
     for (const radius of [0, 0.33, 0.4, 0.76]) {
         for (let x = 4 - BRIDGE.width / 2; x <= 4 + BRIDGE.width / 2; x += 0.1)

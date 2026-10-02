@@ -77,7 +77,7 @@ export function createAdventureArea(
     const island = 'kind' in scene.terrain ? river! : createIsland(terrain, root, scene.terrain);
     const builder = new SceneBuilder({ device, palette }, rand, root, nature);
     for (const o of river?.obstacles ?? []) builder.addObstacle(o.x, o.z, o.r);
-    const cast = buildDefinition(builder, scene);
+    const cast = buildDefinition(builder, scene, river?.isWater);
     createBackdrop({ device, resources }, root, island, scene.backdrop);
     // The sky draws from its own stream so it never shifts scenery generation.
     const sky = createSky({ device, resources }, root, island, {

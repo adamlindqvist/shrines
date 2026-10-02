@@ -7,7 +7,8 @@ import { BRIDGE } from '../objects/shrine';
 import type { Collision, Obstacle } from './collision';
 import type { Point } from './puzzle';
 
-export type BridgeHandles = { visual: Entity; blockers: Obstacle[] };
+/** `blockers` close the crossing until the bridge opens; `structure` (curbs, pillars) collides only once open. */
+export type BridgeHandles = { visual: Entity; blockers: Obstacle[]; structure: Obstacle[] };
 /**
  * `rise` is the whole opening in seconds and `spin` the resting swirl speed in radians/s.
  * `depth` is how far below the plinth the gate starts; it clears the lintel so nothing shows while buried.
@@ -32,22 +33,40 @@ const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
 const easeOutBack = (t: number, back: number) => 1 + (back + 1) * (t - 1) ** 3 + back * (t - 1) ** 2;
 export const BRIDGE_MOTION = { duration: 0.8, depth: 2.4 };
 
-/** Overlapping circles cover the whole deck, including both shore approaches. */
-export function createBridgeBlockers(x: number, z: number, length: number): Obstacle[] {
+/** Blockers reach this far past open water so walkers stop at the bank, as along the rest of the shore. */
+const BRIDGE_BLOCKER_MARGIN = 0.5;
+
+/**
+ * Overlapping circles cover the deck. With `isWater`, only circles over or beside open water are kept,
+ * so the dry approaches stay walkable while the bridge is sunk.
+ */
+export function createBridgeBlockers(
+    x: number,
+    z: number,
+    length: number,
+    isWater?: (x: number, z: number) => boolean
+): Obstacle[] {
     const blockers: Obstacle[] = [];
     const columns = Math.ceil(BRIDGE.width / 0.5);
     const rows = Math.ceil(length / 0.5);
     for (let column = 0; column <= columns; column++) {
         for (let row = 0; row <= rows; row++) {
-            blockers.push({
-                x: x - BRIDGE.width / 2 + (column / columns) * BRIDGE.width,
-                z: z - length / 2 + (row / rows) * length,
-                r: 0.36,
-                enabled: true
-            });
+            const bx = x - BRIDGE.width / 2 + (column / columns) * BRIDGE.width;
+            const bz = z - length / 2 + (row / rows) * length;
+            if (isWater && !nearWater(isWater, bx, bz)) continue;
+            blockers.push({ x: bx, z: bz, r: 0.36, enabled: true });
         }
     }
     return blockers;
+}
+
+function nearWater(isWater: (x: number, z: number) => boolean, x: number, z: number) {
+    if (isWater(x, z)) return true;
+    for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        if (isWater(x + Math.sin(a) * BRIDGE_BLOCKER_MARGIN, z + Math.cos(a) * BRIDGE_BLOCKER_MARGIN)) return true;
+    }
+    return false;
 }
 
 export class BridgeController {
@@ -81,6 +100,7 @@ export class BridgeController {
         const t = this.progress * this.progress * (3 - 2 * this.progress);
         this.handles.visual.setLocalPosition(0, BRIDGE_MOTION.depth * (t - 1), 0);
         for (const blocker of this.handles.blockers) blocker.enabled = this.state !== 'open';
+        for (const part of this.handles.structure) part.enabled = this.state === 'open';
     }
 }
 

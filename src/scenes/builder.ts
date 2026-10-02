@@ -150,39 +150,46 @@ export class SceneBuilder {
 
     /**
      * Stone bridge centred on (x, z) spanning `length` along Z. Its curbs and
-     * pillars collide, keeping walkers and carried blocks on the deck.
+     * pillars collide, keeping walkers and carried blocks on the deck. A `dynamic` bridge starts
+     * sunk: its curbs and pillars collide only once `BridgeController` opens it, and blockers close
+     * the crossing meanwhile (only near water when `isWater` is given).
      */
     addBridge({
         x,
         z,
         length,
-        dynamic = false
+        dynamic = false,
+        isWater
     }: {
         x: number;
         z: number;
         length: number;
         dynamic?: boolean;
+        isWater?: (x: number, z: number) => boolean;
     }): BridgeHandles {
         const root = this.place('stone bridge', { x, z });
         const visual = node(root, 'bridge deck');
         createStoneBridge(this.props, visual, length);
-        const blockers = dynamic ? createBridgeBlockers(x, z, length) : [];
+        const blockers = dynamic ? createBridgeBlockers(x, z, length, isWater) : [];
         this.obstacles.push(...blockers);
+        const structure: Obstacle[] = [];
         const curbX = BRIDGE.width / 2 - BRIDGE.parapetWidth / 2;
         // Curbs collide only between the pillars, so both ends open onto the meadow.
         const span = length - BRIDGE.pillarInset * 2;
         for (const side of [-1, 1]) {
             const steps = Math.ceil(span / 0.45);
             for (let i = 0; i <= steps; i++)
-                this.obstacles.push({ x: x + side * curbX, z: z - span / 2 + (span * i) / steps, r: 0.3 });
+                structure.push({ x: x + side * curbX, z: z - span / 2 + (span * i) / steps, r: 0.3 });
             for (const end of [-1, 1])
-                this.obstacles.push({
+                structure.push({
                     x: x + side * (BRIDGE.width / 2 - BRIDGE.pillarSize / 2 + 0.06),
                     z: z + end * (length / 2 - BRIDGE.pillarInset),
                     r: 0.52
                 });
         }
-        return { visual, blockers };
+        if (dynamic) for (const part of structure) part.enabled = false;
+        this.obstacles.push(...structure);
+        return { visual, blockers, structure: dynamic ? structure : [] };
     }
 
     /** Dry-land gate with permanent posts and a reversible passage blocker. */

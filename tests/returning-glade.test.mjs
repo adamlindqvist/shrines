@@ -95,7 +95,10 @@ function fixture() {
     const gates = scene.objects
         .filter((o) => o.type === 'gate')
         .map((def) => ({ def, gate: new GateController(def, builder.addGate(def)) }));
-    const bridge = new BridgeController(bridgeDef, builder.addBridge({ ...bridgeDef, dynamic: true }));
+    const bridge = new BridgeController(
+        bridgeDef,
+        builder.addBridge({ ...bridgeDef, dynamic: true, isWater: river.isWater })
+    );
     const layout = builder.finish();
     const collision = new Collision(layout.obstacles, scene.walkBounds, layout.surfaces);
     const config = {
@@ -276,6 +279,27 @@ test('the sixth area validates and closed crossings cannot be bypassed', () => {
     assert.ok(path(h.collision, scene.spawn, object('moon-box'), PLAYER.radius));
     h.gates[1].gate.update(1, true, []);
     assert.ok(path(h.collision, scene.spawn, object('bridge-sun'), PUZZLE.blockRadius));
+    h.root.destroy();
+});
+
+test('a sunk bridge blocks only the river; its dry approaches and footprint ends stay walkable', () => {
+    const h = fixture();
+    const { x, z, length } = bridgeDef;
+    const ends = [z - length / 2 + 0.6, z + length / 2 - 0.6];
+    for (const endZ of ends) {
+        // The deck's dry end, including where curbs and pillars stand once raised.
+        for (const dx of [-BRIDGE.width / 2 + 0.3, 0, BRIDGE.width / 2 - 0.3])
+            assert.equal(h.collision.overlaps(x + dx, endZ, PLAYER.radius), false);
+    }
+    assert.equal(h.collision.overlaps(x, z, PLAYER.radius), true);
+    assert.equal(path(h.collision, { x, z: ends[1] }, { x, z: ends[0] }, PLAYER.radius), null);
+    h.bridge.open();
+    h.bridge.update(1);
+    assert.ok(path(h.collision, { x, z: ends[1] }, { x, z: ends[0] }, PLAYER.radius));
+    // Raised curbs keep walkers on the deck.
+    assert.equal(h.collision.overlaps(x + BRIDGE.width / 2 - 0.25, z, PLAYER.radius), true);
+    h.bridge.reset();
+    assert.equal(h.collision.overlaps(x + BRIDGE.width / 2 - 0.25, ends[1], PLAYER.radius), false);
     h.root.destroy();
 });
 
